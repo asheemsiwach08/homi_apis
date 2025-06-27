@@ -1,0 +1,46 @@
+# Cursor Rules for WhatsApp OTP Verification API
+
+## Project Overview
+This is a FastAPI-based REST API for WhatsApp OTP verification using Gupshup API with Redis storage.
+
+## Code Style Guidelines
+- Use async/await for all API calls
+- Follow PEP 8 style guidelines
+- Use type hints for all function parameters and return values
+- Keep functions focused and single-purpose
+- Add docstrings for all public functions
+
+## File Organization
+- `main.py`: FastAPI application and endpoints only
+- `config.py`: Configuration and environment variables
+- `database.py`: Redis operations and database logic
+- `whatsapp_service.py`: External API integrations
+- `models.py`: Pydantic models for validation
+
+## Security Rules
+- Never log OTP values
+- Use environment variables for sensitive data
+- Validate all input data
+- Implement proper error handling
+- Use HTTPS in production
+
+## API Design Rules
+- Use consistent response format
+- Implement proper HTTP status codes
+- Add comprehensive error messages
+- Use Pydantic for request/response validation
+- Keep endpoints RESTful
+
+## Testing Guidelines
+- Test all endpoints with valid and invalid data
+- Mock external API calls in tests
+- Test OTP expiry functionality
+- Verify Redis operations
+- Test error scenarios
+
+## Documentation Requirements
+- Update README.md for any major changes
+- Keep API documentation current
+- Document environment variables
+- Provide usage examples
+- Include troubleshooting section 

@@ -3,7 +3,6 @@ version: '3.8'
 services:
   whatsapp-otp-api:
     build: .
-    container_name: whatsapp-otp-api
     ports:
       - "8000:8000"
     environment:
@@ -24,12 +23,6 @@ services:
     env_file:
       - .env
     restart: unless-stopped
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 40s
     volumes:
       - ./logs:/app/logs
     networks:

@@ -123,7 +123,6 @@ A FastAPI-based REST API for sending, resending, and verifying WhatsApp OTP usin
 
    # Run the container
    docker run -d \
-     --name whatsapp-otp-api \
      -p 8000:8000 \
      --env-file .env \
      whatsapp-otp-api
@@ -305,7 +304,6 @@ otpVerification/
 ### Dockerfile
 - **Multi-stage build** for optimized image size
 - **Security-focused** with non-root user
-- **Health checks** for container monitoring
 - **Python 3.11** slim base image
 - **System dependencies** for PostgreSQL support
 
@@ -392,13 +390,13 @@ The API includes comprehensive error handling:
 1. **Build errors**: Check Dockerfile and requirements.txt
 2. **Environment variables**: Ensure .env file is properly configured
 3. **Port conflicts**: Change port mapping if 8000 is in use
-4. **Health check failures**: Check if the API is responding properly
+4. **Container logs**: Check logs with `docker logs <container_id>`
 
 ### Quick Debug Steps
 1. **Check configuration**: `curl http://localhost:8000/debug/whatsapp`
 2. **Check request format**: `curl http://localhost:8000/debug/test-request`
 3. **Run test script**: `python test_api.py`
-4. **Check Docker logs**: `docker logs whatsapp-otp-api`
+4. **Check Docker logs**: `docker logs <container_id>`
 
 ## Contributing
 

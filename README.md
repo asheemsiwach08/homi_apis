@@ -1,22 +1,26 @@
 # WhatsApp OTP Verification API
 
-A FastAPI-based REST API for sending, resending, and verifying WhatsApp OTP using the Gupshup API. The OTP is valid for 3 minutes and uses local in-memory storage.
+A FastAPI-based REST API for sending, resending, and verifying WhatsApp OTP using the Gupshup API. The OTP is valid for 3 minutes and uses Supabase PostgreSQL for storage with automatic fallback to local storage.
 
 ## Features
 
-- ✅ Send OTP via WhatsApp
+- ✅ Send OTP via WhatsApp using Gupshup API
 - ✅ Resend OTP functionality
 - ✅ Verify OTP with 3-minute expiry
-- ✅ Local in-memory OTP storage
+- ✅ Supabase PostgreSQL OTP storage
+- ✅ Automatic fallback to local storage
 - ✅ Phone number validation
 - ✅ Comprehensive error handling
 - ✅ Async/await support
 - ✅ Environment variable configuration
+- ✅ Debug endpoints for troubleshooting
+- ✅ Test script included
 
 ## Prerequisites
 
 - Python 3.8+
 - Gupshup WhatsApp API account
+- Supabase account and project (optional - falls back to local storage)
 
 ## Installation
 
@@ -45,11 +49,32 @@ A FastAPI-based REST API for sending, resending, and verifying WhatsApp OTP usin
    GUPSHUP_SRC_NAME=your_src_name
    GUPSHUP_API_URL=https://api.gupshup.io/wa/api/v1/template/msg
 
+   # Supabase Configuration (Optional - falls back to local storage if not configured)
+   SUPABASE_URL=your_supabase_project_url
+   SUPABASE_ANON_KEY=your_supabase_anon_key
+   SUPABASE_SERVICE_ROLE_KEY=your_supabase_service_role_key
+
    # OTP Configuration
    OTP_EXPIRY_MINUTES=3
    ```
 
-4. **Run the application**
+4. **Set up Supabase (Optional)**
+   
+   **a. Create a Supabase project:**
+   - Go to [supabase.com](https://supabase.com)
+   - Create a new project
+   - Note down your project URL and API keys
+   
+   **b. Create the database table:**
+   - Go to your Supabase dashboard
+   - Navigate to SQL Editor
+   - Run the SQL script from `supabase_setup.sql`
+   
+   **c. Get your API keys:**
+   - Go to Settings > API
+   - Copy your Project URL, anon key, and service_role key
+
+5. **Run the application**
    ```bash
    python main.py
    ```
@@ -79,7 +104,8 @@ Send OTP to a phone number via WhatsApp.
   "success": true,
   "message": "OTP sent successfully",
   "data": {
-    "phone_number": "+1234567890"
+    "phone_number": "+1234567890",
+    "otp": "123456"
   }
 }
 ```
@@ -102,7 +128,8 @@ Resend OTP to a phone number (generates new OTP).
   "success": true,
   "message": "OTP resent successfully",
   "data": {
-    "phone_number": "+1234567890"
+    "phone_number": "+1234567890",
+    "otp": "123456"
   }
 }
 ```
@@ -143,6 +170,15 @@ Check if the API is running.
   "message": "WhatsApp OTP API is running"
 }
 ```
+
+### 5. Debug Endpoints
+**GET** `/debug/whatsapp`
+
+Check WhatsApp service configuration.
+
+**GET** `/debug/test-request`
+
+Show the exact request format being sent to Gupshup.
 
 ## API Documentation
 
@@ -191,31 +227,54 @@ response = requests.post("http://localhost:8000/verify-otp",
 print(response.json())
 ```
 
+### Using the Test Script
+
+```bash
+python test_api.py
+```
+
 ## Project Structure
 
 ```
 otpVerification/
 ├── main.py              # FastAPI application and endpoints
 ├── config.py            # Configuration and environment variables
-├── database.py          # Local OTP storage implementation
+├── database.py          # Supabase/local OTP storage implementation
 ├── whatsapp_service.py  # Gupshup API integration
 ├── models.py            # Pydantic models for validation
 ├── requirements.txt     # Python dependencies
 ├── env.example          # Environment variables template
+├── supabase_setup.sql   # Supabase table creation script
+├── test_api.py          # Test script for API endpoints
+├── .gitignore           # Git ignore rules
+├── .cursorrules         # Cursor editor rules
 └── README.md           # Project documentation
 ```
 
 ## Storage Solution
 
-The API uses **local in-memory storage** for OTP management:
+The API uses **Supabase PostgreSQL** for OTP management with automatic fallback to local storage:
 
+- ✅ **Persistent storage** - OTPs survive server restarts (Supabase)
+- ✅ **Automatic fallback** - Falls back to local storage if Supabase unavailable
 - ✅ **Automatic expiry** - OTPs expire after 3 minutes
-- ✅ **Thread-safe** - Uses locks for concurrent access
-- ✅ **No external dependencies** - No database setup required
-- ✅ **Fast performance** - In-memory operations
-- ✅ **Automatic cleanup** - Expired OTPs are removed automatically
+- ✅ **Scalable** - Supports multiple server instances
+- ✅ **Secure** - Row-level security and proper authentication
+- ✅ **Automatic cleanup** - Expired OTPs are marked as used
+- ✅ **Thread-safe** - Local storage uses locks for concurrent access
 
-**Note**: OTPs are stored in memory and will be lost if the server restarts. For production use with multiple server instances, consider using Redis or a database.
+### Database Schema (Supabase)
+
+```sql
+CREATE TABLE otp_storage (
+    id SERIAL PRIMARY KEY,
+    phone_number VARCHAR(20) NOT NULL,
+    otp VARCHAR(10) NOT NULL,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    expires_at TIMESTAMP WITH TIME ZONE NOT NULL,
+    is_used BOOLEAN DEFAULT FALSE
+);
+```
 
 ## Error Handling
 
@@ -226,15 +285,39 @@ The API includes comprehensive error handling:
 - **Invalid OTP**: Returns error message
 - **API failures**: Returns detailed error information
 - **Network issues**: Handles timeouts and connection errors
+- **Database errors**: Graceful fallback to local storage
+- **Gupshup API errors**: Proper status code handling (202 = success)
 
 ## Security Considerations
 
-- OTPs are stored in memory with automatic expiry
-- OTPs are deleted after successful verification
+- OTPs are stored securely in Supabase PostgreSQL or local memory
+- OTPs are automatically marked as used after expiry
 - Phone number validation is implemented
 - Environment variables for sensitive configuration
 - No OTP logging for security
+- Row-level security support in Supabase
+- Service role authentication for database access
 - Thread-safe operations for concurrent access
+
+## Troubleshooting
+
+### Supabase Connection Issues
+1. **Check API keys**: Verify your Supabase URL and service role key
+2. **Check table**: Ensure the `otp_storage` table exists (run `supabase_setup.sql`)
+3. **Check permissions**: Verify service role has proper permissions
+4. **Fallback**: The system will automatically fall back to local storage
+
+### WhatsApp Delivery Issues
+1. **Check Gupshup configuration**: Verify API key and template ID
+2. **Check phone number**: Ensure correct international format
+3. **Check template approval**: Verify template is approved by WhatsApp
+4. **Check account status**: Ensure Gupshup account is active
+5. **Status 202**: This is normal - means message is queued for delivery
+
+### Quick Debug Steps
+1. **Check configuration**: `curl http://localhost:8000/debug/whatsapp`
+2. **Check request format**: `curl http://localhost:8000/debug/test-request`
+3. **Run test script**: `python test_api.py`
 
 ## Contributing
 

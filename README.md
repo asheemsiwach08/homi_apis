@@ -87,7 +87,7 @@ A FastAPI-based REST API for sending, resending, and verifying WhatsApp OTP usin
    
    Or using uvicorn directly:
    ```bash
-   uvicorn main:app --host 0.0.0.0 --port 8000 --reload
+   uvicorn main:app --host 0.0.0.0 --port 5000 --reload
    ```
 
 ### Option 2: Docker Deployment
@@ -123,7 +123,7 @@ A FastAPI-based REST API for sending, resending, and verifying WhatsApp OTP usin
 
    # Run the container
    docker run -d \
-     -p 8000:8000 \
+     -p 5000:5000 \
      --env-file .env \
      whatsapp-otp-api
    ```
@@ -227,8 +227,8 @@ Show the exact request format being sent to Gupshup.
 ## API Documentation
 
 Once the server is running, you can access:
-- **Interactive API docs**: http://localhost:8000/docs
-- **ReDoc documentation**: http://localhost:8000/redoc
+- **Interactive API docs**: http://localhost:5000/docs
+- **ReDoc documentation**: http://localhost:5000/redoc
 
 ## Usage Examples
 
@@ -236,21 +236,21 @@ Once the server is running, you can access:
 
 1. **Send OTP:**
    ```bash
-   curl -X POST "http://localhost:8000/otp/send" \
+   curl -X POST "http://localhost:5000/otp/send" \
         -H "Content-Type: application/json" \
         -d '{"phone_number": "+1234567890"}'
    ```
 
 2. **Resend OTP:**
    ```bash
-   curl -X POST "http://localhost:8000/otp/resend" \
+   curl -X POST "http://localhost:5000/otp/resend" \
         -H "Content-Type: application/json" \
         -d '{"phone_number": "+1234567890"}'
    ```
 
 3. **Verify OTP:**
    ```bash
-   curl -X POST "http://localhost:8000/otp/verify" \
+   curl -X POST "http://localhost:5000/otp/verify" \
         -H "Content-Type: application/json" \
         -d '{"phone_number": "+1234567890", "otp": "123456"}'
    ```
@@ -261,12 +261,12 @@ Once the server is running, you can access:
 import requests
 
 # Send OTP
-response = requests.post("http://localhost:8000/otp/send", 
+response = requests.post("http://localhost:5000/otp/send", 
                         json={"phone_number": "+1234567890"})
 print(response.json())
 
 # Verify OTP
-response = requests.post("http://localhost:8000/otp/verify", 
+response = requests.post("http://localhost:5000/otp/verify", 
                         json={"phone_number": "+1234567890", "otp": "123456"})
 print(response.json())
 ```
@@ -389,12 +389,12 @@ The API includes comprehensive error handling:
 ### Docker Issues
 1. **Build errors**: Check Dockerfile and requirements.txt
 2. **Environment variables**: Ensure .env file is properly configured
-3. **Port conflicts**: Change port mapping if 8000 is in use
+3. **Port conflicts**: Change port mapping if 5000 is in use
 4. **Container logs**: Check logs with `docker logs <container_id>`
 
 ### Quick Debug Steps
-1. **Check configuration**: `curl http://localhost:8000/debug/whatsapp`
-2. **Check request format**: `curl http://localhost:8000/debug/test-request`
+1. **Check configuration**: `curl http://localhost:5000/debug/whatsapp`
+2. **Check request format**: `curl http://localhost:5000/debug/test-request`
 3. **Run test script**: `python test_api.py`
 4. **Check Docker logs**: `docker logs <container_id>`
 

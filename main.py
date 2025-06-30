@@ -64,7 +64,14 @@ async def debug_test_request():
 @router.post("/send", response_model=OTPResponse)
 async def send_otp(request: SendOTPRequest):
     """Send OTP to the specified phone number"""
-    print("Settings: ", settings)
+    print("Settings: ")
+    print("GUPSHUP_API_KEY: ", settings.GUPSHUP_API_KEY)
+    print("GUPSHUP_SOURCE: ", settings.GUPSHUP_SOURCE)
+    print("GUPSHUP_TEMPLATE_ID: ", settings.GUPSHUP_TEMPLATE_ID)
+    print("GUPSHUP_SRC_NAME: ", settings.GUPSHUP_SRC_NAME)
+    print("GUPSHUP_API_URL: ", settings.GUPSHUP_API_URL)
+    print("OTP_EXPIRY_MINUTES: ", settings.OTP_EXPIRY_MINUTES)
+    
     if not validate_phone_number(request.phone_number):
         raise HTTPException(status_code=400, detail="Invalid phone number format")
 
@@ -86,6 +93,7 @@ async def send_otp(request: SendOTPRequest):
     # Send OTP via WhatsApp
     result = await whatsapp_service.send_otp(request.phone_number, otp)
     print("Debug 4: Send OTP")
+    print("Debug 4.1: Result: ", result)
     
     if result["success"]:
         # Store OTP locally with expiry

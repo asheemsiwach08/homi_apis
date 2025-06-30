@@ -74,6 +74,62 @@ pipeline{
                 sh 'docker push ${DOCKER_REGISTRY}/${DOCKER_TAG}'
             }
         }
-    }
 
+        stage('Stop and Remove Old Docker Container Running on Port 9001') {
+            steps {
+                sh '''
+                    container_id=$(docker ps -q --filter "publish=9001")
+                    if [ -n "$container_id" ]; then
+                        docker stop $container_id
+                        docker rm $container_id
+                        echo 'Old container stopped and removed'
+                    else
+                        echo 'No container running on port 9001'
+                    fi
+                '''
+            }
+        }
+
+        stage('Run New Docker Container on Port 9000') {
+            steps {
+                withCredentials([usernamePassword(credentialsId: 'aws-credentials', usernameVariable: 'AWS_ACCESS_KEY_ID', passwordVariable: 'AWS_SECRET_ACCESS_KEY')]) {
+                    sh '''
+                        bash -c '
+                        export AWS_ACCESS_KEY_ID="$AWS_ACCESS_KEY_ID"
+                        export AWS_SECRET_ACCESS_KEY="$AWS_SECRET_ACCESS_KEY"
+                        docker run -d -p 9001:9001 \
+                            -e AWS_ACCESS_KEY_ID="$AWS_ACCESS_KEY_ID" \
+                            -e AWS_SECRET_ACCESS_KEY="$AWS_SECRET_ACCESS_KEY" \
+                            ${DOCKER_REGISTRY}/${DOCKER_TAG}
+                        '
+                    '''
+                }
+            }
+        }
+    }
+    post {
+        success {
+            slackSend (
+                tokenCredentialId: 'slack_channel_secret',
+                message: "✅ Build SUCCESSFUL: GUPSHUP${env.JOB_NAME} [${env.BUILD_NUMBER}]",
+                channel: '#jenekin_update',
+                color: 'good',
+                iconEmoji: ':white_check_mark:',
+                username: 'Jenkins'
+            )
+        }
+        failure {
+            slackSend (
+                tokenCredentialId: 'slack_channel_secret',
+                message: "❌ Build FAILED: ${env.JOB_NAME} [${env.BUILD_NUMBER}]",
+                channel: '#jenekin_update',
+                color: 'danger',
+                iconEmoji: ':x:',
+                username: 'Jenkins'
+            )
+        }
+        always {
+            cleanWs()
+        }
+    }
 }

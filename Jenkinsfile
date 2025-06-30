@@ -90,14 +90,14 @@ pipeline{
             }
         }
 
-        stage('Run New Docker Container on Port 9000') {
+        stage('Run New Docker Container on Port 5000') {
             steps {
                 withCredentials([usernamePassword(credentialsId: 'aws-credentials', usernameVariable: 'AWS_ACCESS_KEY_ID', passwordVariable: 'AWS_SECRET_ACCESS_KEY')]) {
                     sh '''
                         bash -c '
                         export AWS_ACCESS_KEY_ID="$AWS_ACCESS_KEY_ID"
                         export AWS_SECRET_ACCESS_KEY="$AWS_SECRET_ACCESS_KEY"
-                        docker run -d -p 9001:9001 \
+                        docker run -d -p 5000:5000 \
                             -e AWS_ACCESS_KEY_ID="$AWS_ACCESS_KEY_ID" \
                             -e AWS_SECRET_ACCESS_KEY="$AWS_SECRET_ACCESS_KEY" \
                             ${DOCKER_REGISTRY}/${DOCKER_TAG}

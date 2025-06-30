@@ -25,9 +25,9 @@ pipeline{
         stage('Inject .env from Jenkins Secret File') {
             steps {
                 withCredentials([file(credentialsId: 'gupshup', variable: 'ENV_FILE')]) {
-                    sh 'rm -f .env'
-                    sh 'cat .env'
-                    sh 'cp $ENV_FILE .env'
+                    sh 'rm -f .env2'
+                    sh 'cat .env2'
+                    sh 'cp $ENV_FILE .env2'
                 }
             }
         }

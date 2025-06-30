@@ -29,7 +29,7 @@ def test_send_otp(phone_number):
     print(f"📱 Testing send OTP to {phone_number}...")
     try:
         response = requests.post(
-            f"{BASE_URL}/send-otp",
+            f"{BASE_URL}/otp/send",
             json={"phone_number": phone_number}
         )
         print(f"Status: {response.status_code}")
@@ -50,7 +50,7 @@ def test_resend_otp(phone_number):
     print(f"🔄 Testing resend OTP to {phone_number}...")
     try:
         response = requests.post(
-            f"{BASE_URL}/resend-otp",
+            f"{BASE_URL}/otp/resend",
             json={"phone_number": phone_number}
         )
         print(f"Status: {response.status_code}")
@@ -71,7 +71,7 @@ def test_verify_otp(phone_number, otp):
     print(f"🔐 Testing verify OTP for {phone_number} with OTP: {otp}...")
     try:
         response = requests.post(
-            f"{BASE_URL}/verify-otp",
+            f"{BASE_URL}/otp/verify",
             json={"phone_number": phone_number, "otp": otp}
         )
         print(f"Status: {response.status_code}")
@@ -92,7 +92,7 @@ def test_invalid_phone_number():
     print("🚫 Testing with invalid phone number...")
     try:
         response = requests.post(
-            f"{BASE_URL}/send-otp",
+            f"{BASE_URL}/otp/send",
             json={"phone_number": "invalid_phone"}
         )
         print(f"Status: {response.status_code}")
@@ -144,6 +144,11 @@ def main():
     
     print("\n💡 Note: For actual OTP testing, replace the test phone number with a real one.")
     print("💡 The verify OTP test uses a dummy OTP and will fail unless you use the actual OTP sent.")
+    print("\n🔗 New API Endpoints:")
+    print("   - POST /otp/send")
+    print("   - POST /otp/resend") 
+    print("   - POST /otp/verify")
+    print("   - GET /health")
 
 if __name__ == "__main__":
     main() 

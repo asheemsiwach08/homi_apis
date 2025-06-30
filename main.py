@@ -1,9 +1,12 @@
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, APIRouter
 from models import SendOTPRequest, ResendOTPRequest, VerifyOTPRequest, OTPResponse
 from whatsapp_service import whatsapp_service
 from database import otp_storage
 from config import settings
 import re
+
+# Create API router with prefix
+router = APIRouter(prefix="/otp", tags=["OTP Operations"])
 
 app = FastAPI(
     title="WhatsApp OTP Verification API",
@@ -57,7 +60,7 @@ async def debug_test_request():
         "note": "This shows the exact request that would be sent to Gupshup"
     }
 
-@app.post("/send-otp", response_model=OTPResponse)
+@router.post("/send", response_model=OTPResponse)
 async def send_otp(request: SendOTPRequest):
     """Send OTP to the specified phone number"""
     if not validate_phone_number(request.phone_number):
@@ -94,7 +97,7 @@ async def send_otp(request: SendOTPRequest):
             data=result.get("data", {"error": "Unknown error"})
         )
 
-@app.post("/resend-otp", response_model=OTPResponse)
+@router.post("/resend", response_model=OTPResponse)
 async def resend_otp(request: ResendOTPRequest):
     """Resend OTP to the specified phone number"""
     if not validate_phone_number(request.phone_number):
@@ -123,7 +126,7 @@ async def resend_otp(request: ResendOTPRequest):
             data=result.get("data", {"error": "Unknown error"})
         )
 
-@app.post("/verify-otp", response_model=OTPResponse)
+@router.post("/verify", response_model=OTPResponse)
 async def verify_otp(request: VerifyOTPRequest):
     """Verify OTP for the specified phone number"""
     if not validate_phone_number(request.phone_number):
@@ -160,6 +163,9 @@ async def verify_otp(request: VerifyOTPRequest):
 async def health_check():
     """Health check endpoint"""
     return {"status": "healthy", "message": "WhatsApp OTP API is running"}
+
+# Include the router with prefix
+app.include_router(router)
 
 if __name__ == "__main__":
     import uvicorn

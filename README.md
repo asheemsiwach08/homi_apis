@@ -17,6 +17,7 @@ A FastAPI-based REST API for sending, resending, and verifying WhatsApp OTP usin
 - ✅ Test script included
 - ✅ Docker support with multi-stage builds
 - ✅ Docker Compose for easy deployment
+- ✅ Organized API routes with /otp prefix
 
 ## Prerequisites
 
@@ -131,7 +132,7 @@ A FastAPI-based REST API for sending, resending, and verifying WhatsApp OTP usin
 ## API Endpoints
 
 ### 1. Send OTP
-**POST** `/send-otp`
+**POST** `/otp/send`
 
 Send OTP to a phone number via WhatsApp.
 
@@ -155,7 +156,7 @@ Send OTP to a phone number via WhatsApp.
 ```
 
 ### 2. Resend OTP
-**POST** `/resend-otp`
+**POST** `/otp/resend`
 
 Resend OTP to a phone number (generates new OTP).
 
@@ -179,7 +180,7 @@ Resend OTP to a phone number (generates new OTP).
 ```
 
 ### 3. Verify OTP
-**POST** `/verify-otp`
+**POST** `/otp/verify`
 
 Verify the OTP sent to a phone number.
 
@@ -236,21 +237,21 @@ Once the server is running, you can access:
 
 1. **Send OTP:**
    ```bash
-   curl -X POST "http://localhost:8000/send-otp" \
+   curl -X POST "http://localhost:8000/otp/send" \
         -H "Content-Type: application/json" \
         -d '{"phone_number": "+1234567890"}'
    ```
 
 2. **Resend OTP:**
    ```bash
-   curl -X POST "http://localhost:8000/resend-otp" \
+   curl -X POST "http://localhost:8000/otp/resend" \
         -H "Content-Type: application/json" \
         -d '{"phone_number": "+1234567890"}'
    ```
 
 3. **Verify OTP:**
    ```bash
-   curl -X POST "http://localhost:8000/verify-otp" \
+   curl -X POST "http://localhost:8000/otp/verify" \
         -H "Content-Type: application/json" \
         -d '{"phone_number": "+1234567890", "otp": "123456"}'
    ```
@@ -261,12 +262,12 @@ Once the server is running, you can access:
 import requests
 
 # Send OTP
-response = requests.post("http://localhost:8000/send-otp", 
+response = requests.post("http://localhost:8000/otp/send", 
                         json={"phone_number": "+1234567890"})
 print(response.json())
 
 # Verify OTP
-response = requests.post("http://localhost:8000/verify-otp", 
+response = requests.post("http://localhost:8000/otp/verify", 
                         json={"phone_number": "+1234567890", "otp": "123456"})
 print(response.json())
 ```

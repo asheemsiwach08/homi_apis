@@ -1,7 +1,6 @@
-# Environment variables
-.env
-.env.local
-.env.production
+# Git
+.git
+.gitignore
 
 # Python
 __pycache__/
@@ -53,9 +52,6 @@ Thumbs.db
 *.log
 logs/
 
-# Redis dump
-dump.rdb
-
 # Coverage reports
 htmlcov/
 .coverage
@@ -75,7 +71,19 @@ coverage.xml
 Pipfile.lock
 
 # PEP 582
-__pypackages__/ 
+__pypackages__/
 
-# Cursor Rules
-.cursorrules
+# Environment files (will be passed as build args or mounted)
+.env
+.env.local
+.env.production
+
+# Documentation
+README.md
+*.md
+
+# Test files
+test_api.py
+
+# Cursor rules
+.cursorrules 

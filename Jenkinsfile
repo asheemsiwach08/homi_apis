@@ -75,16 +75,16 @@ pipeline{
             }
         }
 
-        stage('Stop and Remove Old Docker Container Running on Port 9001') {
+        stage('Stop and Remove Old Docker Container Running on Port 5000') {
             steps {
                 sh '''
-                    container_id=$(docker ps -q --filter "publish=9001")
+                    container_id=$(docker ps -q --filter "publish=5000")
                     if [ -n "$container_id" ]; then
                         docker stop $container_id
                         docker rm $container_id
                         echo 'Old container stopped and removed'
                     else
-                        echo 'No container running on port 9001'
+                        echo 'No container running on port 5000'
                     fi
                 '''
             }

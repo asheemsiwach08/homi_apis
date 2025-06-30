@@ -7,6 +7,7 @@ import re
 
 # Create API router with prefix
 router = APIRouter(prefix="/otp", tags=["OTP Operations"])
+print("Starting: ", settings)
 
 app = FastAPI(
     title="WhatsApp OTP Verification API",
@@ -63,8 +64,11 @@ async def debug_test_request():
 @router.post("/send", response_model=OTPResponse)
 async def send_otp(request: SendOTPRequest):
     """Send OTP to the specified phone number"""
+    print("Settings: ", settings)
     if not validate_phone_number(request.phone_number):
         raise HTTPException(status_code=400, detail="Invalid phone number format")
+
+    print("Debug 1: Validate phone number")
     
     # Check if OTP already exists
     if otp_storage.is_otp_exists(request.phone_number):
@@ -73,17 +77,21 @@ async def send_otp(request: SendOTPRequest):
             message="OTP already sent. Please wait for expiry or use resend endpoint.",
             data={"phone_number": request.phone_number}
         )
+    print("Debug 2: OTP already exists")
     
     # Generate OTP
     otp = whatsapp_service.generate_otp()
+    print("Debug 3: Generate OTP")
     
     # Send OTP via WhatsApp
     result = await whatsapp_service.send_otp(request.phone_number, otp)
+    print("Debug 4: Send OTP")
     
     if result["success"]:
         # Store OTP locally with expiry
         expiry_seconds = settings.OTP_EXPIRY_MINUTES * 60
         otp_storage.set_otp(request.phone_number, otp, expiry_seconds)
+        print("Debug 5: Store OTP")
         
         return OTPResponse(
             success=True,
@@ -91,6 +99,7 @@ async def send_otp(request: SendOTPRequest):
             data={"phone_number": request.phone_number, "otp": otp}  # Include OTP for testing
         )
     else:
+        print("Debug 6: Send OTP failed")
         return OTPResponse(
             success=False,
             message=result["message"],
@@ -100,14 +109,17 @@ async def send_otp(request: SendOTPRequest):
 @router.post("/resend", response_model=OTPResponse)
 async def resend_otp(request: ResendOTPRequest):
     """Resend OTP to the specified phone number"""
+    print("Debug 7: Resend OTP")
     if not validate_phone_number(request.phone_number):
         raise HTTPException(status_code=400, detail="Invalid phone number format")
     
     # Generate new OTP
     otp = whatsapp_service.generate_otp()
+    print("Debug 8: Generate new OTP")
     
     # Send OTP via WhatsApp
     result = await whatsapp_service.send_otp(request.phone_number, otp)
+    print("Debug 9: Send OTP")
     
     if result["success"]:
         # Store new OTP locally with expiry (overwrites existing)
@@ -166,7 +178,3 @@ async def health_check():
 
 # Include the router with prefix
 app.include_router(router)
-
-if __name__ == "__main__":
-    import uvicorn
-    uvicorn.run(app, host="0.0.0.0", port=8000) 

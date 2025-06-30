@@ -1,0 +1,60 @@
+version: '3.8'
+
+services:
+  whatsapp-otp-api:
+    build: .
+    container_name: whatsapp-otp-api-prod
+    ports:
+      - "8000:8000"
+    environment:
+      # Gupshup WhatsApp API Configuration
+      - GUPSHUP_API_KEY=${GUPSHUP_API_KEY}
+      - GUPSHUP_SOURCE=${GUPSHUP_SOURCE}
+      - GUPSHUP_TEMPLATE_ID=${GUPSHUP_TEMPLATE_ID}
+      - GUPSHUP_SRC_NAME=${GUPSHUP_SRC_NAME}
+      - GUPSHUP_API_URL=${GUPSHUP_API_URL:-https://api.gupshup.io/wa/api/v1/template/msg}
+      
+      # Supabase Configuration
+      - SUPABASE_URL=${SUPABASE_URL}
+      - SUPABASE_ANON_KEY=${SUPABASE_ANON_KEY}
+      - SUPABASE_SERVICE_ROLE_KEY=${SUPABASE_SERVICE_ROLE_KEY}
+      
+      # OTP Configuration
+      - OTP_EXPIRY_MINUTES=${OTP_EXPIRY_MINUTES:-3}
+      
+      # Production settings
+      - PYTHONPATH=/app
+      - PYTHONUNBUFFERED=1
+    env_file:
+      - .env
+    restart: always
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    volumes:
+      - ./logs:/app/logs
+    networks:
+      - otp-network
+    deploy:
+      resources:
+        limits:
+          cpus: '1.0'
+          memory: 1G
+        reservations:
+          cpus: '0.5'
+          memory: 512M
+    security_opt:
+      - no-new-privileges:true
+    read_only: true
+    tmpfs:
+      - /tmp
+      - /var/tmp
+
+networks:
+  otp-network:
+    driver: bridge
+    driver_opts:
+      com.docker.network.bridge.name: otp-bridge 

@@ -15,14 +15,19 @@ A FastAPI-based REST API for sending, resending, and verifying WhatsApp OTP usin
 - ✅ Environment variable configuration
 - ✅ Debug endpoints for troubleshooting
 - ✅ Test script included
+- ✅ Docker support with multi-stage builds
+- ✅ Docker Compose for easy deployment
 
 ## Prerequisites
 
-- Python 3.8+
+- Python 3.8+ (for local development)
+- Docker & Docker Compose (for containerized deployment)
 - Gupshup WhatsApp API account
 - Supabase account and project (optional - falls back to local storage)
 
 ## Installation
+
+### Option 1: Local Development
 
 1. **Clone the repository**
    ```bash
@@ -82,6 +87,45 @@ A FastAPI-based REST API for sending, resending, and verifying WhatsApp OTP usin
    Or using uvicorn directly:
    ```bash
    uvicorn main:app --host 0.0.0.0 --port 8000 --reload
+   ```
+
+### Option 2: Docker Deployment
+
+1. **Clone the repository**
+   ```bash
+   git clone <repository-url>
+   cd otpVerification
+   ```
+
+2. **Set up environment variables**
+   ```bash
+   cp env.example .env
+   # Edit .env with your configuration
+   ```
+
+3. **Build and run with Docker Compose**
+
+   **Development:**
+   ```bash
+   docker-compose up --build
+   ```
+
+   **Production:**
+   ```bash
+   docker-compose -f docker-compose.prod.yml up --build -d
+   ```
+
+4. **Or build and run with Docker directly**
+   ```bash
+   # Build the image
+   docker build -t whatsapp-otp-api .
+
+   # Run the container
+   docker run -d \
+     --name whatsapp-otp-api \
+     -p 8000:8000 \
+     --env-file .env \
+     whatsapp-otp-api
    ```
 
 ## API Endpoints
@@ -246,10 +290,38 @@ otpVerification/
 ├── env.example          # Environment variables template
 ├── supabase_setup.sql   # Supabase table creation script
 ├── test_api.py          # Test script for API endpoints
+├── Dockerfile           # Docker configuration
+├── docker-compose.yml   # Docker Compose for development
+├── docker-compose.prod.yml # Docker Compose for production
+├── .dockerignore        # Docker ignore rules
 ├── .gitignore           # Git ignore rules
 ├── .cursorrules         # Cursor editor rules
 └── README.md           # Project documentation
 ```
+
+## Docker Features
+
+### Dockerfile
+- **Multi-stage build** for optimized image size
+- **Security-focused** with non-root user
+- **Health checks** for container monitoring
+- **Python 3.11** slim base image
+- **System dependencies** for PostgreSQL support
+
+### Docker Compose
+- **Development setup** with hot reload
+- **Production setup** with security hardening
+- **Environment variable management**
+- **Volume mounting** for logs
+- **Network isolation**
+- **Resource limits** (production)
+
+### Security Features
+- **Non-root user** execution
+- **Read-only filesystem** (production)
+- **No new privileges** security option
+- **Temporary filesystem** for /tmp
+- **Resource limits** to prevent abuse
 
 ## Storage Solution
 
@@ -298,6 +370,7 @@ The API includes comprehensive error handling:
 - Row-level security support in Supabase
 - Service role authentication for database access
 - Thread-safe operations for concurrent access
+- Docker security hardening in production
 
 ## Troubleshooting
 
@@ -314,10 +387,17 @@ The API includes comprehensive error handling:
 4. **Check account status**: Ensure Gupshup account is active
 5. **Status 202**: This is normal - means message is queued for delivery
 
+### Docker Issues
+1. **Build errors**: Check Dockerfile and requirements.txt
+2. **Environment variables**: Ensure .env file is properly configured
+3. **Port conflicts**: Change port mapping if 8000 is in use
+4. **Health check failures**: Check if the API is responding properly
+
 ### Quick Debug Steps
 1. **Check configuration**: `curl http://localhost:8000/debug/whatsapp`
 2. **Check request format**: `curl http://localhost:8000/debug/test-request`
 3. **Run test script**: `python test_api.py`
+4. **Check Docker logs**: `docker logs whatsapp-otp-api`
 
 ## Contributing
 

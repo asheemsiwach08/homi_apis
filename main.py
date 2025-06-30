@@ -102,8 +102,8 @@ async def send_otp(request: SendOTPRequest):
         print("Debug 6: Send OTP failed")
         return OTPResponse(
             success=False,
-            message=result["message"],
-            data=result.get("data", {"error": "Unknown error"})
+            message=result.get("message", "OTP generation failed."),
+            data=result.get("data") or {"error": result.get("error", "Unknown error"), "raw_result": result}
         )
 
 @router.post("/resend", response_model=OTPResponse)
@@ -178,3 +178,7 @@ async def health_check():
 
 # Include the router with prefix
 app.include_router(router)
+
+if __name__ == "__main__":
+    import uvicorn
+    uvicorn.run(app, host="0.0.0.0", port=8000)

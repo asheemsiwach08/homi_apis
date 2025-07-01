@@ -27,9 +27,6 @@ MANIFEST
 
 # Virtual environments
 venv/
-env/
-ENV/
-env.bak/
 venv.bak/
 
 # IDE
@@ -74,9 +71,9 @@ Pipfile.lock
 __pypackages__/
 
 # Environment files (will be passed as build args or mounted)
-.env
-.env.local
-.env.production
+#.env
+#.env.local
+#.env.production
 
 # Documentation
 README.md

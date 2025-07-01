@@ -1,5 +1,5 @@
 import time
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import Optional
 from supabase import create_client, Client
 from config import settings
@@ -52,7 +52,8 @@ class SupabaseOTPStorage:
     
     def set_otp(self, phone_number: str, otp: str, expiry_seconds: int):
         """Store OTP with expiry time"""
-        expires_at = datetime.utcnow() + timedelta(seconds=expiry_seconds)
+        # Use timezone-aware datetime
+        expires_at = datetime.now(timezone.utc) + timedelta(seconds=expiry_seconds)
         
         # Delete any existing OTP for this phone number
         self.supabase.table(self.table_name).delete().eq("phone_number", phone_number).execute()
@@ -78,10 +79,22 @@ class SupabaseOTPStorage:
                 return None
             
             otp_record = response.data[0]
-            expires_at = datetime.fromisoformat(otp_record["expires_at"].replace("Z", "+00:00"))
+            
+            # Parse the expires_at string to timezone-aware datetime
+            if isinstance(otp_record["expires_at"], str):
+                # Handle ISO format string
+                expires_at = datetime.fromisoformat(otp_record["expires_at"].replace("Z", "+00:00"))
+            else:
+                # Handle datetime object
+                expires_at = otp_record["expires_at"]
+                if expires_at.tzinfo is None:
+                    expires_at = expires_at.replace(tzinfo=timezone.utc)
+            
+            # Compare with current UTC time
+            current_time = datetime.now(timezone.utc)
             
             # Check if OTP has expired
-            if datetime.utcnow() > expires_at:
+            if current_time > expires_at:
                 # Mark as expired
                 self.supabase.table(self.table_name).update(
                     {"is_used": True}
@@ -112,10 +125,22 @@ class SupabaseOTPStorage:
                 return False
             
             otp_record = response.data[0]
-            expires_at = datetime.fromisoformat(otp_record["expires_at"].replace("Z", "+00:00"))
+            
+            # Parse the expires_at string to timezone-aware datetime
+            if isinstance(otp_record["expires_at"], str):
+                # Handle ISO format string
+                expires_at = datetime.fromisoformat(otp_record["expires_at"].replace("Z", "+00:00"))
+            else:
+                # Handle datetime object
+                expires_at = otp_record["expires_at"]
+                if expires_at.tzinfo is None:
+                    expires_at = expires_at.replace(tzinfo=timezone.utc)
+            
+            # Compare with current UTC time
+            current_time = datetime.now(timezone.utc)
             
             # Check if OTP has expired
-            if datetime.utcnow() > expires_at:
+            if current_time > expires_at:
                 # Mark as expired
                 self.supabase.table(self.table_name).update(
                     {"is_used": True}
@@ -131,7 +156,7 @@ class SupabaseOTPStorage:
     def cleanup_expired(self):
         """Clean up expired OTPs"""
         try:
-            current_time = datetime.utcnow().isoformat()
+            current_time = datetime.now(timezone.utc).isoformat()
             self.supabase.table(self.table_name).update(
                 {"is_used": True}
             ).lt("expires_at", current_time).execute()

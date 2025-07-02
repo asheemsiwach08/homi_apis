@@ -128,6 +128,23 @@ A FastAPI-based REST API for sending, resending, and verifying WhatsApp OTP usin
      whatsapp-otp-api
    ```
 
+## Phone Number Validation
+
+The API validates phone numbers using the following format:
+- **Pattern**: `^\+?[1-9]\d{1,11}$`
+- **Valid formats**:
+  - `+1234567890` (with country code)
+  - `1234567890` (without country code)
+  - `+919876543210` (Indian numbers)
+  - `+447911123456` (UK numbers)
+- **Invalid formats**:
+  - `0123456789` (starts with 0)
+  - `+0123456789` (country code starts with 0)
+  - `123` (too short)
+  - `12345678901234567890` (too long)
+
+**Note**: Phone numbers must be 1-12 digits total (including country code if present).
+
 ## API Endpoints
 
 ### 1. Send OTP
@@ -142,7 +159,7 @@ Send OTP to a phone number via WhatsApp.
 }
 ```
 
-**Response:**
+**Success Response (200 OK):**
 ```json
 {
   "success": true,
@@ -153,6 +170,11 @@ Send OTP to a phone number via WhatsApp.
   }
 }
 ```
+
+**Error Responses:**
+- **400 Bad Request** - Invalid phone number format
+- **409 Conflict** - OTP already sent (use resend endpoint)
+- **500 Internal Server Error** - WhatsApp service failure
 
 ### 2. Resend OTP
 **POST** `/otp/resend`
@@ -166,7 +188,7 @@ Resend OTP to a phone number (generates new OTP).
 }
 ```
 
-**Response:**
+**Success Response (200 OK):**
 ```json
 {
   "success": true,
@@ -177,6 +199,10 @@ Resend OTP to a phone number (generates new OTP).
   }
 }
 ```
+
+**Error Responses:**
+- **400 Bad Request** - Invalid phone number format
+- **500 Internal Server Error** - WhatsApp service failure
 
 ### 3. Verify OTP
 **POST** `/otp/verify`
@@ -191,7 +217,7 @@ Verify the OTP sent to a phone number.
 }
 ```
 
-**Response:**
+**Success Response (200 OK):**
 ```json
 {
   "success": true,
@@ -201,6 +227,10 @@ Verify the OTP sent to a phone number.
   }
 }
 ```
+
+**Error Responses:**
+- **400 Bad Request** - Invalid phone number format or invalid OTP
+- **404 Not Found** - OTP not found or expired
 
 ### 4. Health Check
 **GET** `/health`
@@ -253,6 +283,22 @@ Once the server is running, you can access:
    curl -X POST "http://localhost:5000/otp/verify" \
         -H "Content-Type: application/json" \
         -d '{"phone_number": "+1234567890", "otp": "123456"}'
+   ```
+
+4. **Test with invalid phone number:**
+   ```bash
+   curl -X POST "http://localhost:5000/otp/send" \
+        -H "Content-Type: application/json" \
+        -d '{"phone_number": "0123456789"}' \
+        -w "\nHTTP Status: %{http_code}\n"
+   ```
+
+5. **Test with expired OTP:**
+   ```bash
+   curl -X POST "http://localhost:5000/otp/verify" \
+        -H "Content-Type: application/json" \
+        -d '{"phone_number": "+1234567890", "otp": "999999"}' \
+        -w "\nHTTP Status: %{http_code}\n"
    ```
 
 ### Using Python requests
@@ -349,12 +395,35 @@ CREATE TABLE otp_storage (
 
 ## Error Handling
 
-The API includes comprehensive error handling:
+The API includes comprehensive error handling with proper HTTP status codes:
 
+### HTTP Status Codes
+- **200 OK** - Successful operations
+- **400 Bad Request** - Invalid phone number format, invalid OTP
+- **404 Not Found** - OTP not found or expired
+- **409 Conflict** - OTP already sent (use resend endpoint)
+- **500 Internal Server Error** - WhatsApp service failure, server errors
+
+### Error Response Format
+```json
+{
+  "detail": {
+    "success": false,
+    "message": "Error description",
+    "data": {
+      "phone_number": "+1234567890",
+      "additional_info": "..."
+    }
+  }
+}
+```
+
+### Common Error Scenarios
 - **Invalid phone number format**: Returns 400 Bad Request
-- **OTP not found/expired**: Returns appropriate error message
-- **Invalid OTP**: Returns error message
-- **API failures**: Returns detailed error information
+- **OTP not found/expired**: Returns 404 Not Found
+- **Invalid OTP**: Returns 400 Bad Request
+- **OTP already exists**: Returns 409 Conflict
+- **WhatsApp service failure**: Returns 500 Internal Server Error
 - **Network issues**: Handles timeouts and connection errors
 - **Database errors**: Graceful fallback to local storage
 - **Gupshup API errors**: Proper status code handling (202 = success)

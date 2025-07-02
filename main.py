@@ -18,7 +18,7 @@ app = FastAPI(
 def validate_phone_number(phone_number: str) -> bool:
     """Validate phone number format"""
     # Basic validation - can be enhanced based on requirements
-    pattern = r'^\+?[1-9]\d{1,14}$'
+    pattern = r'^\+?[1-9]\d{1,11}$'
     return bool(re.match(pattern, phone_number))
 
 @app.get("/debug/whatsapp")
@@ -64,42 +64,31 @@ async def debug_test_request():
 @router.post("/send", response_model=OTPResponse)
 async def send_otp(request: SendOTPRequest):
     """Send OTP to the specified phone number"""
-    print("Settings: ")
-    print("GUPSHUP_API_KEY: ", settings.GUPSHUP_API_KEY)
-    print("GUPSHUP_SOURCE: ", settings.GUPSHUP_SOURCE)
-    print("GUPSHUP_TEMPLATE_ID: ", settings.GUPSHUP_TEMPLATE_ID)
-    print("GUPSHUP_SRC_NAME: ", settings.GUPSHUP_SRC_NAME)
-    print("GUPSHUP_API_URL: ", settings.GUPSHUP_API_URL)
-    print("OTP_EXPIRY_MINUTES: ", settings.OTP_EXPIRY_MINUTES)
-    
+
     if not validate_phone_number(request.phone_number):
         raise HTTPException(status_code=400, detail="Invalid phone number format")
 
-    print("Debug 1: Validate phone number")
-    
     # Check if OTP already exists
     if otp_storage.is_otp_exists(request.phone_number):
-        return OTPResponse(
-            success=False,
-            message="OTP already sent. Please wait for expiry or use resend endpoint.",
-            data={"phone_number": request.phone_number}
+        raise HTTPException(
+            status_code=409,
+            detail={
+                "success": False,
+                "message": "OTP already sent. Please wait for expiry or use resend endpoint.",
+                "data": {"phone_number": request.phone_number}
+            }
         )
-    print("Debug 2: OTP already exists")
     
     # Generate OTP
     otp = whatsapp_service.generate_otp()
-    print("Debug 3: Generate OTP")
     
     # Send OTP via WhatsApp
     result = await whatsapp_service.send_otp(request.phone_number, otp)
-    print("Debug 4: Send OTP")
-    print("Debug 4.1: Result: ", result)
     
     if result["success"]:
         # Store OTP locally with expiry
         expiry_seconds = settings.OTP_EXPIRY_MINUTES * 60
         otp_storage.set_otp(request.phone_number, otp, expiry_seconds)
-        print("Debug 5: Store OTP")
         
         return OTPResponse(
             success=True,
@@ -107,27 +96,27 @@ async def send_otp(request: SendOTPRequest):
             data={"phone_number": request.phone_number, "otp": otp}  # Include OTP for testing
         )
     else:
-        print("Debug 6: Send OTP failed")
-        return OTPResponse(
-            success=False,
-            message=result.get("message", "OTP generation failed."),
-            data=result.get("data") or {"error": result.get("error", "Unknown error"), "raw_result": result}
+        raise HTTPException(
+            status_code=500,
+            detail={
+                "success": False,
+                "message": result.get("message", "OTP generation failed."),
+                "data": result.get("data") or {"error": result.get("error", "Unknown error"), "raw_result": result}
+            }
         )
 
 @router.post("/resend", response_model=OTPResponse)
 async def resend_otp(request: ResendOTPRequest):
     """Resend OTP to the specified phone number"""
-    print("Debug 7: Resend OTP")
+
     if not validate_phone_number(request.phone_number):
         raise HTTPException(status_code=400, detail="Invalid phone number format")
     
     # Generate new OTP
     otp = whatsapp_service.generate_otp()
-    print("Debug 8: Generate new OTP")
     
     # Send OTP via WhatsApp
     result = await whatsapp_service.send_otp(request.phone_number, otp)
-    print("Debug 9: Send OTP")
     
     if result["success"]:
         # Store new OTP locally with expiry (overwrites existing)
@@ -140,10 +129,13 @@ async def resend_otp(request: ResendOTPRequest):
             data={"phone_number": request.phone_number, "otp": otp}  # Include OTP for testing
         )
     else:
-        return OTPResponse(
-            success=False,
-            message=result["message"],
-            data=result.get("data", {"error": "Unknown error"})
+        raise HTTPException(
+            status_code=500,
+            detail={
+                "success": False,
+                "message": result["message"],
+                "data": result.get("data", {"error": "Unknown error"})
+            }
         )
 
 @router.post("/verify", response_model=OTPResponse)
@@ -156,10 +148,13 @@ async def verify_otp(request: VerifyOTPRequest):
     stored_otp = otp_storage.get_otp(request.phone_number)
     
     if not stored_otp:
-        return OTPResponse(
-            success=False,
-            message="OTP not found or expired",
-            data={"phone_number": request.phone_number}
+        raise HTTPException(
+            status_code=404,
+            detail={
+                "success": False,
+                "message": "OTP not found or expired",
+                "data": {"phone_number": request.phone_number}
+            }
         )
     
     # Verify OTP
@@ -173,10 +168,13 @@ async def verify_otp(request: VerifyOTPRequest):
             data={"phone_number": request.phone_number}
         )
     else:
-        return OTPResponse(
-            success=False,
-            message="Invalid OTP",
-            data={"phone_number": request.phone_number}
+        raise HTTPException(
+            status_code=400,
+            detail={
+                "success": False,
+                "message": "Invalid OTP",
+                "data": {"phone_number": request.phone_number}
+            }
         )
 
 @app.get("/health")

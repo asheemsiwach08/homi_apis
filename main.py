@@ -157,17 +157,17 @@ async def send_otp(request: SendOTPRequest):
     # Normalize phone number for WhatsApp service
     normalized_phone = normalize_phone_number(request.phone_number)
 
-    # Check if OTP already exists (use original phone number for storage)
-    print("phone number", request.phone_number)
-    if otp_storage.is_otp_exists(request.phone_number):
-        raise HTTPException(
-            status_code=409,
-            detail={
-                "success": False,
-                "message": "OTP already sent. Please wait for expiry or use resend endpoint.",
-                "data": {"phone_number": request.phone_number}
-            }
-        )
+    # # Check if OTP already exists (use original phone number for storage)
+    # print("phone number", request.phone_number)
+    # if otp_storage.is_otp_exists(request.phone_number):
+    #     raise HTTPException(
+    #         status_code=409,
+    #         detail={
+    #             "success": False,
+    #             "message": "OTP already sent. Please wait for expiry or use resend endpoint.",
+    #             "data": {"phone_number": request.phone_number}
+    #         }
+    #     )
     
     # Generate OTP
     otp = whatsapp_service.generate_otp()

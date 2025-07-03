@@ -15,11 +15,60 @@ app = FastAPI(
     version="1.0.0"
 )
 
+def normalize_phone_number(phone_number: str) -> str:
+    """
+    Normalize phone number to include country code 91.
+    Handles various formats:
+    - 917888888888 (already has country code)
+    - 788888888 (without country code)
+    - +917888888888 (with + prefix)
+    - 917888888888 (without + prefix)
+    """
+    # Remove any spaces, dashes, or other separators
+    cleaned = re.sub(r'[\s\-\(\)]', '', phone_number)
+    
+    # Remove + prefix if present
+    if cleaned.startswith('+'):
+        cleaned = cleaned[1:]
+    
+    # If number starts with 91 and is 12 digits, it already has country code
+    if cleaned.startswith('91') and len(cleaned) == 12:
+        return '+' + cleaned
+    
+    # If number is 10 digits (without country code), add 91
+    if len(cleaned) == 10:
+        return '+91' + cleaned
+    
+    # If number is 11 digits and starts with 0, remove 0 and add 91
+    if len(cleaned) == 11 and cleaned.startswith('0'):
+        return '+91' + cleaned[1:]
+    
+    # If number is already 12 digits and starts with 91, add + prefix
+    if len(cleaned) == 12 and cleaned.startswith('91'):
+        return '+' + cleaned
+    
+    # If number is 9 digits (without country code), add 91
+    if len(cleaned) == 9:
+        return '+91' + cleaned
+    
+    # If number is 8 digits (without country code), add 91
+    if len(cleaned) == 8:
+        return '+91' + cleaned
+    
+    # For any other format, assume it needs country code 91
+    # Remove any leading zeros
+    cleaned = cleaned.lstrip('0')
+    return '+91' + cleaned
+
 def validate_phone_number(phone_number: str) -> bool:
-    """Validate phone number format"""
-    # Basic validation - can be enhanced based on requirements
-    pattern = r'^\+?[1-9]\d{1,11}$'
-    return bool(re.match(pattern, phone_number))
+    """Validate phone number format after normalization"""
+    try:
+        normalized = normalize_phone_number(phone_number)
+        # Check if normalized number is valid (starts with +91 and has 10-12 digits after country code)
+        pattern = r'^\+91[1-9]\d{9,11}$'
+        return bool(re.match(pattern, normalized))
+    except:
+        return False
 
 @app.get("/debug/whatsapp")
 async def debug_whatsapp():
@@ -61,6 +110,43 @@ async def debug_test_request():
         "note": "This shows the exact request that would be sent to Gupshup"
     }
 
+@app.get("/debug/phone-normalization")
+async def debug_phone_normalization():
+    """Debug endpoint to test phone number normalization"""
+    test_cases = [
+        "917888888888",  # Already has country code
+        "788888888",     # Without country code
+        "+917888888888", # With + prefix
+        "0788888888",    # With leading 0
+        "888888888",     # 9 digits
+        "88888888",      # 8 digits
+        "91 788 888 8888", # With spaces
+        "91-788-888-8888", # With dashes
+    ]
+    
+    results = []
+    for phone in test_cases:
+        try:
+            normalized = normalize_phone_number(phone)
+            is_valid = validate_phone_number(phone)
+            results.append({
+                "original": phone,
+                "normalized": normalized,
+                "is_valid": is_valid
+            })
+        except Exception as e:
+            results.append({
+                "original": phone,
+                "normalized": "ERROR",
+                "is_valid": False,
+                "error": str(e)
+            })
+    
+    return {
+        "phone_number_normalization_test": results,
+        "note": "This shows how different phone number formats are normalized to +91 format"
+    }
+
 @router.post("/send", response_model=OTPResponse)
 async def send_otp(request: SendOTPRequest):
     """Send OTP to the specified phone number"""
@@ -68,7 +154,11 @@ async def send_otp(request: SendOTPRequest):
     if not validate_phone_number(request.phone_number):
         raise HTTPException(status_code=400, detail="Invalid phone number format")
 
-    # Check if OTP already exists
+    # Normalize phone number for WhatsApp service
+    normalized_phone = normalize_phone_number(request.phone_number)
+
+    # Check if OTP already exists (use original phone number for storage)
+    print("phone number", request.phone_number)
     if otp_storage.is_otp_exists(request.phone_number):
         raise HTTPException(
             status_code=409,
@@ -82,8 +172,8 @@ async def send_otp(request: SendOTPRequest):
     # Generate OTP
     otp = whatsapp_service.generate_otp()
     
-    # Send OTP via WhatsApp
-    result = await whatsapp_service.send_otp(request.phone_number, otp)
+    # Send OTP via WhatsApp using normalized phone number
+    result = await whatsapp_service.send_otp(normalized_phone, otp)
     
     if result["success"]:
         # Store OTP locally with expiry
@@ -112,11 +202,14 @@ async def resend_otp(request: ResendOTPRequest):
     if not validate_phone_number(request.phone_number):
         raise HTTPException(status_code=400, detail="Invalid phone number format")
     
+    # Normalize phone number for WhatsApp service
+    normalized_phone = normalize_phone_number(request.phone_number)
+    
     # Generate new OTP
     otp = whatsapp_service.generate_otp()
     
-    # Send OTP via WhatsApp
-    result = await whatsapp_service.send_otp(request.phone_number, otp)
+    # Send OTP via WhatsApp using normalized phone number
+    result = await whatsapp_service.send_otp(normalized_phone, otp)
     
     if result["success"]:
         # Store new OTP locally with expiry (overwrites existing)

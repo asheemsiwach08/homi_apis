@@ -1,7 +1,7 @@
 # Cursor Rules for WhatsApp OTP Verification API
 
 ## Project Overview
-This is a FastAPI-based REST API for WhatsApp OTP verification using Gupshup API with Redis storage.
+This is a FastAPI-based REST API for WhatsApp OTP verification using Gupshup API with Supabase PostgreSQL storage and automatic fallback to local storage.
 
 ## Code Style Guidelines
 - Use async/await for all API calls
@@ -13,7 +13,7 @@ This is a FastAPI-based REST API for WhatsApp OTP verification using Gupshup API
 ## File Organization
 - `main.py`: FastAPI application and endpoints only
 - `config.py`: Configuration and environment variables
-- `database.py`: Redis operations and database logic
+- `database.py`: Supabase/local storage operations and database logic
 - `whatsapp_service.py`: External API integrations
 - `models.py`: Pydantic models for validation
 
@@ -30,17 +30,44 @@ This is a FastAPI-based REST API for WhatsApp OTP verification using Gupshup API
 - Add comprehensive error messages
 - Use Pydantic for request/response validation
 - Keep endpoints RESTful
+- All OTP endpoints use `/otp` prefix
+
+## Phone Number Handling
+- **Automatic normalization**: All phone numbers are normalized to include country code 91
+- **Multiple input formats supported**:
+  - `917888888888` (already has country code)
+  - `788888888` (without country code)
+  - `+917888888888` (with + prefix)
+  - `0788888888` (with leading 0)
+  - `888888888` (9 digits)
+  - `88888888` (8 digits)
+  - Numbers with spaces, dashes, parentheses
+- **Validation pattern**: `^\+91[1-9]\d{9,11}$`
+- **Storage**: Use original phone number for storage, normalized number for WhatsApp service
 
 ## Testing Guidelines
 - Test all endpoints with valid and invalid data
 - Mock external API calls in tests
 - Test OTP expiry functionality
-- Verify Redis operations
+- Verify storage operations (Supabase and local fallback)
 - Test error scenarios
+- Test phone number normalization with various formats
 
 ## Documentation Requirements
 - Update README.md for any major changes
 - Keep API documentation current
 - Document environment variables
-- Provide usage examples
-- Include troubleshooting section 
+- Provide usage examples with various phone number formats
+- Include troubleshooting section
+- Document phone number normalization rules
+
+## Storage Solution
+- **Primary**: Supabase PostgreSQL for persistent OTP storage
+- **Fallback**: Local in-memory storage if Supabase unavailable
+- **Automatic expiry**: OTPs expire after 3 minutes
+- **Thread-safe**: Local storage uses locks for concurrent access
+
+## Debug Endpoints
+- `/debug/whatsapp`: Check WhatsApp service configuration
+- `/debug/test-request`: Show Gupshup API request format
+- `/debug/phone-normalization`: Test phone number normalization 

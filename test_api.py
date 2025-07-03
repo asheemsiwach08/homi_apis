@@ -24,6 +24,24 @@ def test_health_check():
         print(f"❌ Health check failed: {e}\n")
         return False
 
+def test_phone_normalization():
+    """Test phone number normalization"""
+    print("📞 Testing phone number normalization...")
+    try:
+        response = requests.get(f"{BASE_URL}/debug/phone-normalization")
+        print(f"Status: {response.status_code}")
+        print(f"Response: {json.dumps(response.json(), indent=2)}")
+        
+        if response.status_code == 200:
+            print("✅ Phone normalization test passed\n")
+            return True
+        else:
+            print("❌ Phone normalization test failed\n")
+            return False
+    except Exception as e:
+        print(f"❌ Phone normalization test failed: {e}\n")
+        return False
+
 def test_send_otp(phone_number):
     """Test sending OTP"""
     print(f"📱 Testing send OTP to {phone_number}...")
@@ -113,17 +131,29 @@ def main():
     print("🚀 Starting WhatsApp OTP API Tests\n")
     print("=" * 50)
     
-    # Test phone number (replace with a real number for actual testing)
-    test_phone = "+1234567890"
+    # Test phone numbers with different formats
+    test_phones = [
+        "917888888888",  # Already has country code
+        "788888888",     # Without country code
+        "+917888888888", # With + prefix
+        "0788888888",    # With leading 0
+    ]
     
     # Run tests
     tests = [
         ("Health Check", lambda: test_health_check()),
+        ("Phone Number Normalization", lambda: test_phone_normalization()),
         ("Invalid Phone Number", lambda: test_invalid_phone_number()),
-        ("Send OTP", lambda: test_send_otp(test_phone)),
-        ("Resend OTP", lambda: test_resend_otp(test_phone)),
-        ("Verify OTP (with dummy OTP)", lambda: test_verify_otp(test_phone, "123456")),
     ]
+    
+    # Add tests for each phone number format
+    for phone in test_phones:
+        tests.append((f"Send OTP ({phone})", lambda p=phone: test_send_otp(p)))
+    
+    tests.extend([
+        ("Resend OTP", lambda: test_resend_otp(test_phones[0])),
+        ("Verify OTP (with dummy OTP)", lambda: test_verify_otp(test_phones[0], "123456")),
+    ])
     
     passed = 0
     total = len(tests)
@@ -142,13 +172,14 @@ def main():
     else:
         print("⚠️  Some tests failed. Check the output above.")
     
-    print("\n💡 Note: For actual OTP testing, replace the test phone number with a real one.")
+    print("\n💡 Note: For actual OTP testing, replace the test phone numbers with real ones.")
     print("💡 The verify OTP test uses a dummy OTP and will fail unless you use the actual OTP sent.")
     print("\n🔗 New API Endpoints:")
     print("   - POST /otp/send")
     print("   - POST /otp/resend") 
     print("   - POST /otp/verify")
     print("   - GET /health")
+    print("   - GET /debug/phone-normalization")
 
 if __name__ == "__main__":
     main() 

@@ -128,22 +128,38 @@ A FastAPI-based REST API for sending, resending, and verifying WhatsApp OTP usin
      whatsapp-otp-api
    ```
 
-## Phone Number Validation
+## Phone Number Validation & Normalization
 
-The API validates phone numbers using the following format:
-- **Pattern**: `^\+?[1-9]\d{1,11}$`
-- **Valid formats**:
-  - `+1234567890` (with country code)
-  - `1234567890` (without country code)
-  - `+919876543210` (Indian numbers)
-  - `+447911123456` (UK numbers)
-- **Invalid formats**:
-  - `0123456789` (starts with 0)
-  - `+0123456789` (country code starts with 0)
-  - `123` (too short)
-  - `12345678901234567890` (too long)
+The API automatically normalizes phone numbers to include the country code **91** (India) for WhatsApp services. The system handles various input formats:
 
-**Note**: Phone numbers must be 1-12 digits total (including country code if present).
+### Supported Input Formats:
+- **`917888888888`** - Already has country code (12 digits)
+- **`788888888`** - Without country code (9 digits)
+- **`+917888888888`** - With + prefix
+- **`0788888888`** - With leading 0 (11 digits)
+- **`888888888`** - 9 digits without country code
+- **`88888888`** - 8 digits without country code
+- **`91 788 888 8888`** - With spaces
+- **`91-788-888-8888`** - With dashes
+
+### Normalization Rules:
+1. **Removes** spaces, dashes, parentheses, and other separators
+2. **Removes** + prefix if present
+3. **Adds** country code **91** if not present
+4. **Removes** leading 0 if present (e.g., 0788888888 → +917888888888)
+5. **Returns** normalized format: `+91XXXXXXXXXX`
+
+### Validation Pattern:
+- **Pattern**: `^\+91[1-9]\d{9,11}$`
+- **Final format**: Must start with `+91` followed by 10-12 digits
+- **Examples**:
+  - ✅ `+917888888888` (valid)
+  - ✅ `+918888888888` (valid)
+  - ❌ `+910888888888` (starts with 0 after country code)
+  - ❌ `+91888888888` (too short)
+  - ❌ `+918888888888888` (too long)
+
+**Note**: All phone numbers are automatically normalized to the `+91` format before being sent to WhatsApp services, regardless of the input format provided by the user.
 
 ## API Endpoints
 
@@ -246,13 +262,67 @@ Check if the API is running.
 ```
 
 ### 5. Debug Endpoints
+
+#### Debug WhatsApp Configuration
 **GET** `/debug/whatsapp`
 
-Check WhatsApp service configuration.
+Check WhatsApp service configuration (API keys, URLs, etc.).
 
+**Response:**
+```json
+{
+  "api_url": "https://api.gupshup.io/wa/api/v1/template/msg",
+  "api_key": "your_api_key...",
+  "source": "your_source_number",
+  "template_id": "your_template_id",
+  "src_name": "your_src_name",
+  "config_source": "Environment variables loaded successfully"
+}
+```
+
+#### Debug Test Request
 **GET** `/debug/test-request`
 
-Show the exact request format being sent to Gupshup.
+Show what request would be sent to Gupshup API.
+
+**Response:**
+```json
+{
+  "api_url": "https://api.gupshup.io/wa/api/v1/template/msg",
+  "headers": {...},
+  "data": {...},
+  "note": "This shows the exact request that would be sent to Gupshup"
+}
+```
+
+#### Debug Phone Number Normalization
+**GET** `/debug/phone-normalization`
+
+Test phone number normalization with various input formats.
+
+**Response:**
+```json
+{
+  "phone_number_normalization_test": [
+    {
+      "original": "917888888888",
+      "normalized": "+917888888888",
+      "is_valid": true
+    },
+    {
+      "original": "788888888",
+      "normalized": "+917888888888",
+      "is_valid": true
+    },
+    {
+      "original": "+917888888888",
+      "normalized": "+917888888888",
+      "is_valid": true
+    }
+  ],
+  "note": "This shows how different phone number formats are normalized to +91 format"
+}
+```
 
 ## API Documentation
 
@@ -264,25 +334,41 @@ Once the server is running, you can access:
 
 ### Using curl
 
-1. **Send OTP:**
+1. **Send OTP (various phone number formats):**
    ```bash
+   # With country code
    curl -X POST "http://localhost:5000/otp/send" \
         -H "Content-Type: application/json" \
-        -d '{"phone_number": "+1234567890"}'
+        -d '{"phone_number": "917888888888"}'
+   
+   # Without country code (will be normalized to +91)
+   curl -X POST "http://localhost:5000/otp/send" \
+        -H "Content-Type: application/json" \
+        -d '{"phone_number": "788888888"}'
+   
+   # With + prefix
+   curl -X POST "http://localhost:5000/otp/send" \
+        -H "Content-Type: application/json" \
+        -d '{"phone_number": "+917888888888"}'
+   
+   # With leading 0
+   curl -X POST "http://localhost:5000/otp/send" \
+        -H "Content-Type: application/json" \
+        -d '{"phone_number": "0788888888"}'
    ```
 
 2. **Resend OTP:**
    ```bash
    curl -X POST "http://localhost:5000/otp/resend" \
         -H "Content-Type: application/json" \
-        -d '{"phone_number": "+1234567890"}'
+        -d '{"phone_number": "788888888"}'
    ```
 
 3. **Verify OTP:**
    ```bash
    curl -X POST "http://localhost:5000/otp/verify" \
         -H "Content-Type: application/json" \
-        -d '{"phone_number": "+1234567890", "otp": "123456"}'
+        -d '{"phone_number": "788888888", "otp": "123456"}'
    ```
 
 4. **Test with invalid phone number:**
@@ -306,14 +392,22 @@ Once the server is running, you can access:
 ```python
 import requests
 
-# Send OTP
-response = requests.post("http://localhost:5000/otp/send", 
-                        json={"phone_number": "+1234567890"})
-print(response.json())
+# Send OTP (various formats supported)
+phone_numbers = [
+    "917888888888",    # With country code
+    "788888888",       # Without country code (normalized to +91)
+    "+917888888888",   # With + prefix
+    "0788888888"       # With leading 0
+]
+
+for phone in phone_numbers:
+    response = requests.post("http://localhost:5000/otp/send", 
+                            json={"phone_number": phone})
+    print(f"Phone: {phone} -> Response: {response.json()}")
 
 # Verify OTP
 response = requests.post("http://localhost:5000/otp/verify", 
-                        json={"phone_number": "+1234567890", "otp": "123456"})
+                        json={"phone_number": "788888888", "otp": "123456"})
 print(response.json())
 ```
 

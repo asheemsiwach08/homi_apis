@@ -30,13 +30,18 @@ $$ LANGUAGE plpgsql;
 -- This requires pg_cron extension to be enabled
 -- SELECT cron.schedule('cleanup-expired-otps', '*/5 * * * *', 'SELECT cleanup_expired_otps();');
 
+-- IMPORTANT: Grant permissions to service role
+-- This is required for the service role to access the table
+GRANT ALL ON otp_storage TO service_role;
+GRANT USAGE, SELECT ON SEQUENCE otp_storage_id_seq TO service_role;
+
 -- Row Level Security (RLS) - Enable if needed
 -- ALTER TABLE otp_storage ENABLE ROW LEVEL SECURITY;
 
--- Create policy for service role (adjust as needed)
+-- Create policy for service role (uncomment if RLS is enabled)
 -- CREATE POLICY "Service role can manage all OTPs" ON otp_storage
 --     FOR ALL USING (auth.role() = 'service_role');
 
--- Grant permissions (adjust as needed)
--- GRANT ALL ON otp_storage TO service_role;
--- GRANT USAGE, SELECT ON SEQUENCE otp_storage_id_seq TO service_role; 
+-- Alternative: Disable RLS for this table (recommended for OTP storage)
+-- This allows the service role to access the table without complex policies
+ALTER TABLE otp_storage DISABLE ROW LEVEL SECURITY; 

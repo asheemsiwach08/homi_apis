@@ -13,6 +13,9 @@ class SupabaseOTPStorage:
         if not settings.SUPABASE_SERVICE_ROLE_KEY or settings.SUPABASE_SERVICE_ROLE_KEY.strip() == "":
             raise ValueError("SUPABASE_SERVICE_ROLE_KEY environment variable is required")
 
+        print("supabase url", settings.SUPABASE_URL)
+        print("supabase service role key", settings.SUPABASE_SERVICE_ROLE_KEY)
+
         try:
             self.supabase: Client = create_client(
                 settings.SUPABASE_URL, 
@@ -23,41 +26,47 @@ class SupabaseOTPStorage:
             print(f"Error initializing Supabase client: {e}")
             raise
         self.table_name = "otp_storage"
-        self._ensure_table_exists()
+        # self._ensure_table_exists()
     
-    def _ensure_table_exists(self):
-        """Ensure the OTP storage table exists"""
-        try:
-            # Check if table exists by trying to select from it
-            self.supabase.table(self.table_name).select("id").limit(1).execute()
-        except Exception:
-            # Table doesn't exist, create it
-            self._create_table()
+    # def _ensure_table_exists(self):
+    #     """Ensure the OTP storage table exists"""
+    #     try:
+    #         # Check if table exists by trying to select from it
+    #         self.supabase.table(self.table_name).select("id").limit(1).execute()
+    #         print(f"Table {self.table_name} exists and is accessible")
+    #     except Exception as e:
+    #         print(f"Error accessing table {self.table_name}: {e}")
+    #         print("This might be due to:")
+    #         print("1. Table doesn't exist - run the SQL setup script")
+    #         print("2. Permission issues - check service role permissions")
+    #         print("3. RLS policies blocking access")
+    #         # Table doesn't exist, create it
+    #         self._create_table()
     
-    def _create_table(self):
-        """Create the OTP storage table"""
-        # Note: In Supabase, you typically create tables via SQL editor or migrations
-        # This is a fallback method
-        create_table_sql = f"""
-        CREATE TABLE IF NOT EXISTS {self.table_name} (
-            id SERIAL PRIMARY KEY,
-            phone_number VARCHAR(20) NOT NULL,
-            otp VARCHAR(10) NOT NULL,
-            created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-            expires_at TIMESTAMP WITH TIME ZONE NOT NULL,
-            is_used BOOLEAN DEFAULT FALSE
-        );
+    # def _create_table(self):
+    #     """Create the OTP storage table"""
+    #     # Note: In Supabase, you typically create tables via SQL editor or migrations
+    #     # This is a fallback method
+    #     create_table_sql = f"""
+    #     CREATE TABLE IF NOT EXISTS {self.table_name} (
+    #         id SERIAL PRIMARY KEY,
+    #         phone_number VARCHAR(20) NOT NULL,
+    #         otp VARCHAR(10) NOT NULL,
+    #         created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    #         expires_at TIMESTAMP WITH TIME ZONE NOT NULL,
+    #         is_used BOOLEAN DEFAULT FALSE
+    #     );
         
-        CREATE INDEX IF NOT EXISTS idx_otp_phone_number ON {self.table_name}(phone_number);
-        CREATE INDEX IF NOT EXISTS idx_otp_expires_at ON {self.table_name}(expires_at);
-        """
+    #     CREATE INDEX IF NOT EXISTS idx_otp_phone_number ON {self.table_name}(phone_number);
+    #     CREATE INDEX IF NOT EXISTS idx_otp_expires_at ON {self.table_name}(expires_at);
+    #     """
         
-        try:
-            self.supabase.rpc('exec_sql', {'sql': create_table_sql}).execute()
-        except Exception as e:
-            print(f"Warning: Could not create table automatically: {e}")
-            print("Please create the table manually in Supabase SQL editor:")
-            print(create_table_sql)
+    #     try:
+    #         self.supabase.rpc('exec_sql', {'sql': create_table_sql}).execute()
+    #     except Exception as e:
+    #         print(f"Warning: Could not create table automatically: {e}")
+    #         print("Please create the table manually in Supabase SQL editor:")
+    #         print(create_table_sql)
     
     def set_otp(self, phone_number: str, otp: str, expiry_seconds: int):
         """Store OTP with expiry time"""

@@ -6,13 +6,22 @@ from config import settings
 
 class SupabaseOTPStorage:
     def __init__(self):
-        if not settings.SUPABASE_URL or not settings.SUPABASE_SERVICE_ROLE_KEY:
-            raise ValueError("Supabase URL and Service Role Key are required")
+        # Check if environment variables are set and not empty
+        if not settings.SUPABASE_URL or settings.SUPABASE_URL.strip() == "":
+            raise ValueError("SUPABASE_URL environment variable is required")
         
-        self.supabase: Client = create_client(
-            settings.SUPABASE_URL, 
-            settings.SUPABASE_SERVICE_ROLE_KEY
-        )
+        if not settings.SUPABASE_SERVICE_ROLE_KEY or settings.SUPABASE_SERVICE_ROLE_KEY.strip() == "":
+            raise ValueError("SUPABASE_SERVICE_ROLE_KEY environment variable is required")
+
+        try:
+            self.supabase: Client = create_client(
+                settings.SUPABASE_URL, 
+                settings.SUPABASE_SERVICE_ROLE_KEY
+            )
+            print("Supabase client initialized successfully")
+        except Exception as e:
+            print(f"Error initializing Supabase client: {e}")
+            raise
         self.table_name = "otp_storage"
         self._ensure_table_exists()
     
@@ -165,9 +174,12 @@ class SupabaseOTPStorage:
 
 # Global instance
 try:
+    print("Attempting to initialize Supabase storage...")
     otp_storage = SupabaseOTPStorage()
+    print("Supabase storage initialized successfully")
 except Exception as e:
     print(f"Warning: Could not initialize Supabase storage: {e}")
+    print("Error type:", type(e).__name__)
     print("Falling back to local storage...")
     
     # Fallback to local storage

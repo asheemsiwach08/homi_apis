@@ -161,6 +161,40 @@ The API automatically normalizes phone numbers to include the country code **91*
 
 **Note**: All phone numbers are automatically normalized to the `+91` format before being sent to WhatsApp services, regardless of the input format provided by the user.
 
+## OTP Storage & Lifecycle
+
+The API uses a sophisticated storage system with the following behavior:
+
+### Storage Solutions
+- **Primary**: Supabase PostgreSQL for persistent OTP storage
+- **Fallback**: Local in-memory storage if Supabase is unavailable
+- **Automatic expiry**: OTPs expire after 3 minutes (configurable)
+
+### OTP Lifecycle
+1. **Creation**: OTP is stored with `is_used = false` and expiry timestamp
+2. **Verification**: OTP is marked as `is_used = true` (not deleted)
+3. **Expiry**: Expired OTPs are automatically marked as `is_used = true`
+4. **Cleanup**: Used and expired OTPs remain in database for audit trails
+
+### Benefits of Marking as Used vs Deleting
+- **Audit Trails**: Track OTP usage patterns and verification history
+- **Analytics**: Analyze OTP success rates and user behavior
+- **Security**: Maintain records for security investigations
+- **Compliance**: Meet regulatory requirements for data retention
+- **Debugging**: Easier troubleshooting of OTP-related issues
+
+### Database Schema
+```sql
+CREATE TABLE otp_storage (
+    id SERIAL PRIMARY KEY,
+    phone_number VARCHAR(20) NOT NULL,
+    otp VARCHAR(10) NOT NULL,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    expires_at TIMESTAMP WITH TIME ZONE NOT NULL,
+    is_used BOOLEAN DEFAULT FALSE
+);
+```
+
 ## API Endpoints
 
 ### 1. Send OTP
@@ -223,7 +257,7 @@ Resend OTP to a phone number (generates new OTP).
 ### 3. Verify OTP
 **POST** `/otp/verify`
 
-Verify the OTP sent to a phone number.
+Verify the OTP sent to a phone number. **Note**: After successful verification, the OTP is marked as used in the database instead of being deleted, allowing for audit trails and analytics.
 
 **Request Body:**
 ```json

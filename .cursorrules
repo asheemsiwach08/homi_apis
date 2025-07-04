@@ -66,6 +66,9 @@ This is a FastAPI-based REST API for WhatsApp OTP verification using Gupshup API
 - **Fallback**: Local in-memory storage if Supabase unavailable
 - **Automatic expiry**: OTPs expire after 3 minutes
 - **Thread-safe**: Local storage uses locks for concurrent access
+- **OTP Lifecycle**: OTPs are marked as `is_used = true` after verification (not deleted)
+- **Audit Trails**: Used and expired OTPs remain in database for analytics and compliance
+- **Data Retention**: Maintains OTP history for security investigations and usage patterns
 
 ## Debug Endpoints
 - `/debug/whatsapp`: Check WhatsApp service configuration

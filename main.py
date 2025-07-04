@@ -252,8 +252,8 @@ async def verify_otp(request: VerifyOTPRequest):
     
     # Verify OTP
     if stored_otp == request.otp:
-        # Delete OTP after successful verification
-        otp_storage.delete_otp(request.phone_number)
+        # Mark OTP as used after successful verification
+        otp_storage.mark_otp_as_used(request.phone_number)
         
         return OTPResponse(
             success=True,

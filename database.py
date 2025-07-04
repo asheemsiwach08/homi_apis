@@ -13,9 +13,6 @@ class SupabaseOTPStorage:
         if not settings.SUPABASE_SERVICE_ROLE_KEY or settings.SUPABASE_SERVICE_ROLE_KEY.strip() == "":
             raise ValueError("SUPABASE_SERVICE_ROLE_KEY environment variable is required")
 
-        print("supabase url", settings.SUPABASE_URL)
-        print("supabase service role key", settings.SUPABASE_SERVICE_ROLE_KEY)
-
         try:
             self.supabase: Client = create_client(
                 settings.SUPABASE_URL, 
@@ -125,12 +122,19 @@ class SupabaseOTPStorage:
             print(f"Error getting OTP: {e}")
             return None
     
-    def delete_otp(self, phone_number: str):
-        """Delete OTP after successful verification"""
+    def mark_otp_as_used(self, phone_number: str):
+        """Mark OTP as used after successful verification"""
         try:
-            self.supabase.table(self.table_name).delete().eq("phone_number", phone_number).execute()
+            self.supabase.table(self.table_name).update(
+                {"is_used": True}
+            ).eq("phone_number", phone_number).execute()
         except Exception as e:
-            print(f"Error deleting OTP: {e}")
+            print(f"Error marking OTP as used: {e}")
+    
+    def delete_otp(self, phone_number: str):
+        """Delete OTP after successful verification (deprecated - use mark_otp_as_used instead)"""
+        # For backward compatibility, mark as used instead of deleting
+        self.mark_otp_as_used(phone_number)
     
     def is_otp_exists(self, phone_number: str) -> bool:
         """Check if OTP exists and is not expired for phone number"""
@@ -199,6 +203,7 @@ except Exception as e:
     class LocalOTPStorage:
         def __init__(self):
             self._storage: Dict[str, Tuple[str, float]] = {}
+            self._used_otps: Dict[str, Tuple[str, float]] = {}  # Track used OTPs
             self._lock = Lock()
         
         def set_otp(self, phone_number: str, otp: str, expiry_seconds: int):
@@ -219,10 +224,18 @@ except Exception as e:
                 
                 return otp
         
-        def delete_otp(self, phone_number: str):
+        def mark_otp_as_used(self, phone_number: str):
+            """Mark OTP as used after successful verification"""
             with self._lock:
                 if phone_number in self._storage:
+                    otp, expiry_time = self._storage[phone_number]
+                    self._used_otps[phone_number] = (otp, expiry_time)
                     del self._storage[phone_number]
+        
+        def delete_otp(self, phone_number: str):
+            """Delete OTP after successful verification (deprecated - use mark_otp_as_used instead)"""
+            # For backward compatibility, mark as used instead of deleting
+            self.mark_otp_as_used(phone_number)
         
         def is_otp_exists(self, phone_number: str) -> bool:
             with self._lock:

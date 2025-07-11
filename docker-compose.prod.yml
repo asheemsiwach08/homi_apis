@@ -6,12 +6,28 @@ services:
     ports:
       - "5000:5000"
     environment:
+      # Server Configuration
+      - HOST=${HOST:-0.0.0.0}
+      - PORT=${PORT:-5000}
+      - DEBUG=${DEBUG:-False}
+      
+      # Basic Application API Configuration
+      - BASIC_APPLICATION_API_URL=${BASIC_APPLICATION_API_URL}
+      - BASIC_APPLICATION_USER_ID=${BASIC_APPLICATION_USER_ID}
+      - BASIC_APPLICATION_API_KEY=${BASIC_APPLICATION_API_KEY}
+      
       # Gupshup WhatsApp API Configuration
       - GUPSHUP_API_KEY=${GUPSHUP_API_KEY}
       - GUPSHUP_SOURCE=${GUPSHUP_SOURCE}
-      - GUPSHUP_TEMPLATE_ID=${GUPSHUP_TEMPLATE_ID}
-      - GUPSHUP_SRC_NAME=${GUPSHUP_SRC_NAME}
-      - GUPSHUP_API_URL=${GUPSHUP_API_URL:-https://api.gupshup.io/wa/api/v1/template/msg}
+      - GUPSHUP_API_URL=${GUPSHUP_API_URL:-https://api.gupshup.io/wa/api/v1/msg}
+      
+      # Gupshup WhatsApp Templates
+      - GUPSHUP_WHATSAPP_OTP_TEMPLATE_ID=${GUPSHUP_WHATSAPP_OTP_TEMPLATE_ID}
+      - GUPSHUP_WHATSAPP_OTP_SRC_NAME=${GUPSHUP_WHATSAPP_OTP_SRC_NAME:-HomiAi}
+      - GUPSHUP_LEAD_CREATION_TEMPLATE_ID=${GUPSHUP_LEAD_CREATION_TEMPLATE_ID}
+      - GUPSHUP_LEAD_CREATION_SRC_NAME=${GUPSHUP_LEAD_CREATION_SRC_NAME}
+      - GUPSHUP_LEAD_STATUS_TEMPLATE_ID=${GUPSHUP_LEAD_STATUS_TEMPLATE_ID}
+      - GUPSHUP_LEAD_STATUS_SRC_NAME=${GUPSHUP_LEAD_STATUS_SRC_NAME}
       
       # Supabase Configuration
       - SUPABASE_URL=${SUPABASE_URL}

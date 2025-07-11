@@ -1,0 +1,43 @@
+from pydantic import BaseModel, EmailStr, Field
+from typing import Optional
+
+
+class SendOTPRequest(BaseModel):
+    phone_number: str = Field(..., description="Phone number to send OTP to")
+
+class ResendOTPRequest(BaseModel):
+    phone_number: str = Field(..., description="Phone number to resend OTP to")
+
+class VerifyOTPRequest(BaseModel):
+    phone_number: str = Field(..., description="Phone number to verify OTP for")
+    otp: str = Field(..., description="OTP to verify")
+
+class OTPResponse(BaseModel):
+    success: bool
+    message: str
+    data: Optional[dict] = None 
+
+class LeadCreateRequest(BaseModel):
+    loan_type: str
+    loan_amount: float
+    loan_tenure: int
+    pan_number: str
+    first_name: str
+    last_name: str
+    gender: Optional[str] = None
+    mobile_number: str
+    email: EmailStr
+    dob: str
+    pin_code: str
+
+class LeadStatusRequest(BaseModel):
+    mobile_number: Optional[str] = None
+    basic_application_id: Optional[str] = None
+
+class LeadCreateResponse(BaseModel):
+    basic_application_id: str
+    message: str
+
+class LeadStatusResponse(BaseModel):
+    status: str
+    message: str 

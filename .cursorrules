@@ -1,7 +1,7 @@
-# Cursor Rules for WhatsApp OTP Verification API
+# Cursor Rules for HOM-i WhatsApp OTP, Lead Creation & Status API
 
 ## Project Overview
-This is a FastAPI-based REST API for WhatsApp OTP verification using Gupshup API with Supabase PostgreSQL storage and automatic fallback to local storage.
+This is a comprehensive FastAPI-based REST API for WhatsApp OTP verification, lead creation, and status tracking using Gupshup API with Supabase PostgreSQL storage and automatic fallback to local storage.
 
 ## Code Style Guidelines
 - Use async/await for all API calls
@@ -9,13 +9,17 @@ This is a FastAPI-based REST API for WhatsApp OTP verification using Gupshup API
 - Use type hints for all function parameters and return values
 - Keep functions focused and single-purpose
 - Add docstrings for all public functions
+- Use proper error handling with HTTP exceptions
 
 ## File Organization
-- `main.py`: FastAPI application and endpoints only
-- `config.py`: Configuration and environment variables
-- `database.py`: Supabase/local storage operations and database logic
-- `whatsapp_service.py`: External API integrations
-- `models.py`: Pydantic models for validation
+- `app/main.py`: FastAPI application entry point
+- `app/config/settings.py`: Configuration and environment variables
+- `app/services/database_service.py`: Supabase/local storage operations and database logic
+- `app/services/whatsapp_service.py`: Gupshup WhatsApp API integration
+- `app/services/basic_application_service.py`: Basic Application API integration
+- `app/models/schemas.py`: Pydantic models for validation
+- `app/api/endpoints/`: API endpoint modules (otp.py, leads.py, health.py)
+- `app/utils/validators.py`: Data validation utilities
 
 ## Security Rules
 - Never log OTP values
@@ -23,14 +27,16 @@ This is a FastAPI-based REST API for WhatsApp OTP verification using Gupshup API
 - Validate all input data
 - Implement proper error handling
 - Use HTTPS in production
+- Validate API credentials before making external calls
 
 ## API Design Rules
 - Use consistent response format
-- Implement proper HTTP status codes
+- Implement proper HTTP status codes (200, 400, 404, 409, 422, 500)
 - Add comprehensive error messages
 - Use Pydantic for request/response validation
 - Keep endpoints RESTful
-- All OTP endpoints use `/otp` prefix
+- All endpoints use `/api_v1` prefix
+- Use proper HTTP exceptions for error responses
 
 ## Phone Number Handling
 - **Automatic normalization**: All phone numbers are normalized to include country code 91
@@ -45,6 +51,21 @@ This is a FastAPI-based REST API for WhatsApp OTP verification using Gupshup API
 - **Validation pattern**: `^\+91[1-9]\d{9,11}$`
 - **Storage**: Use original phone number for storage, normalized number for WhatsApp service
 
+## Lead Management Rules
+- Validate all lead data before processing
+- Support multiple loan types with automatic mapping
+- Integrate with Basic Application API for lead creation
+- Store lead data in Supabase database
+- Send WhatsApp notifications for lead events
+- Support lead status tracking by mobile number or application ID
+
+## WhatsApp Integration Rules
+- Use Gupshup API for all WhatsApp communications
+- Support multiple templates for different use cases (OTP, lead creation, status updates)
+- Handle API responses properly (202 status is success)
+- Implement proper error handling for WhatsApp failures
+- Use async operations for all WhatsApp API calls
+
 ## Testing Guidelines
 - Test all endpoints with valid and invalid data
 - Mock external API calls in tests
@@ -52,6 +73,8 @@ This is a FastAPI-based REST API for WhatsApp OTP verification using Gupshup API
 - Verify storage operations (Supabase and local fallback)
 - Test error scenarios
 - Test phone number normalization with various formats
+- Test lead creation and status tracking
+- Test WhatsApp notification delivery
 
 ## Documentation Requirements
 - Update README.md for any major changes
@@ -60,17 +83,33 @@ This is a FastAPI-based REST API for WhatsApp OTP verification using Gupshup API
 - Provide usage examples with various phone number formats
 - Include troubleshooting section
 - Document phone number normalization rules
+- Document lead management workflow
+- Document WhatsApp template requirements
 
 ## Storage Solution
-- **Primary**: Supabase PostgreSQL for persistent OTP storage
+- **Primary**: Supabase PostgreSQL for persistent storage
 - **Fallback**: Local in-memory storage if Supabase unavailable
 - **Automatic expiry**: OTPs expire after 3 minutes
 - **Thread-safe**: Local storage uses locks for concurrent access
 - **OTP Lifecycle**: OTPs are marked as `is_used = true` after verification (not deleted)
 - **Audit Trails**: Used and expired OTPs remain in database for analytics and compliance
-- **Data Retention**: Maintains OTP history for security investigations and usage patterns
+- **Data Retention**: Maintains OTP and lead history for security investigations and usage patterns
+- **Lead Storage**: Store complete lead data with Basic Application API responses
+
+## Environment Variables
+- `BASIC_APPLICATION_API_URL`: Basic Application API endpoint
+- `BASIC_APPLICATION_USER_ID`: Basic Application API user ID
+- `BASIC_APPLICATION_API_KEY`: Basic Application API key
+- `GUPSHUP_API_KEY`: Gupshup WhatsApp API key
+- `GUPSHUP_SOURCE`: Gupshup source number
+- `GUPSHUP_WHATSAPP_OTP_TEMPLATE_ID`: OTP template ID
+- `GUPSHUP_LEAD_CREATION_TEMPLATE_ID`: Lead creation template ID
+- `GUPSHUP_LEAD_STATUS_TEMPLATE_ID`: Lead status template ID
+- `SUPABASE_URL`: Supabase project URL
+- `SUPABASE_SERVICE_ROLE_KEY`: Supabase service role key
 
 ## Debug Endpoints
-- `/debug/whatsapp`: Check WhatsApp service configuration
-- `/debug/test-request`: Show Gupshup API request format
-- `/debug/phone-normalization`: Test phone number normalization 
+- `/api_v1/health`: Health check endpoint
+- Check logs for service initialization status
+- Monitor WhatsApp service configuration
+- Monitor database connection status 

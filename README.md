@@ -1,29 +1,84 @@
-# WhatsApp OTP Verification API
+# HOM-i WhatsApp OTP, Lead Creation & Status API
 
-A FastAPI-based REST API for sending, resending, and verifying WhatsApp OTP using the Gupshup API. The OTP is valid for 3 minutes and uses Supabase PostgreSQL for storage with automatic fallback to local storage.
+A comprehensive FastAPI-based REST API for WhatsApp OTP verification, lead creation, and status tracking using Gupshup API with Supabase PostgreSQL storage and automatic fallback to local storage.
 
 ## Features
 
-- ✅ Send OTP via WhatsApp using Gupshup API
-- ✅ Resend OTP functionality
-- ✅ Verify OTP with 3-minute expiry
-- ✅ Supabase PostgreSQL OTP storage
-- ✅ Automatic fallback to local storage
-- ✅ Phone number validation
-- ✅ Comprehensive error handling
-- ✅ Async/await support
-- ✅ Environment variable configuration
-- ✅ Debug endpoints for troubleshooting
-- ✅ Test script included
-- ✅ Docker support with multi-stage builds
-- ✅ Docker Compose for easy deployment
-- ✅ Organized API routes with /otp prefix
+- ✅ **WhatsApp OTP Management**
+  - Send OTP via WhatsApp using Gupshup API
+  - Resend OTP functionality
+  - Verify OTP with 3-minute expiry
+  - Phone number validation and normalization
+- ✅ **Lead Management**
+  - Create leads with Basic Application API integration
+  - Track lead status by mobile number or application ID
+  - Comprehensive lead data validation
+- ✅ **WhatsApp Notifications**
+  - Lead creation confirmation messages
+  - Lead status update notifications
+  - Multiple template support for different use cases
+- ✅ **Storage & Infrastructure**
+  - Supabase PostgreSQL for persistent storage
+  - Automatic fallback to local storage
+  - Thread-safe operations
+  - Audit trails and data retention
+- ✅ **API Features**
+  - RESTful API design with proper HTTP status codes
+  - Comprehensive error handling
+  - Async/await support
+  - Environment variable configuration
+  - Debug endpoints for troubleshooting
+- ✅ **Development & Deployment**
+  - Modular project structure
+  - Docker support with multi-stage builds
+  - Docker Compose for easy deployment
+  - Comprehensive testing support
+
+## Project Structure
+
+```
+otpVerification/
+├── app/
+│   ├── __init__.py
+│   ├── main.py                 # FastAPI application entry point
+│   │   └── __init__.py
+│   ├── api/
+│   │   ├── __init__.py
+│   │   ├── routes.py           # Main API router
+│   │   └── endpoints/
+│   │       ├── __init__.py
+│   │       ├── otp.py          # OTP-related endpoints
+│   │       ├── leads.py        # Lead management endpoints
+│   │       └── health.py       # Health check endpoint
+│   ├── config/
+│   │   ├── __init__.py
+│   │   └── settings.py         # Application configuration
+│   ├── models/
+│   │   ├── __init__.py
+│   │   └── schemas.py          # Pydantic models
+│   ├── services/
+│   │   ├── __init__.py
+│   │   ├── database_service.py # Database operations
+│   │   ├── whatsapp_service.py # WhatsApp API integration
+│   │   └── basic_application_service.py # Basic Application API
+│   └── utils/
+│       ├── __init__.py
+│       └── validators.py       # Data validation utilities
+├── database_setup/             # Database setup scripts
+├── requirements.txt            # Python dependencies
+├── Dockerfile                  # Docker configuration
+├── docker-compose.yml          # Development Docker setup
+├── docker-compose.prod.yml     # Production Docker setup
+├── env.example                 # Environment variables template
+└── README.md                   # This file
+```
 
 ## Prerequisites
 
 - Python 3.8+ (for local development)
 - Docker & Docker Compose (for containerized deployment)
 - Gupshup WhatsApp API account
+- Basic Application API credentials
 - Supabase account and project (optional - falls back to local storage)
 
 ## Installation
@@ -36,24 +91,47 @@ A FastAPI-based REST API for sending, resending, and verifying WhatsApp OTP usin
    cd otpVerification
    ```
 
-2. **Install dependencies**
+2. **Create and activate virtual environment**
+   ```bash
+   python -m venv .venv
+   .\.venv\Scripts\activate  # Windows
+   source .venv/bin/activate  # Linux/Mac
+   ```
+
+3. **Install dependencies**
    ```bash
    pip install -r requirements.txt
    ```
 
-3. **Set up environment variables**
+4. **Set up environment variables**
    ```bash
    cp env.example .env
    ```
    
    Edit `.env` file with your configuration:
    ```env
+   # Server Configuration
+   HOST=0.0.0.0
+   PORT=5000
+   DEBUG=True
+
+   # Basic Application API Configuration
+   BASIC_APPLICATION_API_URL=your_basic_api_url
+   BASIC_APPLICATION_USER_ID=your_user_id
+   BASIC_APPLICATION_API_KEY=your_api_key
+
    # Gupshup WhatsApp API Configuration
-   GUPSHUP_API_KEY=your_api_key_here
+   GUPSHUP_API_KEY=your_gupshup_api_key
    GUPSHUP_SOURCE=your_source_number
-   GUPSHUP_TEMPLATE_ID=your_template_id
-   GUPSHUP_SRC_NAME=your_src_name
    GUPSHUP_API_URL=https://api.gupshup.io/wa/api/v1/template/msg
+
+   # WhatsApp Templates
+   GUPSHUP_WHATSAPP_OTP_TEMPLATE_ID=your_otp_template_id
+   GUPSHUP_WHATSAPP_OTP_SRC_NAME=HomiAi
+   GUPSHUP_LEAD_CREATION_TEMPLATE_ID=your_lead_creation_template_id
+   GUPSHUP_LEAD_CREATION_SRC_NAME=your_lead_creation_src_name
+   GUPSHUP_LEAD_STATUS_TEMPLATE_ID=your_lead_status_template_id
+   GUPSHUP_LEAD_STATUS_SRC_NAME=your_lead_status_src_name
 
    # Supabase Configuration (Optional - falls back to local storage if not configured)
    SUPABASE_URL=your_supabase_project_url
@@ -64,30 +142,30 @@ A FastAPI-based REST API for sending, resending, and verifying WhatsApp OTP usin
    OTP_EXPIRY_MINUTES=3
    ```
 
-4. **Set up Supabase (Optional)**
+5. **Set up Supabase (Optional)**
    
    **a. Create a Supabase project:**
    - Go to [supabase.com](https://supabase.com)
    - Create a new project
    - Note down your project URL and API keys
    
-   **b. Create the database table:**
+   **b. Create the database tables:**
    - Go to your Supabase dashboard
    - Navigate to SQL Editor
-   - Run the SQL script from `supabase_setup.sql`
+   - Run the SQL scripts from `database_setup/` directory
    
    **c. Get your API keys:**
    - Go to Settings > API
    - Copy your Project URL, anon key, and service_role key
 
-5. **Run the application**
+6. **Run the application**
    ```bash
-   python main.py
+   python -m app.main
    ```
    
    Or using uvicorn directly:
    ```bash
-   uvicorn main:app --host 0.0.0.0 --port 5000 --reload
+   uvicorn app.main:app --host 0.0.0.0 --port 5000 --reload
    ```
 
 ### Option 2: Docker Deployment
@@ -119,13 +197,13 @@ A FastAPI-based REST API for sending, resending, and verifying WhatsApp OTP usin
 4. **Or build and run with Docker directly**
    ```bash
    # Build the image
-   docker build -t whatsapp-otp-api .
+   docker build -t homi-api .
 
    # Run the container
    docker run -d \
      -p 5000:5000 \
      --env-file .env \
-     whatsapp-otp-api
+     homi-api
    ```
 
 ## Phone Number Validation & Normalization
@@ -193,407 +271,272 @@ CREATE TABLE otp_storage (
     expires_at TIMESTAMP WITH TIME ZONE NOT NULL,
     is_used BOOLEAN DEFAULT FALSE
 );
+
+CREATE TABLE leads (
+    id SERIAL PRIMARY KEY,
+    basic_application_id VARCHAR(255) NOT NULL,
+    customer_id VARCHAR(255),
+    relation_id VARCHAR(255),
+    first_name VARCHAR(255) NOT NULL,
+    last_name VARCHAR(255) NOT NULL,
+    mobile_number VARCHAR(20) NOT NULL,
+    email VARCHAR(255) NOT NULL,
+    pan_number VARCHAR(10) NOT NULL,
+    loan_type VARCHAR(50) NOT NULL,
+    loan_amount DECIMAL(15,2) NOT NULL,
+    loan_tenure INTEGER NOT NULL,
+    gender VARCHAR(10),
+    dob DATE,
+    pin_code VARCHAR(6) NOT NULL,
+    basic_api_response JSONB,
+    status VARCHAR(50) DEFAULT 'created',
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
 ```
 
 ## API Endpoints
 
-### 1. Send OTP
-**POST** `/otp/send`
+### OTP Operations
 
-Send OTP to a phone number via WhatsApp.
+#### 1. Send OTP
+```http
+POST /api_v1/otp_send
+Content-Type: application/json
 
-**Request Body:**
-```json
 {
-  "phone_number": "+1234567890"
+    "phone_number": "788888888"
 }
 ```
-
-**Success Response (200 OK):**
-```json
-{
-  "success": true,
-  "message": "OTP sent successfully",
-  "data": {
-    "phone_number": "+1234567890",
-    "otp": "123456"
-  }
-}
-```
-
-**Error Responses:**
-- **400 Bad Request** - Invalid phone number format
-- **409 Conflict** - OTP already sent (use resend endpoint)
-- **500 Internal Server Error** - WhatsApp service failure
-
-### 2. Resend OTP
-**POST** `/otp/resend`
-
-Resend OTP to a phone number (generates new OTP).
-
-**Request Body:**
-```json
-{
-  "phone_number": "+1234567890"
-}
-```
-
-**Success Response (200 OK):**
-```json
-{
-  "success": true,
-  "message": "OTP resent successfully",
-  "data": {
-    "phone_number": "+1234567890",
-    "otp": "123456"
-  }
-}
-```
-
-**Error Responses:**
-- **400 Bad Request** - Invalid phone number format
-- **500 Internal Server Error** - WhatsApp service failure
-
-### 3. Verify OTP
-**POST** `/otp/verify`
-
-Verify the OTP sent to a phone number. **Note**: After successful verification, the OTP is marked as used in the database instead of being deleted, allowing for audit trails and analytics.
-
-**Request Body:**
-```json
-{
-  "phone_number": "+1234567890",
-  "otp": "123456"
-}
-```
-
-**Success Response (200 OK):**
-```json
-{
-  "success": true,
-  "message": "OTP verified successfully",
-  "data": {
-    "phone_number": "+1234567890"
-  }
-}
-```
-
-**Error Responses:**
-- **400 Bad Request** - Invalid phone number format or invalid OTP
-- **404 Not Found** - OTP not found or expired
-
-### 4. Health Check
-**GET** `/health`
-
-Check if the API is running.
 
 **Response:**
 ```json
 {
-  "status": "healthy",
-  "message": "WhatsApp OTP API is running"
-}
-```
-
-### 5. Debug Endpoints
-
-#### Debug WhatsApp Configuration
-**GET** `/debug/whatsapp`
-
-Check WhatsApp service configuration (API keys, URLs, etc.).
-
-**Response:**
-```json
-{
-  "api_url": "https://api.gupshup.io/wa/api/v1/template/msg",
-  "api_key": "your_api_key...",
-  "source": "your_source_number",
-  "template_id": "your_template_id",
-  "src_name": "your_src_name",
-  "config_source": "Environment variables loaded successfully"
-}
-```
-
-#### Debug Test Request
-**GET** `/debug/test-request`
-
-Show what request would be sent to Gupshup API.
-
-**Response:**
-```json
-{
-  "api_url": "https://api.gupshup.io/wa/api/v1/template/msg",
-  "headers": {...},
-  "data": {...},
-  "note": "This shows the exact request that would be sent to Gupshup"
-}
-```
-
-#### Debug Phone Number Normalization
-**GET** `/debug/phone-normalization`
-
-Test phone number normalization with various input formats.
-
-**Response:**
-```json
-{
-  "phone_number_normalization_test": [
-    {
-      "original": "917888888888",
-      "normalized": "+917888888888",
-      "is_valid": true
-    },
-    {
-      "original": "788888888",
-      "normalized": "+917888888888",
-      "is_valid": true
-    },
-    {
-      "original": "+917888888888",
-      "normalized": "+917888888888",
-      "is_valid": true
+    "success": true,
+    "message": "OTP sent successfully",
+    "data": {
+        "phone_number": "788888888",
+        "otp": "123456"
     }
-  ],
-  "note": "This shows how different phone number formats are normalized to +91 format"
 }
 ```
 
-## API Documentation
+#### 2. Resend OTP
+```http
+POST /api_v1/otp_resend
+Content-Type: application/json
 
-Once the server is running, you can access:
-- **Interactive API docs**: http://localhost:5000/docs
-- **ReDoc documentation**: http://localhost:5000/redoc
-
-## Usage Examples
-
-### Using curl
-
-1. **Send OTP (various phone number formats):**
-   ```bash
-   # With country code
-   curl -X POST "http://localhost:5000/otp/send" \
-        -H "Content-Type: application/json" \
-        -d '{"phone_number": "917888888888"}'
-   
-   # Without country code (will be normalized to +91)
-   curl -X POST "http://localhost:5000/otp/send" \
-        -H "Content-Type: application/json" \
-        -d '{"phone_number": "788888888"}'
-   
-   # With + prefix
-   curl -X POST "http://localhost:5000/otp/send" \
-        -H "Content-Type: application/json" \
-        -d '{"phone_number": "+917888888888"}'
-   
-   # With leading 0
-   curl -X POST "http://localhost:5000/otp/send" \
-        -H "Content-Type: application/json" \
-        -d '{"phone_number": "0788888888"}'
-   ```
-
-2. **Resend OTP:**
-   ```bash
-   curl -X POST "http://localhost:5000/otp/resend" \
-        -H "Content-Type: application/json" \
-        -d '{"phone_number": "788888888"}'
-   ```
-
-3. **Verify OTP:**
-   ```bash
-   curl -X POST "http://localhost:5000/otp/verify" \
-        -H "Content-Type: application/json" \
-        -d '{"phone_number": "788888888", "otp": "123456"}'
-   ```
-
-4. **Test with invalid phone number:**
-   ```bash
-   curl -X POST "http://localhost:5000/otp/send" \
-        -H "Content-Type: application/json" \
-        -d '{"phone_number": "0123456789"}' \
-        -w "\nHTTP Status: %{http_code}\n"
-   ```
-
-5. **Test with expired OTP:**
-   ```bash
-   curl -X POST "http://localhost:5000/otp/verify" \
-        -H "Content-Type: application/json" \
-        -d '{"phone_number": "+1234567890", "otp": "999999"}' \
-        -w "\nHTTP Status: %{http_code}\n"
-   ```
-
-### Using Python requests
-
-```python
-import requests
-
-# Send OTP (various formats supported)
-phone_numbers = [
-    "917888888888",    # With country code
-    "788888888",       # Without country code (normalized to +91)
-    "+917888888888",   # With + prefix
-    "0788888888"       # With leading 0
-]
-
-for phone in phone_numbers:
-    response = requests.post("http://localhost:5000/otp/send", 
-                            json={"phone_number": phone})
-    print(f"Phone: {phone} -> Response: {response.json()}")
-
-# Verify OTP
-response = requests.post("http://localhost:5000/otp/verify", 
-                        json={"phone_number": "788888888", "otp": "123456"})
-print(response.json())
+{
+    "phone_number": "788888888"
+}
 ```
 
-### Using the Test Script
+#### 3. Verify OTP
+```http
+POST /api_v1/otp_verify
+Content-Type: application/json
 
-```bash
-python test_api.py
+{
+    "phone_number": "788888888",
+    "otp": "123456"
+}
 ```
 
-## Project Structure
+### Lead Management
 
+#### 1. Create Lead
+```http
+POST /api_v1/lead_create
+Content-Type: application/json
+
+{
+    "loan_type": "home_loan",
+    "loan_amount": 5000000,
+    "loan_tenure": 20,
+    "pan_number": "ABCDE1234F",
+    "first_name": "John",
+    "last_name": "Doe",
+    "gender": "Male",
+    "mobile_number": "788888888",
+    "email": "john.doe@example.com",
+    "dob": "15/06/1990",
+    "pin_code": "400001"
+}
 ```
-otpVerification/
-├── main.py              # FastAPI application and endpoints
-├── config.py            # Configuration and environment variables
-├── database.py          # Supabase/local OTP storage implementation
-├── whatsapp_service.py  # Gupshup API integration
-├── models.py            # Pydantic models for validation
-├── requirements.txt     # Python dependencies
-├── env.example          # Environment variables template
-├── supabase_setup.sql   # Supabase table creation script
-├── test_api.py          # Test script for API endpoints
-├── Dockerfile           # Docker configuration
-├── docker-compose.yml   # Docker Compose for development
-├── docker-compose.prod.yml # Docker Compose for production
-├── .dockerignore        # Docker ignore rules
-├── .gitignore           # Git ignore rules
-├── .cursorrules         # Cursor editor rules
-└── README.md           # Project documentation
+
+**Response:**
+```json
+{
+    "basic_application_id": "APP123456789",
+    "message": "Lead Created Successfully."
+}
 ```
 
-## Docker Features
+#### 2. Get Lead Status
+```http
+POST /api_v1/lead_status
+Content-Type: application/json
 
-### Dockerfile
-- **Multi-stage build** for optimized image size
-- **Security-focused** with non-root user
-- **Python 3.11** slim base image
-- **System dependencies** for PostgreSQL support
-
-### Docker Compose
-- **Development setup** with hot reload
-- **Production setup** with security hardening
-- **Environment variable management**
-- **Volume mounting** for logs
-- **Network isolation**
-- **Resource limits** (production)
-
-### Security Features
-- **Non-root user** execution
-- **Read-only filesystem** (production)
-- **No new privileges** security option
-- **Temporary filesystem** for /tmp
-- **Resource limits** to prevent abuse
-
-## Storage Solution
-
-The API uses **Supabase PostgreSQL** for OTP management with automatic fallback to local storage:
-
-- ✅ **Persistent storage** - OTPs survive server restarts (Supabase)
-- ✅ **Automatic fallback** - Falls back to local storage if Supabase unavailable
-- ✅ **Automatic expiry** - OTPs expire after 3 minutes
-- ✅ **Scalable** - Supports multiple server instances
-- ✅ **Secure** - Row-level security and proper authentication
-- ✅ **Automatic cleanup** - Expired OTPs are marked as used
-- ✅ **Thread-safe** - Local storage uses locks for concurrent access
-
-### Database Schema (Supabase)
-
-```sql
-CREATE TABLE otp_storage (
-    id SERIAL PRIMARY KEY,
-    phone_number VARCHAR(20) NOT NULL,
-    otp VARCHAR(10) NOT NULL,
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-    expires_at TIMESTAMP WITH TIME ZONE NOT NULL,
-    is_used BOOLEAN DEFAULT FALSE
-);
+{
+    "mobile_number": "788888888"
+}
 ```
+
+**Or:**
+```http
+POST /api_v1/lead_status
+Content-Type: application/json
+
+{
+    "basic_application_id": "APP123456789"
+}
+```
+
+**Response:**
+```json
+{
+    "status": "Under Review",
+    "message": "Your lead status is: Under Review"
+}
+```
+
+### Health Check
+
+#### Health Status
+```http
+GET /api_v1/health
+```
+
+**Response:**
+```json
+{
+    "status": "healthy",
+    "timestamp": "2024-01-15T10:30:00Z"
+}
+```
+
+## Loan Type Mapping
+
+The API supports various loan types with automatic mapping to Basic Application API codes:
+
+| Input Loan Type | Mapped Code | Description |
+|----------------|-------------|-------------|
+| `home_loan`, `Home Loan`, `HOME LOAN` | `HL` | Home Loan |
+| `loan_against_property`, `Loan Against Property`, `LAP` | `LAP` | Loan Against Property |
+| `personal_loan` | `PL` | Personal Loan |
+| `business_loan` | `BL` | Business Loan |
+| `car_loan` | `CL` | Car Loan |
+| `education_loan` | `EL` | Education Loan |
 
 ## Error Handling
 
-The API includes comprehensive error handling with proper HTTP status codes:
+The API returns appropriate HTTP status codes for different scenarios:
 
-### HTTP Status Codes
-- **200 OK** - Successful operations
-- **400 Bad Request** - Invalid phone number format, invalid OTP
-- **404 Not Found** - OTP not found or expired
-- **409 Conflict** - OTP already sent (use resend endpoint)
-- **500 Internal Server Error** - WhatsApp service failure, server errors
+- **200**: Success
+- **400**: Bad Request (invalid data, missing parameters)
+- **404**: Not Found (OTP not found, lead not found)
+- **409**: Conflict (OTP already sent)
+- **422**: Validation Error (invalid format)
+- **500**: Internal Server Error
 
 ### Error Response Format
 ```json
 {
-  "detail": {
     "success": false,
     "message": "Error description",
     "data": {
-      "phone_number": "+1234567890",
-      "additional_info": "..."
+        "phone_number": "788888888",
+        "error": "Additional error details"
     }
-  }
 }
 ```
 
-### Common Error Scenarios
-- **Invalid phone number format**: Returns 400 Bad Request
-- **OTP not found/expired**: Returns 404 Not Found
-- **Invalid OTP**: Returns 400 Bad Request
-- **OTP already exists**: Returns 409 Conflict
-- **WhatsApp service failure**: Returns 500 Internal Server Error
-- **Network issues**: Handles timeouts and connection errors
-- **Database errors**: Graceful fallback to local storage
-- **Gupshup API errors**: Proper status code handling (202 = success)
+## Testing
 
-## Security Considerations
+### Test OTP Operations
+```bash
+# Test OTP send
+curl -X POST "http://localhost:5000/api_v1/otp_send" \
+  -H "Content-Type: application/json" \
+  -d '{"phone_number": "788888888"}'
 
-- OTPs are stored securely in Supabase PostgreSQL or local memory
-- OTPs are automatically marked as used after expiry
-- Phone number validation is implemented
-- Environment variables for sensitive configuration
-- No OTP logging for security
-- Row-level security support in Supabase
-- Service role authentication for database access
-- Thread-safe operations for concurrent access
-- Docker security hardening in production
+# Test OTP verify
+curl -X POST "http://localhost:5000/api_v1/otp_verify" \
+  -H "Content-Type: application/json" \
+  -d '{"phone_number": "788888888", "otp": "123456"}'
+```
+
+### Test Lead Operations
+```bash
+# Test lead creation
+curl -X POST "http://localhost:5000/api_v1/lead_create" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "loan_type": "home_loan",
+    "loan_amount": 5000000,
+    "loan_tenure": 20,
+    "pan_number": "ABCDE1234F",
+    "first_name": "John",
+    "last_name": "Doe",
+    "mobile_number": "788888888",
+    "email": "john.doe@example.com",
+    "dob": "15/06/1990",
+    "pin_code": "400001"
+  }'
+
+# Test lead status
+curl -X POST "http://localhost:5000/api_v1/lead_status" \
+  -H "Content-Type: application/json" \
+  -d '{"mobile_number": "788888888"}'
+```
 
 ## Troubleshooting
 
-### Supabase Connection Issues
-1. **Check API keys**: Verify your Supabase URL and service role key
-2. **Check table**: Ensure the `otp_storage` table exists (run `supabase_setup.sql`)
-3. **Check permissions**: Verify service role has proper permissions
-4. **Fallback**: The system will automatically fall back to local storage
+### Common Issues
 
-### WhatsApp Delivery Issues
-1. **Check Gupshup configuration**: Verify API key and template ID
-2. **Check phone number**: Ensure correct international format
-3. **Check template approval**: Verify template is approved by WhatsApp
-4. **Check account status**: Ensure Gupshup account is active
-5. **Status 202**: This is normal - means message is queued for delivery
+1. **Supabase Connection Error**
+   ```
+   Error: 'str' object has no attribute 'headers'
+   ```
+   **Solution**: Check your Supabase credentials in `.env` file
 
-### Docker Issues
-1. **Build errors**: Check Dockerfile and requirements.txt
-2. **Environment variables**: Ensure .env file is properly configured
-3. **Port conflicts**: Change port mapping if 5000 is in use
-4. **Container logs**: Check logs with `docker logs <container_id>`
+2. **Supabase Permission Error**
+   ```
+   Error: permission denied for table otp_storage
+   ```
+   **Solution**: Run the database setup scripts and grant proper permissions
 
-### Quick Debug Steps
-1. **Check configuration**: `curl http://localhost:5000/debug/whatsapp`
-2. **Check request format**: `curl http://localhost:5000/debug/test-request`
-3. **Run test script**: `python test_api.py`
-4. **Check Docker logs**: `docker logs <container_id>`
+3. **WhatsApp API Error**
+   ```
+   Error: Failed to send OTP. Status: 400
+   ```
+   **Solution**: Verify Gupshup API credentials and template configuration
+
+4. **Basic Application API Error**
+   ```
+   Error: Failed to create lead in Basic Application API
+   ```
+   **Solution**: Check Basic Application API credentials and URL
+
+### Debug Endpoints
+
+- **Health Check**: `GET /api_v1/health`
+- **WhatsApp Service**: Check logs for WhatsApp service initialization
+- **Database Service**: Check logs for database connection status
+
+### Environment Variables Checklist
+
+Ensure all required environment variables are set:
+
+- [ ] `BASIC_APPLICATION_API_URL`
+- [ ] `BASIC_APPLICATION_USER_ID`
+- [ ] `BASIC_APPLICATION_API_KEY`
+- [ ] `GUPSHUP_API_KEY`
+- [ ] `GUPSHUP_SOURCE`
+- [ ] `GUPSHUP_WHATSAPP_OTP_TEMPLATE_ID`
+- [ ] `GUPSHUP_LEAD_CREATION_TEMPLATE_ID`
+- [ ] `GUPSHUP_LEAD_STATUS_TEMPLATE_ID`
+- [ ] `SUPABASE_URL` (optional)
+- [ ] `SUPABASE_SERVICE_ROLE_KEY` (optional)
 
 ## Contributing
 
@@ -605,4 +548,11 @@ The API includes comprehensive error handling with proper HTTP status codes:
 
 ## License
 
-This project is licensed under the MIT License. 
+This project is licensed under the MIT License - see the LICENSE file for details.
+
+## Support
+
+For support and questions:
+- Create an issue in the repository
+- Contact the development team
+- Check the troubleshooting section above 

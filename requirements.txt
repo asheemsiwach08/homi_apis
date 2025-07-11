@@ -1,8 +1,10 @@
 fastapi
-uvicorn
-python-multipart
+email-validator
 httpx
-python-dotenv
-pydantic
-supabase
+python-multipart
 psycopg2-binary
+python-dotenv
+pydantic[email]
+requests
+supabase
+uvicorn[standard]

@@ -26,7 +26,7 @@ pipeline{
             steps {
                 withCredentials([file(credentialsId: 'gupshup', variable: 'ENV_FILE')]) {
                     sh 'rm -f .env'
-                    sh "cp $ENV_FILE .env"
+                    sh 'cp $ENV_FILE .env'
                     sh 'cat .env'
                 }
             }

@@ -127,7 +127,7 @@ otpVerification/
 
    # WhatsApp Templates
    GUPSHUP_WHATSAPP_OTP_TEMPLATE_ID=your_otp_template_id
-   GUPSHUP_WHATSAPP_OTP_SRC_NAME=HomiAi
+   GUPSHUP_WHATSAPP_OTP_SRC_NAME=source_name
    GUPSHUP_LEAD_CREATION_TEMPLATE_ID=your_lead_creation_template_id
    GUPSHUP_LEAD_CREATION_SRC_NAME=your_lead_creation_src_name
    GUPSHUP_LEAD_STATUS_TEMPLATE_ID=your_lead_status_template_id

@@ -6,9 +6,9 @@ from app.config.settings import settings
 from app.utils.validators import validate_phone_number, normalize_phone_number
 
 # Create API router with prefix
-router = APIRouter(prefix="/api/v1/otp", tags=["OTP Operations"])
+router = APIRouter(prefix="/api_v1", tags=["OTP Operations"])
 
-@router.post("/send", response_model=OTPResponse)
+@router.post("/otp_send", response_model=OTPResponse)
 async def send_otp(request: SendOTPRequest):
     """Send OTP to the specified phone number"""
 
@@ -56,7 +56,7 @@ async def send_otp(request: SendOTPRequest):
             }
         )
 
-@router.post("/resend", response_model=OTPResponse)
+@router.post("/otp_resend", response_model=OTPResponse)
 async def resend_otp(request: ResendOTPRequest):
     """Resend OTP to the specified phone number"""
 
@@ -92,7 +92,7 @@ async def resend_otp(request: ResendOTPRequest):
             }
         )
 
-@router.post("/verify", response_model=OTPResponse)
+@router.post("/otp_verify", response_model=OTPResponse)
 async def verify_otp(request: VerifyOTPRequest):
     """Verify OTP for the specified phone number"""
     if not validate_phone_number(request.phone_number):

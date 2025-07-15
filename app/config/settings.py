@@ -57,6 +57,7 @@ class Settings:
         "Home Loan": "HL",
         "Home loan": "HL",
         "Home Loan": "HL",
+        "HL": "HL",
         "Loan Against Property": "LAP",
         "Loan against property": "LAP",
         "Loan Against Property": "LAP",

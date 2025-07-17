@@ -17,6 +17,12 @@ A comprehensive FastAPI-based REST API for WhatsApp OTP verification, lead creat
   - Lead creation confirmation messages
   - Lead status update notifications
   - Multiple template support for different use cases
+- ✅ **WhatsApp Message Processing**
+  - Intelligent message parsing for status requests
+  - Automatic phone number and application ID extraction
+  - Natural language processing for status check requests
+  - Support for various message formats and phone number formats
+  - **Automatic webhook processing** for real-time message handling
 - ✅ **Storage & Infrastructure**
   - Supabase PostgreSQL for persistent storage
   - Automatic fallback to local storage
@@ -49,6 +55,8 @@ otpVerification/
 │   │       ├── __init__.py
 │   │       ├── otp.py          # OTP-related endpoints
 │   │       ├── leads.py        # Lead management endpoints
+│   │       ├── whatsapp.py     # WhatsApp message processing
+│   │       ├── whatsapp_webhook.py # WhatsApp webhook (automatic)
 │   │       └── health.py       # Health check endpoint
 │   ├── config/
 │   │   ├── __init__.py
@@ -399,6 +407,35 @@ Content-Type: application/json
 }
 ```
 
+#### 3. Process WhatsApp Message
+```http
+POST /api_v1/whatsapp/process_message
+Content-Type: application/json
+
+{
+    "message": "I want to check my application status. My mobile number is 9876543210",
+    "phone_number": "+919876543210"
+}
+```
+
+**Response:**
+```json
+{
+    "success": true,
+    "message": "Your application status is: Under Review",
+    "status": "Under Review",
+    "application_id": "APP123456"
+}
+```
+
+**Supported Message Formats:**
+- "I want to check my application status"
+- "Please check my loan status"
+- "Application status check"
+- "Track my application"
+- "My application ID is APP123456"
+- "Check status for mobile 9876543210"
+
 ### Health Check
 
 #### Health Status
@@ -487,6 +524,14 @@ curl -X POST "http://localhost:5000/api_v1/lead_create" \
 curl -X POST "http://localhost:5000/api_v1/lead_status" \
   -H "Content-Type: application/json" \
   -d '{"mobile_number": "788888888"}'
+
+# Test WhatsApp message processing
+curl -X POST "http://localhost:5000/api_v1/whatsapp/process_message" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "message": "I want to check my application status. My mobile number is 9876543210",
+    "phone_number": "+919876543210"
+  }'
 ```
 
 ## Troubleshooting

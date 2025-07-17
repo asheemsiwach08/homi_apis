@@ -226,9 +226,11 @@ class BasicApplicationService:
             # Now we have both mobile number and basic_application_id, call the GetActivity API
             if final_mobile_number and final_basic_application_id:
                 api_url = f"{self.basic_api_url}/api/v1/Application/Activity/GetActivity/{final_basic_application_id}/{final_mobile_number}"
+                print("api_url:-", api_url)
                 headers = self.generate_signature_headers(api_url, "GET")
                 
                 response = requests.get(api_url, headers=headers)
+                print("response:-", response)
                     
                 if response.status_code == 200:
                     return response.json()

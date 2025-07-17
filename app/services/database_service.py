@@ -163,6 +163,7 @@ class DatabaseService:
         
         try:
             result = self.client.table("leads").select("*").eq("mobile_number", mobile_number).execute()
+            print("result:-", result)
             
             if result.data:
                 return result.data[0]
@@ -187,11 +188,68 @@ class DatabaseService:
             return False
         
         try:
-            result = self.client.table("leads").update({"status": status}).eq("basic_application_id", basic_application_id).execute()
+            # Update the status in leads table
+            result = self.client.table("leads").update({
+                "leadStatus": status,
+                "updated_at": "now()"
+            }).eq("basic_application_id", basic_application_id).execute()
+            
             return bool(result.data)
             
         except Exception as e:
             return False
+    
+    def save_status_history(self, basic_application_id: str, status: str) -> bool:
+        """
+        Save status history for tracking
+        
+        Args:
+            basic_application_id: Basic Application ID
+            status: Status to save
+            
+        Returns:
+            bool: Success status
+        """
+        if not self.client:
+            return False
+        
+        try:
+            # Check if status_history table exists, if not create it
+            history_data = {
+                "basic_application_id": basic_application_id,
+                "status": status,
+                "timestamp": "now()"
+            }
+            
+            # Try to insert into status_history table
+            result = self.client.table("status_history").insert(history_data).execute()
+            return bool(result.data)
+            
+        except Exception as e:
+            # If status_history table doesn't exist, just log it
+            print(f"Status history table not available: {e}")
+            return False
+    
+    def get_status_history(self, basic_application_id: str) -> List[Dict]:
+        """
+        Get status history for a lead
+        
+        Args:
+            basic_application_id: Basic Application ID
+            
+        Returns:
+            List[Dict]: List of status history records
+        """
+        if not self.client:
+            return []
+        
+        try:
+            result = self.client.table("status_history").select("*").eq("basic_application_id", basic_application_id).order("timestamp", desc=True).execute()
+            return result.data if result.data else []
+            
+        except Exception as e:
+            print(f"Error getting status history: {e}")
+            return []
     
     def get_all_leads(self, limit: int = 100) -> List[Dict]:
         """

@@ -131,6 +131,22 @@ api_usage:
           created_at: "2024-12-19T10:30:00Z"
           updated_at: "2024-12-19T10:30:00Z"
         error: "404 Not Found if lead doesn't exist"
+    
+    whatsapp_process_message:
+      method: "POST"
+      path: "/whatsapp/process_message"
+      description: "Process WhatsApp message and check application status"
+      payload:
+        message: "string (WhatsApp message content)"
+        phone_number: "string (sender's phone number)"
+      response:
+        success: "200 OK"
+        data:
+          success: true
+          message: "Your application status is: approved"
+          status: "approved"
+          application_id: "APP123456"
+        error: "400 Bad Request for invalid message or phone number"
   
   phone_number_formats:
     supported:
@@ -194,6 +210,20 @@ api_usage:
       curl: |
         curl -X GET "http://localhost:5000/api_v1/lead-status/BA123456789"
       url: "http://localhost:5000/api_v1/lead-status/BA123456789"
+    
+    whatsapp_process_message:
+      curl: |
+        curl -X POST "http://localhost:5000/api_v1/whatsapp/process_message" \
+          -H "Content-Type: application/json" \
+          -d '{
+            "message": "I want to check my application status. My mobile number is 9876543210",
+            "phone_number": "+919876543210"
+          }'
+      payload: |
+        {
+          "message": "I want to check my application status. My mobile number is 9876543210",
+          "phone_number": "+919876543210"
+        }
   
   error_responses:
     format:

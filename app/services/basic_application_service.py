@@ -148,7 +148,12 @@ class BasicApplicationService:
             # Get signature headers
             api_url = f"{self.basic_api_url}/api/v1/NewApplication/FullfilmentByBasic"
             headers = self.generate_signature_headers(api_url, "POST", api_payload)
-            
+            print("--------------------------------------------------------------")
+            print(headers)
+            print("----- +++++++++++++++++++++++++++++++++ ------")
+            print(api_payload)
+            print("----- +++++++++++++++++++++++++++++++++ ------")
+            print("--------------------------------------------------------------")
             response = requests.post(api_url, headers=headers, json=api_payload)
             
             if response.status_code in [200, 201]:

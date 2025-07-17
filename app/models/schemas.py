@@ -1,5 +1,5 @@
 from pydantic import BaseModel, EmailStr, Field
-from typing import Optional
+from typing import Optional, List, Dict
 
 
 class SendOTPRequest(BaseModel):
@@ -40,4 +40,18 @@ class LeadCreateResponse(BaseModel):
 
 class LeadStatusResponse(BaseModel):
     status: str
-    message: str 
+    message: str
+
+class WhatsAppMessageRequest(BaseModel):
+    message: str = Field(..., description="WhatsApp message content")
+
+class WhatsAppStatusResponse(BaseModel):
+    success: bool
+    message: str
+    status: Optional[str] = None
+    application_id: Optional[str] = None
+
+class StatusHistoryResponse(BaseModel):
+    basic_application_id: str
+    status_history: List[Dict]
+    total_records: int 

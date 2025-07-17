@@ -163,6 +163,7 @@ class DatabaseService:
         
         try:
             result = self.client.table("leads").select("*").eq("mobile_number", mobile_number).execute()
+            print("result:-", result)
             
             if result.data:
                 return result.data[0]
@@ -187,11 +188,68 @@ class DatabaseService:
             return False
         
         try:
-            result = self.client.table("leads").update({"status": status}).eq("basic_application_id", basic_application_id).execute()
+            # Update the status in leads table
+            result = self.client.table("leads").update({
+                "leadStatus": status,
+                "updated_at": "now()"
+            }).eq("basic_application_id", basic_application_id).execute()
+            
             return bool(result.data)
             
         except Exception as e:
             return False
+    
+    def save_status_history(self, basic_application_id: str, status: str) -> bool:
+        """
+        Save status history for tracking
+        
+        Args:
+            basic_application_id: Basic Application ID
+            status: Status to save
+            
+        Returns:
+            bool: Success status
+        """
+        if not self.client:
+            return False
+        
+        try:
+            # Check if status_history table exists, if not create it
+            history_data = {
+                "basic_application_id": basic_application_id,
+                "status": status,
+                "timestamp": "now()"
+            }
+            
+            # Try to insert into status_history table
+            result = self.client.table("status_history").insert(history_data).execute()
+            return bool(result.data)
+            
+        except Exception as e:
+            # If status_history table doesn't exist, just log it
+            print(f"Status history table not available: {e}")
+            return False
+    
+    def get_status_history(self, basic_application_id: str) -> List[Dict]:
+        """
+        Get status history for a lead
+        
+        Args:
+            basic_application_id: Basic Application ID
+            
+        Returns:
+            List[Dict]: List of status history records
+        """
+        if not self.client:
+            return []
+        
+        try:
+            result = self.client.table("status_history").select("*").eq("basic_application_id", basic_application_id).order("timestamp", desc=True).execute()
+            return result.data if result.data else []
+            
+        except Exception as e:
+            print(f"Error getting status history: {e}")
+            return []
     
     def get_all_leads(self, limit: int = 100) -> List[Dict]:
         """
@@ -212,6 +270,111 @@ class DatabaseService:
             
         except Exception as e:
             return []
+    
+    def save_whatsapp_message(self, message_data: Dict) -> Dict:
+        """
+        Save WhatsApp message to database (simplified)
+        
+        Args:
+            message_data: Dictionary containing message details
+                - mobile: Sender's mobile number
+                - message: Message content
+                - payload: Full webhook payload (optional)
+                
+        Returns:
+            Dict: Database operation result
+        """
+        if not self.client:
+            raise HTTPException(
+                status_code=500,
+                detail="Supabase client not initialized. Check database configuration."
+            )
+        
+        try:
+            # Prepare data for database (simplified)
+            db_data = {
+                "mobile": str(message_data.get("mobile", "")),
+                "message": str(message_data.get("message", "")),
+                "payload": message_data.get("payload")
+            }
+            
+            # Insert data into whatsapp_messages table
+            result = self.client.table("whatsapp_messages").insert(db_data).execute()
+            
+            if result.data:
+                return {
+                    "success": True,
+                    "message_id": result.data[0].get("id"),
+                    "message": "WhatsApp message saved to database"
+                }
+            else:
+                raise HTTPException(
+                    status_code=500,
+                    detail="Failed to save WhatsApp message to database"
+                )
+                
+        except HTTPException:
+            raise
+        except Exception as e:
+            raise HTTPException(
+                status_code=500,
+                detail=f"Database error saving WhatsApp message: {str(e)}"
+            )
+    
+    def get_whatsapp_messages_by_mobile(self, mobile_number: str, limit: int = 50) -> List[Dict]:
+        """
+        Get WhatsApp messages by mobile number (simplified)
+        
+        Args:
+            mobile_number: Mobile number to search for
+            limit: Number of messages to return
+            
+        Returns:
+            List[Dict]: List of messages
+        """
+        if not self.client:
+            return []
+        
+        try:
+            result = self.client.table("whatsapp_messages").select("*").eq("mobile", mobile_number).order("id", desc=True).limit(limit).execute()
+            
+            return result.data if result.data else []
+            
+        except Exception as e:
+            return []
+    
+    def get_whatsapp_message_stats(self) -> Dict:
+        """
+        Get WhatsApp message statistics (simplified)
+        
+        Returns:
+            Dict: Message statistics
+        """
+        if not self.client:
+            return {}
+        
+        try:
+            # Use the database function to get stats
+            result = self.client.rpc("get_whatsapp_message_stats").execute()
+            
+            if result.data:
+                return result.data[0]
+            return {}
+            
+        except Exception as e:
+            # Fallback: calculate stats manually
+            try:
+                total_result = self.client.table("whatsapp_messages").select("id").execute()
+                
+                return {
+                    "total_messages": len(total_result.data) if total_result.data else 0
+                }
+            except Exception:
+                return {
+                    "total_messages": 0
+                }
+    
+
 
 
 ## OTP Storage in Supabase

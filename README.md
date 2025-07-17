@@ -17,6 +17,12 @@ A comprehensive FastAPI-based REST API for WhatsApp OTP verification, lead creat
   - Lead creation confirmation messages
   - Lead status update notifications
   - Multiple template support for different use cases
+- ✅ **WhatsApp Message Processing**
+  - Intelligent message parsing for status requests
+  - Automatic phone number and application ID extraction
+  - Natural language processing for status check requests
+  - Support for various message formats and phone number formats
+  - **Automatic webhook processing** for real-time message handling
 - ✅ **Storage & Infrastructure**
   - Supabase PostgreSQL for persistent storage
   - Automatic fallback to local storage
@@ -49,6 +55,8 @@ otpVerification/
 │   │       ├── __init__.py
 │   │       ├── otp.py          # OTP-related endpoints
 │   │       ├── leads.py        # Lead management endpoints
+│   │       ├── whatsapp.py     # WhatsApp message processing
+│   │       ├── whatsapp_webhook.py # WhatsApp webhook (automatic)
 │   │       └── health.py       # Health check endpoint
 │   ├── config/
 │   │   ├── __init__.py
@@ -399,6 +407,79 @@ Content-Type: application/json
 }
 ```
 
+#### 3. Process WhatsApp Message
+```http
+POST /api_v1/whatsapp/process_message
+Content-Type: application/json
+
+{
+    "message": "I want to check my application status. My mobile number is 9876543210",
+    "phone_number": "+919876543210"
+}
+```
+
+**Response:**
+```json
+{
+    "success": true,
+    "message": "Your application status is: Under Review",
+    "status": "Under Review",
+    "application_id": "APP123456"
+}
+```
+
+**Supported Message Formats:**
+- "I want to check my application status"
+- "Please check my loan status"
+- "Application status check"
+- "Track my application"
+- "My application ID is APP123456"
+- "Check status for mobile 9876543210"
+
+### WhatsApp Message Storage
+
+All WhatsApp messages (inbound and outbound) are automatically saved to the Supabase database for audit trails and analytics.
+
+#### Message Storage Endpoints
+
+**Get All Messages:**
+```http
+GET /api_v1/whatsapp/messages?limit=50&direction=inbound
+```
+
+**Get Message Statistics:**
+```http
+GET /api_v1/whatsapp/messages/stats
+```
+
+**Get Messages by Mobile Number:**
+```http
+GET /api_v1/whatsapp/messages/9876543210?limit=20
+```
+
+**Response Format:**
+```json
+{
+    "success": true,
+    "messages": [
+        {
+            "id": 1,
+            "mobile_number": "9876543210",
+            "sender_name": "John Doe",
+            "message_text": "Check my application status",
+            "direction": "inbound",
+            "timestamp": "2024-01-15T10:30:00Z",
+            "processed": true,
+            "processing_result": {
+                "status": "success",
+                "application_status": "Under Review"
+            }
+        }
+    ],
+    "count": 1
+}
+```
+
 ### Health Check
 
 #### Health Status
@@ -450,6 +531,28 @@ The API returns appropriate HTTP status codes for different scenarios:
 }
 ```
 
+## Database Setup
+
+### WhatsApp Messages Table
+
+To enable WhatsApp message storage, run the following SQL script in your Supabase SQL editor:
+
+```sql
+-- Run database_setup/whatsapp_messages_table.sql
+```
+
+This creates:
+- `whatsapp_messages` table for storing all messages
+- Indexes for better performance
+- Functions for message statistics
+- Views for recent messages
+
+### Required Tables
+
+1. **OTP Storage**: `database_setup/supabase_setup.sql`
+2. **Leads Management**: `database_setup/supabase_setup.sql`
+3. **WhatsApp Messages**: `database_setup/whatsapp_messages_table.sql`
+
 ## Testing
 
 ### Test OTP Operations
@@ -487,6 +590,14 @@ curl -X POST "http://localhost:5000/api_v1/lead_create" \
 curl -X POST "http://localhost:5000/api_v1/lead_status" \
   -H "Content-Type: application/json" \
   -d '{"mobile_number": "788888888"}'
+
+# Test WhatsApp message processing
+curl -X POST "http://localhost:5000/api_v1/whatsapp/process_message" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "message": "I want to check my application status. My mobile number is 9876543210",
+    "phone_number": "+919876543210"
+  }'
 ```
 
 ## Troubleshooting

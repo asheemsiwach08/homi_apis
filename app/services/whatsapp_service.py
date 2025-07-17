@@ -221,5 +221,66 @@ class WhatsAppService:
                 "data": {"error": str(e)}
             }
 
+    async def send_message(self, phone_number: str, message: str) -> dict:
+        """
+        Send a simple text message via WhatsApp using Gupshup API
+        
+        Args:
+            phone_number: Customer's phone number
+            message: Text message to send
+            
+        Returns:
+            dict: Response with success status and message
+        """
+        headers = {
+            'Cache-Control': 'no-cache',
+            'Content-Type': 'application/x-www-form-urlencoded',
+            'apikey': self.api_key,
+            'cache-control': 'no-cache'
+        }
+        
+        data = {
+            'channel': 'whatsapp',
+            'source': self.source,
+            'destination': phone_number,
+            'message': message
+        }
+        
+        try:
+            async with httpx.AsyncClient() as client:
+                response = await client.post(
+                    self.api_url,
+                    headers=headers,
+                    data=data,
+                    timeout=30.0
+                )
+                
+                # Gupshup API returns 202 for successful submissions
+                if response.status_code in [200, 202]:
+                    try:
+                        response_data = response.json()
+                        data_dict = response_data if isinstance(response_data, dict) else {"response": str(response_data)}
+                    except json.JSONDecodeError:
+                        data_dict = {"response": response.text}
+                    
+                    return {
+                        "success": True,
+                        "message": "Message sent successfully",
+                        "data": data_dict
+                    }
+                else:
+                    return {
+                        "success": False,
+                        "message": f"Failed to send message. Status: {response.status_code}",
+                        "data": {"error": response.text}
+                    }
+                    
+        except Exception as e:
+            return {
+                "success": False,
+                "message": f"Error sending message: {str(e)}",
+                "data": {"error": str(e)}
+            }
+
 # Global instance
 whatsapp_service = WhatsAppService() 

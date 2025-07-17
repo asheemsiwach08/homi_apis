@@ -118,11 +118,29 @@ async def get_lead_status(status_request: LeadStatusRequest):
             mobile_number=status_request.mobile_number,
             basic_application_id=status_request.basic_application_id
         )
+        print("api_status:-", api_status)
         
         if api_status:
             # Extract status from API response
             status = api_status.get("result",{}).get("latestStatus","Not found")
             message = f"Your lead status is: {status}"
+            
+            # Save status to Supabase database
+            try:
+                if status_request.basic_application_id:
+                    # Update status using basic application ID
+                    database_service.update_lead_status(status_request.basic_application_id, str(status))
+                    print(f"Status updated in database for application ID: {status_request.basic_application_id}")
+                elif status_request.mobile_number:
+                    # Get lead data by mobile number and update status
+                    lead_data = database_service.get_lead_by_mobile(status_request.mobile_number)
+                    if lead_data and lead_data.get("basic_application_id"):
+                        basic_app_id = lead_data.get("basic_application_id")
+                        if basic_app_id:
+                            database_service.update_lead_status(str(basic_app_id), str(status))
+                            print(f"Status updated in database for mobile: {status_request.mobile_number}")
+            except Exception as db_error:
+                print(f"Failed to update status in database: {db_error}")
             
             # Get mobile number for WhatsApp (either from request or database)
             mobile_number_for_whatsapp = status_request.mobile_number
@@ -161,3 +179,27 @@ async def get_lead_status(status_request: LeadStatusRequest):
         raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}") 
+
+
+@router.post("/get_lead_updates_via_whatsapp", response_model=LeadStatusResponse)
+async def get_udpates_lead_via_whatsapp(whatsapp_status_request: LeadStatusRequest):
+    """Get lead updates via WhatsApp"""
+    try:
+        # Validate that at least one identifier is provided
+        if not any([whatsapp_status_request.mobile_number, whatsapp_status_request.basic_application_id]):
+            raise HTTPException(status_code=400, detail="Either mobile number or basic application ID must be provided")
+        
+        # Validate mobile number if provided
+        if whatsapp_status_request.mobile_number and not validate_mobile_number(whatsapp_status_request.mobile_number):
+            raise HTTPException(status_code=422, detail="Mobile number must be 10 digits")
+
+        lead_data = database_service.get_lead_by_mobile(str(whatsapp_status_request.mobile_number))
+        return LeadStatusResponse(status="APPROVED", message="Your loan has been approved. Please check your email for the loan details.")
+
+        # if lead_data:
+        #     return LeadStatusResponse(status=lead_data.get("status"), message=lead_data.get("message"))
+        # else:
+        #     return LeadStatusResponse(status="Not Found", message="We couldn’t find your details. You can track your application manually at: https://www.basichomeloan.com/track-your-application")
+
+    except HTTPException:
+        raise

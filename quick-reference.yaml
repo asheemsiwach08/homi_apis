@@ -1,0 +1,169 @@
+quick_reference:
+  title: "HOM-i WhatsApp OTP API - Quick Reference Guide"
+  version: "1.0.0"
+  
+  # Quick Start Commands
+  quick_start:
+    local_development:
+      - "git clone <repo-url> && cd otpVerification"
+      - "python -m venv .venv && source .venv/bin/activate"
+      - "pip install -r requirements.txt"
+      - "cp env.example .env && # edit .env"
+      - "python -m app.main"
+    
+    docker_development:
+      - "git clone <repo-url> && cd otpVerification"
+      - "cp env.example .env && # edit .env"
+      - "docker-compose up --build"
+    
+    docker_production:
+      - "git clone <repo-url> && cd otpVerification"
+      - "cp env.example .env && # edit .env"
+      - "docker-compose -f docker-compose.prod.yml up --build -d"
+    
+    jenkins_deployment:
+      - "Push to Git repository"
+      - "Jenkins pipeline automatically triggers"
+      - "Check Slack notifications for build status"
+  
+  # Essential Environment Variables
+  required_env_vars:
+    server:
+      HOST: "0.0.0.0"
+      PORT: "5000"
+      DEBUG: "False"
+    
+    gupshup:
+      GUPSHUP_API_KEY: "your_api_key"
+      GUPSHUP_SOURCE: "your_source_number"
+      GUPSHUP_WHATSAPP_OTP_TEMPLATE_ID: "your_template_id"
+    
+    basic_api:
+      BASIC_APPLICATION_API_URL: "your_api_url"
+      BASIC_APPLICATION_USER_ID: "your_user_id"
+      BASIC_APPLICATION_API_KEY: "your_api_key"
+    
+    supabase:
+      SUPABASE_URL: "your_project_url"
+      SUPABASE_SERVICE_ROLE_KEY: "your_service_role_key"
+  
+  # API Endpoints Quick Reference
+  api_endpoints:
+    base_url: "/api_v1"
+    
+    otp:
+      send: "POST /send-otp"
+      verify: "POST /verify-otp"
+      resend: "POST /resend-otp"
+    
+    leads:
+      create: "POST /create-lead"
+      status_by_id: "GET /lead-status/{basic_application_id}"
+      status_by_mobile: "GET /lead-status/mobile/{mobile_number}"
+    
+    utility:
+      health: "GET /health"
+      docs: "GET /docs"
+  
+  # Phone Number Formats
+  phone_formats:
+    supported:
+      - "917888888888 (with country code)"
+      - "788888888 (without country code)"
+      - "+917888888888 (with + prefix)"
+      - "0788888888 (with leading 0)"
+      - "888888888 (9 digits)"
+      - "88888888 (8 digits)"
+    
+    validation: "^\\+91[1-9]\\d{9,11}$"
+    normalization: "Auto-adds +91 prefix"
+  
+  # Docker Commands
+  docker_commands:
+    build: "docker build -t homi-api ."
+    run_dev: "docker-compose up --build"
+    run_prod: "docker-compose -f docker-compose.prod.yml up --build -d"
+    logs: "docker-compose logs -f"
+    stop: "docker-compose down"
+    shell: "docker exec -it <container_id> /bin/bash"
+  
+  # Testing Commands
+  testing:
+    manual: "python test_api.py"
+    health_check: "curl http://localhost:5000/api_v1/health"
+    api_docs: "http://localhost:5000/docs"
+  
+  # Common Issues & Solutions
+  troubleshooting:
+    supabase_connection:
+      error: "Supabase client not initialized"
+      solution: "Check SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY"
+    
+    whatsapp_api:
+      error: "OTP not sent"
+      solution: "Verify GUPSHUP_API_KEY and template IDs"
+    
+    docker_issues:
+      error: "Container fails to start"
+      solution: "Check .env file and port 5000 availability"
+    
+    phone_validation:
+      error: "Invalid phone number format"
+      solution: "Use supported formats or check normalization"
+  
+  # Monitoring & Logs
+  monitoring:
+    logs_location: "/app/logs/app.log"
+    health_endpoint: "GET /api_v1/health"
+    docker_logs: "docker-compose logs -f"
+    container_status: "docker ps"
+  
+  # Security Checklist
+  security:
+    - "Never commit .env files"
+    - "Use strong API keys"
+    - "Enable HTTPS in production"
+    - "Set DEBUG=False in production"
+    - "Use non-root user in containers"
+    - "Regular security updates"
+  
+  # Deployment Checklist
+  deployment_checklist:
+    pre_deployment:
+      - "Update environment variables"
+      - "Test API endpoints"
+      - "Verify external service connectivity"
+      - "Check database permissions"
+    
+    post_deployment:
+      - "Verify health endpoint"
+      - "Test OTP flow"
+      - "Test lead creation"
+      - "Monitor logs for errors"
+      - "Check resource usage"
+  
+  # Useful Commands
+  useful_commands:
+    check_services:
+      - "docker ps -a"
+      - "docker-compose ps"
+      - "curl http://localhost:5000/api_v1/health"
+    
+    view_logs:
+      - "docker-compose logs -f"
+      - "docker logs <container_id>"
+      - "tail -f /app/logs/app.log"
+    
+    restart_services:
+      - "docker-compose restart"
+      - "docker-compose down && docker-compose up -d"
+    
+    backup_data:
+      - "Supabase dashboard export"
+      - "docker save homi-api > backup.tar"
+  
+  # Contact Information
+  support:
+    documentation: "README.md and /docs endpoint"
+    logs: "Application and Docker logs"
+    external_services: "Gupshup, Basic API, Supabase dashboards" 

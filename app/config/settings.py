@@ -49,6 +49,9 @@ class Settings:
     # OTP Configuration
     OTP_EXPIRY_MINUTES = int(os.getenv("OTP_EXPIRY_MINUTES", "3"))
 
+    # WhatsApp Webhook Configuration
+    WHATSAPP_WEBHOOK_VERIFY_TOKEN = os.getenv("WHATSAPP_WEBHOOK_VERIFY_TOKEN", "homi_whatsapp_webhook_2024_secure_token_123")
+
     # Loan Type Mapping
     LOAN_TYPE_MAPPING = {
         "home_loan": "HL",

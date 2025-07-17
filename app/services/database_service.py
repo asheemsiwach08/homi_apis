@@ -270,6 +270,111 @@ class DatabaseService:
             
         except Exception as e:
             return []
+    
+    def save_whatsapp_message(self, message_data: Dict) -> Dict:
+        """
+        Save WhatsApp message to database (simplified)
+        
+        Args:
+            message_data: Dictionary containing message details
+                - mobile: Sender's mobile number
+                - message: Message content
+                - payload: Full webhook payload (optional)
+                
+        Returns:
+            Dict: Database operation result
+        """
+        if not self.client:
+            raise HTTPException(
+                status_code=500,
+                detail="Supabase client not initialized. Check database configuration."
+            )
+        
+        try:
+            # Prepare data for database (simplified)
+            db_data = {
+                "mobile": str(message_data.get("mobile", "")),
+                "message": str(message_data.get("message", "")),
+                "payload": message_data.get("payload")
+            }
+            
+            # Insert data into whatsapp_messages table
+            result = self.client.table("whatsapp_messages").insert(db_data).execute()
+            
+            if result.data:
+                return {
+                    "success": True,
+                    "message_id": result.data[0].get("id"),
+                    "message": "WhatsApp message saved to database"
+                }
+            else:
+                raise HTTPException(
+                    status_code=500,
+                    detail="Failed to save WhatsApp message to database"
+                )
+                
+        except HTTPException:
+            raise
+        except Exception as e:
+            raise HTTPException(
+                status_code=500,
+                detail=f"Database error saving WhatsApp message: {str(e)}"
+            )
+    
+    def get_whatsapp_messages_by_mobile(self, mobile_number: str, limit: int = 50) -> List[Dict]:
+        """
+        Get WhatsApp messages by mobile number (simplified)
+        
+        Args:
+            mobile_number: Mobile number to search for
+            limit: Number of messages to return
+            
+        Returns:
+            List[Dict]: List of messages
+        """
+        if not self.client:
+            return []
+        
+        try:
+            result = self.client.table("whatsapp_messages").select("*").eq("mobile", mobile_number).order("id", desc=True).limit(limit).execute()
+            
+            return result.data if result.data else []
+            
+        except Exception as e:
+            return []
+    
+    def get_whatsapp_message_stats(self) -> Dict:
+        """
+        Get WhatsApp message statistics (simplified)
+        
+        Returns:
+            Dict: Message statistics
+        """
+        if not self.client:
+            return {}
+        
+        try:
+            # Use the database function to get stats
+            result = self.client.rpc("get_whatsapp_message_stats").execute()
+            
+            if result.data:
+                return result.data[0]
+            return {}
+            
+        except Exception as e:
+            # Fallback: calculate stats manually
+            try:
+                total_result = self.client.table("whatsapp_messages").select("id").execute()
+                
+                return {
+                    "total_messages": len(total_result.data) if total_result.data else 0
+                }
+            except Exception:
+                return {
+                    "total_messages": 0
+                }
+    
+
 
 
 ## OTP Storage in Supabase

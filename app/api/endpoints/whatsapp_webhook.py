@@ -88,14 +88,34 @@ async def whatsapp_webhook(
     try:
         print(f"Received WhatsApp message from {mobile}: {message}")
         
-        # Check if this is a status check request
-        if not is_status_check_request(message):
-            # Send a helpful response for non-status messages
-            await whatsapp_service.send_message(
-                phone_number=mobile,
-                message="Hi! To check your application status, please send a message like 'Check my application status' along with your mobile number."
-            )
-            return {"status": "success", "message": "Non-status message handled"}
+        # Save the user message to database (simplified)
+        try:
+            message_data = {
+                "mobile": mobile,
+                "message": message,
+                "payload": payload
+            }
+            
+            save_result = database_service.save_whatsapp_message(message_data)
+            message_id = save_result.get('message_id')
+            print(f"User message saved to database with ID: {message_id}")
+            
+        except Exception as save_error:
+            print(f"Failed to save user message to database: {save_error}")
+            message_id = None
+            # Continue processing even if save fails
+        
+                    # Check if this is a status check request
+            if not is_status_check_request(message):
+                # Send a helpful response for non-status messages
+                await whatsapp_service.send_message(
+                    phone_number=mobile,
+                    message="Hi! To check your application status, please send a message like 'Check my application status' along with your mobile number."
+                )
+                
+
+                
+                return {"status": "success", "message": "Non-status message handled"}
         
         # Extract phone number and application ID from message
         # phone_number = extract_phone_number_from_message(message)
@@ -134,7 +154,6 @@ async def whatsapp_webhook(
                 print(f"Failed to update status in database: {db_error}")
             
             # Send WhatsApp response with the status
-            print("lead_data:-", lead_data)
             if lead_data:
                 name = lead_data.get("first_name", "") + " " + lead_data.get("last_name", "")
                         
@@ -151,6 +170,8 @@ async def whatsapp_webhook(
                     message=response_message
                 )
             
+
+            
             return {
                 "status": "success",
                 "message": "Status sent successfully",
@@ -164,6 +185,8 @@ async def whatsapp_webhook(
                 phone_number=mobile,
                 message=error_message
             )
+            
+
             
             return {
                 "status": "error",

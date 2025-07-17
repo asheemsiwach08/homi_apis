@@ -194,7 +194,6 @@ async def get_udpates_lead_via_whatsapp(whatsapp_status_request: LeadStatusReque
             raise HTTPException(status_code=422, detail="Mobile number must be 10 digits")
 
         lead_data = database_service.get_lead_by_mobile(str(whatsapp_status_request.mobile_number))
-        print("lead_data:-", lead_data)
         return LeadStatusResponse(status="APPROVED", message="Your loan has been approved. Please check your email for the loan details.")
 
         # if lead_data:

@@ -436,6 +436,50 @@ Content-Type: application/json
 - "My application ID is APP123456"
 - "Check status for mobile 9876543210"
 
+### WhatsApp Message Storage
+
+All WhatsApp messages (inbound and outbound) are automatically saved to the Supabase database for audit trails and analytics.
+
+#### Message Storage Endpoints
+
+**Get All Messages:**
+```http
+GET /api_v1/whatsapp/messages?limit=50&direction=inbound
+```
+
+**Get Message Statistics:**
+```http
+GET /api_v1/whatsapp/messages/stats
+```
+
+**Get Messages by Mobile Number:**
+```http
+GET /api_v1/whatsapp/messages/9876543210?limit=20
+```
+
+**Response Format:**
+```json
+{
+    "success": true,
+    "messages": [
+        {
+            "id": 1,
+            "mobile_number": "9876543210",
+            "sender_name": "John Doe",
+            "message_text": "Check my application status",
+            "direction": "inbound",
+            "timestamp": "2024-01-15T10:30:00Z",
+            "processed": true,
+            "processing_result": {
+                "status": "success",
+                "application_status": "Under Review"
+            }
+        }
+    ],
+    "count": 1
+}
+```
+
 ### Health Check
 
 #### Health Status
@@ -486,6 +530,28 @@ The API returns appropriate HTTP status codes for different scenarios:
     }
 }
 ```
+
+## Database Setup
+
+### WhatsApp Messages Table
+
+To enable WhatsApp message storage, run the following SQL script in your Supabase SQL editor:
+
+```sql
+-- Run database_setup/whatsapp_messages_table.sql
+```
+
+This creates:
+- `whatsapp_messages` table for storing all messages
+- Indexes for better performance
+- Functions for message statistics
+- Views for recent messages
+
+### Required Tables
+
+1. **OTP Storage**: `database_setup/supabase_setup.sql`
+2. **Leads Management**: `database_setup/supabase_setup.sql`
+3. **WhatsApp Messages**: `database_setup/whatsapp_messages_table.sql`
 
 ## Testing
 

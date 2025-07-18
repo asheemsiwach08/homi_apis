@@ -23,14 +23,38 @@ This guide explains how to set up automatic WhatsApp message processing for appl
 - Set webhook method to **POST**
 - Enable webhook for incoming messages
 
-#### C. Configure Webhook Parameters
-Gupshup will send the following parameters to your webhook:
-- `payload`: Encoded message payload
-- `mobile`: Sender's phone number
-- `name`: Sender's name (if available)
-- `message`: Decoded message text
-- `channel`: Channel type (whatsapp)
-- `timestamp`: Message timestamp
+#### C. Gupshup Payload Structure
+Gupshup sends a JSON payload with the following structure:
+
+```json
+{
+  "app": "docdeck",
+  "timestamp": 1718007189549,
+  "version": 2,
+  "type": "message",
+  "payload": {
+    "id": "ABEGkZUTIXZ0Ago6jWqOZm-Sz0WD",
+    "source": "91XXXXX4",
+    "type": "text",
+    "payload": {
+      "text": "Hi"
+    },
+    "sender": {
+      "phone": "91XXXXX4",
+      "name": "SJ",
+      "country_code": "91",
+      "dial_code": "9XXXXX4"
+    }
+  }
+}
+```
+
+**Key Fields:**
+- `payload.source`: Sender's phone number
+- `payload.payload.text`: The actual message text
+- `payload.sender.phone`: Sender's phone number (alternative)
+- `payload.sender.name`: Sender's name (if available)
+- `payload.type`: Message type (text, image, etc.)
 
 ### 2. Deploy Your API
 
@@ -104,11 +128,10 @@ The API detects status check requests using these keywords:
 - "loan details"
 
 ### Phone Number Extraction
-The API extracts phone numbers from messages using these patterns:
-- 10-digit numbers: `9876543210`
-- 12-digit numbers with country code: `919876543210`
-- Numbers with + prefix: `+919876543210`
-- Formatted numbers: `987-654-3210`, `987.654.3210`
+The API automatically extracts the phone number from the sender's information in the webhook payload:
+- Uses `payload.sender.phone` or `payload.source`
+- Automatically removes country code (91) if present
+- Ensures 10-digit format for processing
 
 ### Application ID Extraction
 The API looks for application IDs using patterns like:
@@ -122,9 +145,28 @@ The API looks for application IDs using patterns like:
 ### 1. Webhook Endpoint (Automatic)
 ```http
 POST /api_v1/whatsapp/webhook
-Content-Type: application/x-www-form-urlencoded
+Content-Type: application/json
 
-payload=encoded_payload&mobile=+919876543210&message=Check my status&channel=whatsapp&timestamp=1234567890
+{
+  "app": "docdeck",
+  "timestamp": 1718007189549,
+  "version": 2,
+  "type": "message",
+  "payload": {
+    "id": "ABEGkZUTIXZ0Ago6jWqOZm-Sz0WD",
+    "source": "917888888888",
+    "type": "text",
+    "payload": {
+      "text": "Check my application status"
+    },
+    "sender": {
+      "phone": "917888888888",
+      "name": "John Doe",
+      "country_code": "91",
+      "dial_code": "7888888888"
+    }
+  }
+}
 ```
 
 ### 2. Manual Processing Endpoint (Testing)
@@ -146,9 +188,11 @@ GET /api_v1/whatsapp/webhook?hub.mode=subscribe&hub.verify_token=your_token&hub.
 
 ### 1. Status Check Request
 ```
-User: "Check my application status. Mobile: 9876543210"
+User: "Check my application status"
 ↓
-API: Processes message, extracts phone number
+Gupshup: Sends JSON payload to webhook
+↓
+API: Extracts phone number from sender info
 ↓
 API: Calls Basic Application API
 ↓
@@ -172,11 +216,11 @@ User: "Hi! To check your application status, please send a message like 'Check m
 ```
 User: "Check my status"
 ↓
-API: No phone number found in message
+API: No phone number found in sender info
 ↓
 API: Sends error message
 ↓
-User: "No mobile number found in the message. Please include your mobile number in the message."
+User: "We couldn't identify your mobile number. Please try again."
 ```
 
 ## Environment Variables
@@ -198,6 +242,52 @@ BASIC_APPLICATION_USER_ID=your_user_id
 BASIC_APPLICATION_API_KEY=your_api_key
 ```
 
+## Testing
+
+### Test Script
+Use the provided test script to verify webhook functionality:
+
+```bash
+python test_gupshup_webhook.py
+```
+
+This script tests:
+- Basic message processing
+- Status check requests
+- Webhook verification
+
+### Manual Testing with curl
+```bash
+# Test webhook with Gupshup payload
+curl -X POST "http://localhost:5000/api_v1/whatsapp/webhook" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "app": "docdeck",
+    "timestamp": 1718007189549,
+    "version": 2,
+    "type": "message",
+    "payload": {
+      "id": "ABEGkZUTIXZ0Ago6jWqOZm-Sz0WD",
+      "source": "917888888888",
+      "type": "text",
+      "payload": {
+        "text": "Check my application status"
+      },
+      "sender": {
+        "phone": "917888888888",
+        "name": "John Doe",
+        "country_code": "91",
+        "dial_code": "7888888888"
+      }
+    }
+  }'
+
+# Test manual processing
+curl -X POST "http://localhost:5000/api_v1/whatsapp/process_message" \
+  -H "Content-Type: application/json" \
+  -d '{"message": "Check my application status. Mobile: 9876543210"}'
+```
+
 ## Troubleshooting
 
 ### Common Issues
@@ -209,7 +299,7 @@ BASIC_APPLICATION_API_KEY=your_api_key
 
 2. **Messages not being processed**
    - Check if the message contains status check keywords
-   - Verify phone number extraction logic
+   - Verify phone number extraction from sender info
    - Check Basic Application API connectivity
 
 3. **Responses not being sent**
@@ -221,8 +311,9 @@ BASIC_APPLICATION_API_KEY=your_api_key
 
 The API logs important events:
 ```
-Received WhatsApp message from +919876543210: Check my application status
-Phone number extracted: 9876543210
+Received webhook payload: {...}
+Received WhatsApp message from 917888888888: Check my application status
+Processing status check for phone: 7888888888
 Status check request detected
 Calling Basic Application API...
 Status received: Under Review
@@ -234,8 +325,27 @@ Sending WhatsApp response...
 ```bash
 # Test webhook locally with curl
 curl -X POST "http://localhost:5000/api_v1/whatsapp/webhook" \
-  -H "Content-Type: application/x-www-form-urlencoded" \
-  -d "payload=test&mobile=+919876543210&message=Check my application status&channel=whatsapp&timestamp=1234567890"
+  -H "Content-Type: application/json" \
+  -d '{
+    "app": "docdeck",
+    "timestamp": 1718007189549,
+    "version": 2,
+    "type": "message",
+    "payload": {
+      "id": "ABEGkZUTIXZ0Ago6jWqOZm-Sz0WD",
+      "source": "917888888888",
+      "type": "text",
+      "payload": {
+        "text": "Check my application status"
+      },
+      "sender": {
+        "phone": "917888888888",
+        "name": "John Doe",
+        "country_code": "91",
+        "dial_code": "7888888888"
+      }
+    }
+  }'
 
 # Test manual processing
 curl -X POST "http://localhost:5000/api_v1/whatsapp/process_message" \

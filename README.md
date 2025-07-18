@@ -19,10 +19,11 @@ A comprehensive FastAPI-based REST API for WhatsApp OTP verification, lead creat
   - Multiple template support for different use cases
 - ✅ **WhatsApp Message Processing**
   - Intelligent message parsing for status requests
-  - Automatic phone number and application ID extraction
+  - Automatic phone number extraction from Gupshup webhook payload
   - Natural language processing for status check requests
   - Support for various message formats and phone number formats
   - **Automatic webhook processing** for real-time message handling
+  - **Gupshup JSON payload support** with proper sender information extraction
 - ✅ **Storage & Infrastructure**
   - Supabase PostgreSQL for persistent storage
   - Automatic fallback to local storage
@@ -425,6 +426,33 @@ Content-Type: application/json
     "message": "Your application status is: Under Review",
     "status": "Under Review",
     "application_id": "APP123456"
+}
+```
+
+#### 4. WhatsApp Webhook (Automatic)
+```http
+POST /api_v1/whatsapp/webhook
+Content-Type: application/json
+
+{
+  "app": "docdeck",
+  "timestamp": 1718007189549,
+  "version": 2,
+  "type": "message",
+  "payload": {
+    "id": "ABEGkZUTIXZ0Ago6jWqOZm-Sz0WD",
+    "source": "917888888888",
+    "type": "text",
+    "payload": {
+      "text": "Check my application status"
+    },
+    "sender": {
+      "phone": "917888888888",
+      "name": "John Doe",
+      "country_code": "91",
+      "dial_code": "7888888888"
+    }
+  }
 }
 ```
 

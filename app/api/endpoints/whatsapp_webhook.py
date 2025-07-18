@@ -1,4 +1,5 @@
 import re
+import json
 from typing import Optional, Dict, Any
 from fastapi import APIRouter, HTTPException, Request, Form
 from app.models.schemas import WhatsAppStatusResponse
@@ -72,28 +73,49 @@ def is_status_check_request(message: str) -> bool:
     return any(keyword in message_lower for keyword in status_keywords)
 
 @router.post("/whatsapp/webhook")
-async def whatsapp_webhook(
-    request: Request,
-    payload: str = Form(...),
-    mobile: str = Form(...),
-    name: str = Form(default=None),
-    message: str = Form(default=None),
-    channel: str = Form(...),
-    timestamp: str = Form(...)
-):
+async def whatsapp_webhook(request: Request):
     """
     Webhook endpoint that receives WhatsApp messages from Gupshup
     This endpoint is called automatically by WhatsApp when a message is received
     """
     try:
-        print(f"Received WhatsApp message from {mobile}: {message}")
+        # Get the raw body as JSON
+        body = await request.json()
+        print(f"Received webhook payload: {json.dumps(body, indent=2)}")
+        
+        # Extract data from Gupshup payload structure
+        app_name = body.get("app")
+        timestamp = body.get("timestamp")
+        message_type = body.get("type")
+        payload_data = body.get("payload", {})
+        
+        # Extract message details from payload
+        message_id = payload_data.get("id")
+        source = payload_data.get("source")  # This is the sender's phone number
+        message_type_detail = payload_data.get("type")
+        message_payload = payload_data.get("payload", {})
+        sender = payload_data.get("sender", {})
+        
+        # Extract the actual message text
+        if message_type_detail == "text":
+            message_text = message_payload.get("text", "")
+        else:
+            message_text = "Non-text message received"
+        
+        # Extract sender details
+        sender_phone = sender.get("phone", source)  # Use source as fallback
+        sender_name = sender.get("name", "")
+        country_code = sender.get("country_code", "")
+        dial_code = sender.get("dial_code", "")
+        
+        print(f"Received WhatsApp message from {sender_phone}: {message_text}")
         
         # Save the user message to database (simplified)
         try:
             message_data = {
-                "mobile": mobile,
-                "message": message,
-                "payload": payload
+                "mobile": sender_phone,
+                "message": message_text,
+                "payload": json.dumps(body)  # Save the entire payload as JSON string
             }
             
             save_result = database_service.save_whatsapp_message(message_data)
@@ -105,34 +127,45 @@ async def whatsapp_webhook(
             message_id = None
             # Continue processing even if save fails
         
-                    # Check if this is a status check request
-            if not is_status_check_request(message):
-                # Send a helpful response for non-status messages
-                await whatsapp_service.send_message(
-                    phone_number=mobile,
-                    message="Hi! To check your application status, please send a message like 'Check my application status' along with your mobile number."
-                )
-                
-
-                
-                return {"status": "success", "message": "Non-status message handled"}
+        # Check if this is a status check request
+        if not is_status_check_request(message_text):
+            # Send a helpful response for non-status messages
+            await whatsapp_service.send_message(
+                phone_number=sender_phone,
+                message="Hi! To check your application status, please send a message like 'Check my application status' along with your mobile number."
+            )
+            
+            return {"status": "success", "message": "Non-status message handled"}
         
-        # Extract phone number and application ID from message
-        # phone_number = extract_phone_number_from_message(message)
-        # application_id = extract_application_id_from_message(message)
-
-        # print("application_id:-", application_id)
-        print("mobile:-", mobile)
+        # Extract phone number from sender's phone
+        if sender_phone:
+            # Remove country code if present
+            phone_number = sender_phone.replace('+91', '').replace('91', '')
+            # Ensure it's 10 digits
+            if len(phone_number) > 10:
+                phone_number = phone_number[-10:]
+        else:
+            phone_number = None
         
-        # If no phone number found in message, use the sender's number
-        if mobile:
-            phone_number = mobile.replace('+91', '').replace('91', '')
-        print("phone_number:-", phone_number)
+        print(f"Processing status check for phone: {phone_number}")
+        
+        if not phone_number:
+            # Send error message via WhatsApp
+            error_message = "We couldn't identify your mobile number. Please try again."
+            await whatsapp_service.send_message(
+                phone_number=sender_phone,
+                message=error_message
+            )
+            
+            return {
+                "status": "error",
+                "message": "Phone number not found",
+                "phone_number": None
+            }
         
         # Try to get status from Basic Application API
         api_status = await basic_app_service.get_lead_status(
             mobile_number=str(phone_number),
-            # basic_application_id=None
         )
         
         if api_status:
@@ -166,11 +199,9 @@ async def whatsapp_webhook(
             else:
                 # Send simple message if lead data not found
                 await whatsapp_service.send_message(
-                    phone_number=mobile,
+                    phone_number=sender_phone,
                     message=response_message
                 )
-            
-
             
             return {
                 "status": "success",
@@ -182,11 +213,9 @@ async def whatsapp_webhook(
             # Send error message via WhatsApp
             error_message = "We couldn't find your application details. Please check your mobile number or application ID."
             await whatsapp_service.send_message(
-                phone_number=mobile,
+                phone_number=sender_phone,
                 message=error_message
             )
-            
-
             
             return {
                 "status": "error",
@@ -196,12 +225,13 @@ async def whatsapp_webhook(
         
     except Exception as e:
         print(f"Error processing WhatsApp webhook: {str(e)}")
-        # Send error message to user
+        # Send error message to user if we have the phone number
         try:
-            await whatsapp_service.send_message(
-                phone_number=mobile,
-                message="Sorry, there was an error processing your request. Please try again later."
-            )
+            if 'sender_phone' in locals():
+                await whatsapp_service.send_message(
+                    phone_number=sender_phone,
+                    message="Sorry, there was an error processing your request. Please try again later."
+                )
         except:
             pass
         

@@ -179,27 +179,3 @@ async def get_lead_status(status_request: LeadStatusRequest):
         raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}") 
-
-
-@router.post("/get_lead_updates_via_whatsapp", response_model=LeadStatusResponse)
-async def get_udpates_lead_via_whatsapp(whatsapp_status_request: LeadStatusRequest):
-    """Get lead updates via WhatsApp"""
-    try:
-        # Validate that at least one identifier is provided
-        if not any([whatsapp_status_request.mobile_number, whatsapp_status_request.basic_application_id]):
-            raise HTTPException(status_code=400, detail="Either mobile number or basic application ID must be provided")
-        
-        # Validate mobile number if provided
-        if whatsapp_status_request.mobile_number and not validate_mobile_number(whatsapp_status_request.mobile_number):
-            raise HTTPException(status_code=422, detail="Mobile number must be 10 digits")
-
-        lead_data = database_service.get_lead_by_mobile(str(whatsapp_status_request.mobile_number))
-        return LeadStatusResponse(status="APPROVED", message="Your loan has been approved. Please check your email for the loan details.")
-
-        # if lead_data:
-        #     return LeadStatusResponse(status=lead_data.get("status"), message=lead_data.get("message"))
-        # else:
-        #     return LeadStatusResponse(status="Not Found", message="We couldn’t find your details. You can track your application manually at: https://www.basichomeloan.com/track-your-application")
-
-    except HTTPException:
-        raise

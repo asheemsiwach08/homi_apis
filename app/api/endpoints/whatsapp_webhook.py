@@ -14,45 +14,9 @@ router = APIRouter(prefix="/api_v1", tags=["whatsapp-webhook"])
 # Initialize services
 basic_app_service = BasicApplicationService()
 
-def extract_phone_number_from_message(message: str) -> Optional[str]:
-    """Extract phone number from WhatsApp message"""
-    # Patterns to match phone numbers in various formats
-    patterns = [
-        r'\b(\d{10})\b',  # 10 digits
-        r'\b(\d{12})\b',  # 12 digits (with country code)
-        r'\+\d{1,3}(\d{10})\b',  # +91 followed by 10 digits
-        r'\b(\d{4}[-.\s]?\d{3}[-.\s]?\d{3})\b',  # 4-3-3 format
-        r'\b(\d{5}[-.\s]?\d{5})\b',  # 5-5 format
-    ]
-    
-    for pattern in patterns:
-        match = re.search(pattern, message)
-        if match:
-            # Clean the number (remove spaces, dashes, dots)
-            number = re.sub(r'[-.\s]', '', match.group(1))
-            # If it's 10 digits, it's likely a mobile number
-            if len(number) == 10:
-                return number
-            # If it's 12 digits and starts with 91, extract the last 10
-            elif len(number) == 12 and number.startswith('91'):
-                return number[2:]
-    
-    return None
 
-def extract_application_id_from_message(message: str) -> Optional[str]:
-    """Extract application ID from WhatsApp message"""
-    # Look for patterns like "application id", "app id", "ID", etc.
-    patterns = [
-        r'(?:application\s+id|app\s+id|id)\s*[:\-]?\s*([A-Za-z0-9]{6,})',
-        r'\b([A-Za-z0-9]{6,})\b',  # Any 6+ character alphanumeric string
-    ]
-    
-    for pattern in patterns:
-        match = re.search(pattern, message, re.IGNORECASE)
-        if match:
-            return match.group(1)
-    
-    return None
+
+
 
 def is_status_check_request(message: str) -> bool:
     """Check if the message is requesting application status"""
@@ -66,7 +30,8 @@ def is_status_check_request(message: str) -> bool:
         'loan application status',
         'check status',
         'my application',
-        'loan details'
+        'loan details',
+        'loan application'
     ]
     
     message_lower = message.lower()

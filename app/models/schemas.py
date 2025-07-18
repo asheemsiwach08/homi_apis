@@ -51,7 +51,4 @@ class WhatsAppStatusResponse(BaseModel):
     status: Optional[str] = None
     application_id: Optional[str] = None
 
-class StatusHistoryResponse(BaseModel):
-    basic_application_id: str
-    status_history: List[Dict]
-    total_records: int 
+ 

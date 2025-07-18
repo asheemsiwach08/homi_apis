@@ -37,13 +37,8 @@ class Settings:
     GUPSHUP_LEAD_STATUS_TEMPLATE_ID = os.getenv("GUPSHUP_LEAD_STATUS_TEMPLATE_ID", "")
     GUPSHUP_LEAD_STATUS_SRC_NAME = os.getenv("GUPSHUP_LEAD_STATUS_SRC_NAME", "")
     
-    # Legacy WhatsApp API Configuration (fallback)
-    WHATSAPP_API_URL = os.getenv("WHATSAPP_API_URL", "https://api.whatsapp.com/send")
-    WHATSAPP_API_KEY = os.getenv("WHATSAPP_API_KEY", "")
-
-        # Supabase Configuration
+    # Supabase Configuration
     SUPABASE_URL = os.getenv("SUPABASE_URL")
-    SUPABASE_ANON_KEY = os.getenv("SUPABASE_ANON_KEY")
     SUPABASE_SERVICE_ROLE_KEY = os.getenv("SUPABASE_SERVICE_ROLE_KEY")
 
     # OTP Configuration

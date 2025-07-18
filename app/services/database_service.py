@@ -199,77 +199,11 @@ class DatabaseService:
         except Exception as e:
             return False
     
-    def save_status_history(self, basic_application_id: str, status: str) -> bool:
-        """
-        Save status history for tracking
-        
-        Args:
-            basic_application_id: Basic Application ID
-            status: Status to save
-            
-        Returns:
-            bool: Success status
-        """
-        if not self.client:
-            return False
-        
-        try:
-            # Check if status_history table exists, if not create it
-            history_data = {
-                "basic_application_id": basic_application_id,
-                "status": status,
-                "timestamp": "now()"
-            }
-            
-            # Try to insert into status_history table
-            result = self.client.table("status_history").insert(history_data).execute()
-            return bool(result.data)
-            
-        except Exception as e:
-            # If status_history table doesn't exist, just log it
-            print(f"Status history table not available: {e}")
-            return False
+
     
-    def get_status_history(self, basic_application_id: str) -> List[Dict]:
-        """
-        Get status history for a lead
-        
-        Args:
-            basic_application_id: Basic Application ID
-            
-        Returns:
-            List[Dict]: List of status history records
-        """
-        if not self.client:
-            return []
-        
-        try:
-            result = self.client.table("status_history").select("*").eq("basic_application_id", basic_application_id).order("timestamp", desc=True).execute()
-            return result.data if result.data else []
-            
-        except Exception as e:
-            print(f"Error getting status history: {e}")
-            return []
+
     
-    def get_all_leads(self, limit: int = 100) -> List[Dict]:
-        """
-        Get all leads with pagination
-        
-        Args:
-            limit: Number of records to return
-            
-        Returns:
-            List[Dict]: List of lead records
-        """
-        if not self.client:
-            return []
-        
-        try:
-            result = self.client.table("leads").select("*").order("created_at", desc=True).limit(limit).execute()
-            return result.data or []
-            
-        except Exception as e:
-            return []
+
     
     def save_whatsapp_message(self, message_data: Dict) -> Dict:
         """
@@ -329,60 +263,6 @@ class DatabaseService:
                 detail=f"Database error saving WhatsApp message: {str(e)}"
             )
     
-    def get_whatsapp_messages_by_mobile(self, mobile_number: str, limit: int = 50) -> List[Dict]:
-        """
-        Get WhatsApp messages by mobile number (simplified)
-        
-        Args:
-            mobile_number: Mobile number to search for
-            limit: Number of messages to return
-            
-        Returns:
-            List[Dict]: List of messages
-        """
-        if not self.client:
-            return []
-        
-        try:
-            result = self.client.table("whatsapp_messages").select("*").eq("mobile", mobile_number).order("id", desc=True).limit(limit).execute()
-            
-            return result.data if result.data else []
-            
-        except Exception as e:
-            return []
-    
-    def get_whatsapp_message_stats(self) -> Dict:
-        """
-        Get WhatsApp message statistics (simplified)
-        
-        Returns:
-            Dict: Message statistics
-        """
-        if not self.client:
-            return {}
-        
-        try:
-            # Use the database function to get stats
-            result = self.client.rpc("get_whatsapp_message_stats").execute()
-            
-            if result.data:
-                return result.data[0]
-            return {}
-            
-        except Exception as e:
-            # Fallback: calculate stats manually
-            try:
-                total_result = self.client.table("whatsapp_messages").select("id").execute()
-                
-                return {
-                    "total_messages": len(total_result.data) if total_result.data else 0
-                }
-            except Exception:
-                return {
-                    "total_messages": 0
-                }
-    
-
 
 
 ## OTP Storage in Supabase
@@ -513,59 +393,11 @@ class SupabaseOTPStorage:
         except Exception as e:
             print(f"Error marking OTP as used: {e}")
     
-    def delete_otp(self, phone_number: str):
-        """Delete OTP after successful verification (deprecated - use mark_otp_as_used instead)"""
-        # For backward compatibility, mark as used instead of deleting
-        self.mark_otp_as_used(phone_number)
+
     
-    def is_otp_exists(self, phone_number: str) -> bool:
-        """Check if OTP exists and is not expired for phone number"""
-        try:
-            response = self.supabase.table(self.table_name).select(
-                "expires_at, is_used"
-            ).eq("phone_number", phone_number).eq("is_used", False).execute()
-            
-            if not response.data:
-                return False
-            
-            otp_record = response.data[0]
-            
-            # Parse the expires_at string to timezone-aware datetime
-            if isinstance(otp_record["expires_at"], str):
-                # Handle ISO format string
-                expires_at = datetime.fromisoformat(otp_record["expires_at"].replace("Z", "+00:00"))
-            else:
-                # Handle datetime object
-                expires_at = otp_record["expires_at"]
-                if expires_at.tzinfo is None:
-                    expires_at = expires_at.replace(tzinfo=timezone.utc)
-            
-            # Compare with current UTC time
-            current_time = datetime.now(timezone.utc)
-            
-            # Check if OTP has expired
-            if current_time > expires_at:
-                # Mark as expired
-                self.supabase.table(self.table_name).update(
-                    {"is_used": True}
-                ).eq("phone_number", phone_number).execute()
-                return False
-            
-            return True
-            
-        except Exception as e:
-            print(f"Error checking OTP existence: {e}")
-            return False
+
     
-    def cleanup_expired(self):
-        """Clean up expired OTPs"""
-        try:
-            current_time = datetime.now(timezone.utc).isoformat()
-            self.supabase.table(self.table_name).update(
-                {"is_used": True}
-            ).lt("expires_at", current_time).execute()
-        except Exception as e:
-            print(f"Error cleaning up expired OTPs: {e}")
+
 
 # Global instance
 try:
@@ -612,33 +444,11 @@ except Exception as e:
                     self._used_otps[phone_number] = (otp, expiry_time)
                     del self._storage[phone_number]
         
-        def delete_otp(self, phone_number: str):
-            """Delete OTP after successful verification (deprecated - use mark_otp_as_used instead)"""
-            # For backward compatibility, mark as used instead of deleting
-            self.mark_otp_as_used(phone_number)
+
         
-        def is_otp_exists(self, phone_number: str) -> bool:
-            with self._lock:
-                if phone_number not in self._storage:
-                    return False
-                
-                otp, expiry_time = self._storage[phone_number]
-                
-                if time.time() > expiry_time:
-                    del self._storage[phone_number]
-                    return False
-                
-                return True
+
         
-        def cleanup_expired(self):
-            with self._lock:
-                current_time = time.time()
-                expired_keys = [
-                    key for key, (otp, expiry_time) in self._storage.items()
-                    if current_time > expiry_time
-                ]
-                for key in expired_keys:
-                    del self._storage[key]
+
     
     otp_storage = LocalOTPStorage() 
     

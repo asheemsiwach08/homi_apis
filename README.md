@@ -144,7 +144,6 @@ otpVerification/
 
    # Supabase Configuration (Optional - falls back to local storage if not configured)
    SUPABASE_URL=your_supabase_project_url
-   SUPABASE_ANON_KEY=your_supabase_anon_key
    SUPABASE_SERVICE_ROLE_KEY=your_supabase_service_role_key
 
    # OTP Configuration

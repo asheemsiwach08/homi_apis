@@ -10,6 +10,7 @@ This is a comprehensive FastAPI-based REST API for WhatsApp OTP verification, le
 - Keep functions focused and single-purpose
 - Add docstrings for all public functions
 - Use proper error handling with HTTP exceptions
+- Remove unused methods and functions to maintain clean codebase
 
 ## File Organization
 - `app/main.py`: FastAPI application entry point
@@ -18,7 +19,7 @@ This is a comprehensive FastAPI-based REST API for WhatsApp OTP verification, le
 - `app/services/whatsapp_service.py`: Gupshup WhatsApp API integration
 - `app/services/basic_application_service.py`: Basic Application API integration
 - `app/models/schemas.py`: Pydantic models for validation
-- `app/api/endpoints/`: API endpoint modules (otp.py, leads.py, health.py)
+- `app/api/endpoints/`: API endpoint modules (otp.py, leads.py, health.py, whatsapp_webhook.py)
 - `app/utils/validators.py`: Data validation utilities
 
 ## Security Rules
@@ -98,7 +99,7 @@ This is a comprehensive FastAPI-based REST API for WhatsApp OTP verification, le
 - **Data Retention**: Maintains OTP and lead history for security investigations and usage patterns
 - **Lead Storage**: Store complete lead data with Basic Application API responses
 
-## Environment Variables
+## Environment Variables (Updated)
 - `BASIC_APPLICATION_API_URL`: Basic Application API endpoint
 - `BASIC_APPLICATION_USER_ID`: Basic Application API user ID
 - `BASIC_APPLICATION_API_KEY`: Basic Application API key
@@ -108,7 +109,22 @@ This is a comprehensive FastAPI-based REST API for WhatsApp OTP verification, le
 - `GUPSHUP_LEAD_CREATION_TEMPLATE_ID`: Lead creation template ID
 - `GUPSHUP_LEAD_STATUS_TEMPLATE_ID`: Lead status template ID
 - `SUPABASE_URL`: Supabase project URL
-- `SUPABASE_SERVICE_ROLE_KEY`: Supabase service role key
+- `SUPABASE_SERVICE_ROLE_KEY`: Supabase service role key (only service role key is used)
+
+## Removed/Unused Components
+- `SUPABASE_ANON_KEY`: Removed - only service role key is used
+- `WHATSAPP_API_URL` and `WHATSAPP_API_KEY`: Removed - legacy WhatsApp API not used
+- `get_all_leads()`: Removed - not used in any endpoints
+- `get_whatsapp_message_stats()`: Removed - not used in any endpoints
+- `get_whatsapp_messages_by_mobile()`: Removed - not used in any endpoints
+- `save_status_history()`: Removed - not used in any endpoints
+- `get_status_history()`: Removed - not used in any endpoints
+- `delete_otp()`: Removed - deprecated, use `mark_otp_as_used()` instead
+- `cleanup_expired()`: Removed - handled by database function
+- `is_otp_exists()`: Removed - commented out in code
+- `extract_phone_number_from_message()`: Removed - not used in webhook
+- `extract_application_id_from_message()`: Removed - not used in webhook
+- `StatusHistoryResponse` schema: Removed - not used
 
 ## Debug Endpoints
 - `/api_v1/health`: Health check endpoint

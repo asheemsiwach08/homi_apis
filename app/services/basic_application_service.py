@@ -148,16 +148,25 @@ class BasicApplicationService:
             # Get signature headers
             api_url = f"{self.basic_api_url}/api/v1/NewApplication/FullfilmentByBasic"
             headers = self.generate_signature_headers(api_url, "POST", api_payload)
-            print("--------------------------------------------------------------")
-            print(headers)
-            print("----- +++++++++++++++++++++++++++++++++ ------")
-            print(api_payload)
-            print("----- +++++++++++++++++++++++++++++++++ ------")
-            print("--------------------------------------------------------------")
             response = requests.post(api_url, headers=headers, json=api_payload)
-            
+
             if response.status_code in [200, 201]:
-                return response.json()
+                try:
+                    # Check if response has content before parsing JSON
+                    if response.text.strip():
+                        return response.json()
+                    else:
+                        raise HTTPException(
+                            status_code=400,
+                            detail="Empty response received from Basic Application API"
+                        )
+                except json.JSONDecodeError as json_error:
+                    print(f"JSON parsing error: {json_error}")
+                    print(f"Response text: {response.text}")
+                    raise HTTPException(
+                        status_code=400,
+                        detail=f"Invalid JSON response from Basic Application API: {response.text}"
+                    )
             else:
                 raise HTTPException(
                     status_code=400, 
@@ -226,15 +235,25 @@ class BasicApplicationService:
             # Now we have both mobile number and basic_application_id, call the GetActivity API
             if final_mobile_number and final_basic_application_id:
                 api_url = f"{self.basic_api_url}/api/v1/Application/Activity/GetActivity/{final_basic_application_id}/{final_mobile_number}"
-                print("api_url:-", api_url)
                 headers = self.generate_signature_headers(api_url, "GET")
                 
                 response = requests.get(api_url, headers=headers)
-                print("response:-", response)
                     
                 if response.status_code == 200:
-                    return response.json()
+                    try:
+                        # Check if response has content before parsing JSON
+                        if response.text.strip():
+                            return response.json()
+                        else:
+                            print("Empty response received from Basic Application API")
+                            return None
+                    except json.JSONDecodeError as json_error:
+                        print(f"JSON parsing error: {json_error}")
+                        print(f"Response text: {response.text}")
+                        return None
                 else:
+                    print(f"API call failed with status code: {response.status_code}")
+                    print(f"Response text: {response.text}")
                     return None
             else:
                 return None

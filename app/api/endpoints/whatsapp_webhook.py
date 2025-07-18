@@ -110,22 +110,26 @@ async def whatsapp_webhook(request: Request):
         
         print(f"Received WhatsApp message from {sender_phone}: {message_text}")
         
-        # Save the user message to database (simplified)
-        try:
-            message_data = {
-                "mobile": sender_phone,
-                "message": message_text,
-                "payload": json.dumps(body)  # Save the entire payload as JSON string
-            }
-            
-            save_result = database_service.save_whatsapp_message(message_data)
-            message_id = save_result.get('message_id')
-            print(f"User message saved to database with ID: {message_id}")
-            
-        except Exception as save_error:
-            print(f"Failed to save user message to database: {save_error}")
-            message_id = None
-            # Continue processing even if save fails
+        # Save the user message to database only if mobile number is available
+        message_id = None
+        if sender_phone:
+            try:
+                message_data = {
+                    "mobile": sender_phone,
+                    "message": message_text,
+                    "payload": json.dumps(body)  # Save the entire payload as JSON string
+                }
+                
+                save_result = database_service.save_whatsapp_message(message_data)
+                message_id = save_result.get('message_id')
+                print(f"User message saved to database with ID: {message_id}")
+                
+            except Exception as save_error:
+                print(f"Failed to save user message to database: {save_error}")
+                message_id = None
+                # Continue processing even if save fails
+        else:
+            print("Skipping database save - mobile number is None")
         
         # Check if this is a status check request
         if not is_status_check_request(message_text):

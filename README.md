@@ -466,7 +466,7 @@ Content-Type: application/json
 
 ### WhatsApp Message Storage
 
-All WhatsApp messages (inbound and outbound) are automatically saved to the Supabase database for audit trails and analytics.
+All WhatsApp messages with valid mobile numbers are automatically saved to the Supabase database for audit trails and analytics. Messages with None or empty mobile numbers are skipped to prevent invalid data storage.
 
 #### Message Storage Endpoints
 

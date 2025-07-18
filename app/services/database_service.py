@@ -291,9 +291,17 @@ class DatabaseService:
             )
         
         try:
+            # Validate mobile number before saving
+            mobile = message_data.get("mobile")
+            if not mobile or mobile is None or str(mobile).strip() == "":
+                raise HTTPException(
+                    status_code=400,
+                    detail="Cannot save message: mobile number is required"
+                )
+            
             # Prepare data for database (simplified)
             db_data = {
-                "mobile": str(message_data.get("mobile", "")),
+                "mobile": str(mobile),
                 "message": str(message_data.get("message", "")),
                 "payload": message_data.get("payload")
             }

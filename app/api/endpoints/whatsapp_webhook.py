@@ -143,11 +143,26 @@ async def whatsapp_webhook(request: Request):
         
         # Extract phone number from sender's phone
         if sender_phone:
-            # Remove country code if present
-            phone_number = sender_phone.replace('+91', '').replace('91', '')
-            # Ensure it's 10 digits
-            if len(phone_number) > 10:
+            # Clean the phone number
+            phone_number = str(sender_phone).strip()
+            
+            # Remove +91 prefix if present (only if it's at the beginning)
+            if phone_number.startswith('+91'):
+                phone_number = phone_number[3:]  # Remove +91
+            elif phone_number.startswith('91') and len(phone_number) > 10:
+                # Only remove 91 if it's a country code (phone number is longer than 10 digits)
+                phone_number = phone_number[2:]
+            
+            # Ensure it's exactly 10 digits for Indian mobile numbers
+            if len(phone_number) == 10:
+                # Valid 10-digit number
+                pass
+            elif len(phone_number) > 10:
+                # Take the last 10 digits
                 phone_number = phone_number[-10:]
+            elif len(phone_number) < 10:
+                # Too short, might be invalid
+                phone_number = None
         else:
             phone_number = None
         

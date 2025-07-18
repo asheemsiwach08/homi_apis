@@ -40,10 +40,11 @@ def normalize_phone_number(phone_number: str) -> str:
     """
     Normalize phone number to include country code 91.
     Handles various formats:
-    - 917888888888 (already has country code)
+    - 9173457840 (10 digits starting with 91 - actual phone number)
+    - 917888888888 (12 digits with country code)
     - 788888888 (without country code)
     - +917888888888 (with + prefix)
-    - 917888888888 (without + prefix)
+    - 0788888888 (with leading 0)
     """
     # Remove any spaces, dashes, or other separators
     cleaned = re.sub(r'[\s\-\(\)]', '', phone_number)
@@ -51,6 +52,11 @@ def normalize_phone_number(phone_number: str) -> str:
     # Remove + prefix if present
     if cleaned.startswith('+'):
         cleaned = cleaned[1:]
+    
+    # If number is exactly 10 digits and starts with 91, it's a valid phone number
+    # Don't treat 91 as country code in this case
+    if len(cleaned) == 10 and cleaned.startswith('91'):
+        return '+91' + cleaned
     
     # If number starts with 91 and is 12 digits, it already has country code
     if cleaned.startswith('91') and len(cleaned) == 12:

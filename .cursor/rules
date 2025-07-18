@@ -39,10 +39,11 @@ This is a comprehensive FastAPI-based REST API for WhatsApp OTP verification, le
 - Use proper HTTP exceptions for error responses
 
 ## Phone Number Handling
-- **Automatic normalization**: All phone numbers are normalized to include country code 91
+- **Smart normalization**: Phone numbers are intelligently processed based on their format
 - **Multiple input formats supported**:
-  - `917888888888` (already has country code)
-  - `788888888` (without country code)
+  - `9173457840` (10 digits starting with 91 - actual phone number)
+  - `917888888888` (12 digits with country code)
+  - `788888888` (10 digits without country code)
   - `+917888888888` (with + prefix)
   - `0788888888` (with leading 0)
   - `888888888` (9 digits)
@@ -50,6 +51,7 @@ This is a comprehensive FastAPI-based REST API for WhatsApp OTP verification, le
   - Numbers with spaces, dashes, parentheses
 - **Validation pattern**: `^\+91[1-9]\d{9,11}$`
 - **Storage**: Use original phone number for storage, normalized number for WhatsApp service
+- **Smart processing**: Distinguishes between country codes and actual phone numbers starting with 91
 
 ## Lead Management Rules
 - Validate all lead data before processing

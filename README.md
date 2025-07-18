@@ -220,6 +220,7 @@ otpVerification/
 The API automatically normalizes phone numbers to include the country code **91** (India) for WhatsApp services. The system handles various input formats:
 
 ### Supported Input Formats:
+- **`9173457840`** - 10 digits starting with 91 (actual phone number)
 - **`917888888888`** - Already has country code (12 digits)
 - **`788888888`** - Without country code (9 digits)
 - **`+917888888888`** - With + prefix
@@ -232,9 +233,12 @@ The API automatically normalizes phone numbers to include the country code **91*
 ### Normalization Rules:
 1. **Removes** spaces, dashes, parentheses, and other separators
 2. **Removes** + prefix if present
-3. **Adds** country code **91** if not present
-4. **Removes** leading 0 if present (e.g., 0788888888 → +917888888888)
-5. **Returns** normalized format: `+91XXXXXXXXXX`
+3. **Smart processing**: Distinguishes between country codes and actual phone numbers
+   - `9173457840` (10 digits) → `+919173457840` (preserves the 91 as part of phone number)
+   - `917888888888` (12 digits) → `+917888888888` (treats 91 as country code)
+4. **Adds** country code **91** if not present
+5. **Removes** leading 0 if present (e.g., 0788888888 → +917888888888)
+6. **Returns** normalized format: `+91XXXXXXXXXX`
 
 ### Validation Pattern:
 - **Pattern**: `^\+91[1-9]\d{9,11}$`

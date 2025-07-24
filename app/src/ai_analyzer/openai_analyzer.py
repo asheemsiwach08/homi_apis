@@ -135,8 +135,12 @@ class OpenAIAnalyzer:
         if attachments:
             # Extract text from all attachments using the comprehensive text extractor
             attachments_text = extract_all_attachment_texts(attachments)
+        
+        # Prepare attachment section
+        attachment_section = ""
+        if attachments_text:
+            attachment_section = f"Attachment Content:\n{attachments_text}"
                    
-    
         prompt = f"""
                     IMPORTANT CONTEXT: You are analyzing emails from Basic Enterprises Pvt Ltd, which is an intermediary/agent firm that processes loan applications between banks and customers. Basic Enterprises is NOT a bank and should NEVER be used as the bank name.
 
@@ -147,7 +151,7 @@ class OpenAIAnalyzer:
                     Email Content:
                     {content}
 
-                    {f"Attachment Content:\n{attachments_text}" if attachments_text else ""}
+                    {attachment_section}
 
                     EXTRACTION RULES:
                     1. Extract CUSTOMER information only (not banker/agent details from email headers)
@@ -234,7 +238,8 @@ class OpenAIAnalyzer:
         recepients = str(email_data.get('conversation_details', {}).get('recepients', ''))
         conversation_flow = str(email_data.get('conversation_details', {}).get('conversation_flow', ''))
         # Conversation Summary
-        conversation_summary = f"""Subjects: {subjects}\nSenders : {senders}\nRecepients : {recepients} \nConversation Flow : {conversation_flow}"""
+        newline = '\n'
+        conversation_summary = f"""Subjects: {subjects}{newline}Senders : {senders}{newline}Recepients : {recepients} {newline}Conversation Flow : {conversation_flow}"""
         # Combined Content
         # combined_content = str(email_data.get('content_analysis', {}).get('combined_content', ''))
 

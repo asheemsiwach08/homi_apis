@@ -1,6 +1,11 @@
 import re
+from typing import List
+from pydantic import BaseModel, Field
 from app.config.settings import settings
 
+###############################################################################
+               # Validators for Lead Creation & Whatsapp OTP
+###############################################################################
 def validate_pan_number(pan: str) -> bool:
     """Validate PAN number format"""
     return bool(re.match(r'^[A-Z]{5}[0-9]{4}[A-Z]{1}$', pan))
@@ -86,3 +91,58 @@ def normalize_phone_number(phone_number: str) -> str:
     # Remove any leading zeros
     cleaned = cleaned.lstrip('0')
     return '+91' + cleaned
+
+
+###############################################################################
+                   # Validators for BasicVerify
+###############################################################################
+class BankApplication(BaseModel):
+    """Model class for bank application data."""
+    
+    # Basic Information
+    bankerEmail: str = Field(default="")
+    firstName: str = Field(default="")
+    lastName: str = Field(default="")
+    loanAccountNumber: str = Field(default="")
+    
+    # Dates
+    disbursedOn: str = Field(default="Not found")
+    disbursedCreatedOn: str = Field(default="Not found")
+    sanctionDate: str = Field(default="Not found")
+    
+    # Financial Information
+    disbursementAmount: float = Field(default=0)
+    loanSanctionAmount: float = Field(default=0)
+
+    # Application IDs
+    bankAppId: str = Field(default="Not found")
+    basicAppId: str = Field(default="Not found")
+    basicDisbId: str = Field(default="Not found")
+    
+    # Bank Information
+    appBankName: str = Field(default="Not found")
+    
+    # Status Information
+    disbursementStage: str = Field(default="Not Disbursed")
+    # disbursementStatus: str = Field(default="VerifiedByAI")
+    
+    # Contact Information
+    primaryborrowerMobile: str = Field(default="Not found")
+    
+    # Verification Status
+    pdd: str = Field(default="Not found")  # PDD - Post Disbursement Document
+    otc: str = Field(default="Not found")  # OTC - One Time Charge
+    
+    # Sourcing Information
+    sourcingChannel: str = Field(default="Not found")
+    sourcingCode: str = Field(default="Not found")
+    
+    # Product Information
+    applicationProductType: str = Field(default="Not found")
+    
+    # Data Validation
+    dataFound: bool = Field(default=False)
+
+class BankThreadApplications(BaseModel):
+    """Model class for bank application thread data."""
+    disbursements: List[BankApplication]

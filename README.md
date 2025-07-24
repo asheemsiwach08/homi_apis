@@ -1,6 +1,6 @@
 # HOM-i WhatsApp OTP, Lead Creation & Status API
 
-A comprehensive FastAPI-based REST API for WhatsApp OTP verification, lead creation, and status tracking using Gupshup API with Supabase PostgreSQL storage and automatic fallback to local storage.
+A comprehensive FastAPI-based REST API for WhatsApp OTP verification, lead creation, status tracking, and email-based disbursement processing using Gupshup API with Supabase PostgreSQL storage and Google Sheets integration.
 
 ## Features
 
@@ -13,33 +13,32 @@ A comprehensive FastAPI-based REST API for WhatsApp OTP verification, lead creat
   - Create leads with Basic Application API integration
   - Track lead status by mobile number or application ID
   - Comprehensive lead data validation
-- ✅ **WhatsApp Notifications**
+- ✅ **Email Processing & Disbursements**
+  - **Historical disbursement processing** from email archives
+  - **Live email monitoring** for real-time disbursement tracking
+  - **AI-powered email analysis** using OpenAI for data extraction
+  - **Google Sheets integration** for automated data updates
+  - Support for multiple email providers (Zoho Mail)
+- ✅ **WhatsApp Integration**
   - Lead creation confirmation messages
   - Lead status update notifications
-  - Multiple template support for different use cases
-- ✅ **WhatsApp Message Processing**
   - Intelligent message parsing for status requests
-  - Automatic phone number extraction from Gupshup webhook payload
-  - Natural language processing for status check requests
-  - Support for various message formats and phone number formats
-  - **Automatic webhook processing** for real-time message handling
-  - **Gupshup JSON payload support** with proper sender information extraction
+  - Automatic webhook processing for real-time message handling
+  - Multiple template support for different use cases
 - ✅ **Storage & Infrastructure**
   - Supabase PostgreSQL for persistent storage
   - Automatic fallback to local storage
-  - Thread-safe operations
-  - Audit trails and data retention
+  - Google Sheets integration with secure credential management
+  - Thread-safe operations and audit trails
 - ✅ **API Features**
   - RESTful API design with proper HTTP status codes
-  - Comprehensive error handling
-  - Async/await support
+  - Background job processing for email analysis
+  - Comprehensive error handling and async/await support
   - Environment variable configuration
-  - Debug endpoints for troubleshooting
 - ✅ **Development & Deployment**
-  - Modular project structure
+  - Secure credential management for production
   - Docker support with multi-stage builds
-  - Docker Compose for easy deployment
-  - Comprehensive testing support
+  - Comprehensive testing and debugging tools
 
 ## Project Structure
 
@@ -48,6 +47,19 @@ otpVerification/
 ├── app/
 │   ├── __init__.py
 │   ├── main.py                 # FastAPI application entry point
+│   ├── src/                    # Email processing & disbursements module
+│   │   ├── ai_analyzer/        # OpenAI-powered email analysis
+│   │   ├── api_client/         # External API integrations
+│   │   ├── data_processing/    # Data transformation utilities
+│   │   ├── email_processor/    # Email monitoring and parsing
+│   │   └── sheets_integration/ # Google Sheets client
+│   ├── api/
+│   │   └── endpoints/
+│   │       ├── otp.py         # OTP operations
+│   │       ├── leads.py       # Lead management
+│   │       ├── whatsapp_webhook.py # WhatsApp webhook handler
+│   │       ├── historical_disbursements.py # Historical email processing
+│   │       └── live_disbursements.py # Live email monitoring
 │   │   └── __init__.py
 │   ├── api/
 │   │   ├── __init__.py
@@ -145,6 +157,11 @@ otpVerification/
    # Supabase Configuration (Optional - falls back to local storage if not configured)
    SUPABASE_URL=your_supabase_project_url
    SUPABASE_SERVICE_ROLE_KEY=your_supabase_service_role_key
+
+   # Google Sheets Configuration (for disbursement tracking)
+   GOOGLE_CREDENTIALS_JSON=base64_encoded_service_account_json
+   GOOGLE_SPREADSHEET_ID=your_spreadsheet_id
+   GOOGLE_WORKSHEET_NAME=your_worksheet_name
 
    # OTP Configuration
    OTP_EXPIRY_MINUTES=3

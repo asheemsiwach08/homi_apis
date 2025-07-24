@@ -3,6 +3,13 @@
 .env.local
 .env.production
 
+# Google Credentials (NEVER COMMIT THESE)
+*credentials*.json
+*service-account*.json
+*google-credentials*.json
+credentials/
+google-credentials/
+
 # Python
 __pycache__/
 *.py[cod]

@@ -19,7 +19,7 @@ from app.src.sheets_integration.google_sheets_client import GoogleSheetsClient
 
 logger = logging.getLogger(__name__)
 
-router = APIRouter(prefix="/api_v1/live", tags=["live-disbursements"])
+router = APIRouter(prefix="/api_v1", tags=["live-disbursements"])
 
 # Global monitoring state
 monitoring_state = {
@@ -68,7 +68,7 @@ def get_live_sheets_client() -> Optional[GoogleSheetsClient]:
         return None
 
 
-@router.post("/start")
+@router.post("/live_disbursements_start")
 async def start_live_monitoring(config: LiveMonitoringConfig) -> Dict[str, Any]:
     """Start live disbursement monitoring."""
     
@@ -129,7 +129,7 @@ async def start_live_monitoring(config: LiveMonitoringConfig) -> Dict[str, Any]:
         raise HTTPException(status_code=500, detail=str(e))
 
 
-@router.post("/stop")
+@router.post("/live_disbursements_stop")
 async def stop_live_monitoring() -> Dict[str, Any]:
     """Stop live disbursement monitoring."""
     
@@ -164,7 +164,7 @@ async def stop_live_monitoring() -> Dict[str, Any]:
         raise HTTPException(status_code=500, detail=str(e))
 
 
-@router.get("/status")
+@router.get("/live_disbursements_status")
 async def get_monitoring_status() -> Dict[str, Any]:
     """Get current live monitoring status."""
     

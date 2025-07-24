@@ -18,7 +18,7 @@ from app.src.sheets_integration.google_sheets_client import GoogleSheetsClient
 
 logger = logging.getLogger(__name__)
 
-router = APIRouter(prefix="/api_v1/historical", tags=["historical-disbursements"])
+router = APIRouter(prefix="/api_v1", tags=["historical-disbursements"])
 
 # In-memory storage for jobs
 jobs_storage = {}
@@ -55,7 +55,7 @@ def get_historical_sheets_client() -> Optional[GoogleSheetsClient]:
         return None
 
 
-@router.post("/start")
+@router.post("/historical_disbursements_start")
 async def start_historical_processing(
     request: HistoricalProcessRequest,
     background_tasks: BackgroundTasks
@@ -101,7 +101,7 @@ async def start_historical_processing(
         raise HTTPException(status_code=500, detail=str(e))
 
 
-@router.post("/cancel/{job_id}")
+@router.post("/historical_disbursements_cancel/{job_id}")
 async def cancel_job(job_id: str) -> Dict[str, Any]:
     """Cancel a running historical processing job."""
     
@@ -130,7 +130,7 @@ async def cancel_job(job_id: str) -> Dict[str, Any]:
     }
 
 
-@router.get("/status/{job_id}")
+@router.get("/historical_disbursements_status/{job_id}")
 async def get_job_status(job_id: str) -> Dict[str, Any]:
     """Get status of a historical processing job."""
     

@@ -118,7 +118,6 @@ async def get_lead_status(status_request: LeadStatusRequest):
             mobile_number=status_request.mobile_number,
             basic_application_id=status_request.basic_application_id
         )
-        print("api_status:-", api_status)
         
         if api_status:
             # Extract status from API response

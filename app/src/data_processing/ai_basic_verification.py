@@ -42,8 +42,6 @@ def ai_basic_verification(ai_data, basic_data):
         if basic_item is None:
             basic_item = basic_data.get(ai_item.get('loanAccountNumber'))
 
-        print(f"AI KEY: -- {bankAppId} +++ {ai_item} \n-------------------------- \nBank Key: {basic_item}")
-
         if basic_item in ["", "Not Found", "Not found"]:
             continue
 
@@ -51,7 +49,6 @@ def ai_basic_verification(ai_data, basic_data):
             # Correct it when live with the API data
             # basic_item_data = basic_item.get("data")[0]
             basic_item_data = basic_item
-            print("basic_item_data:----------->>>>",basic_item_data.get('firstName'))
 
             if not basic_item_data:
                 logger.warning(f"No matching bankAppId found for {bankAppId}")

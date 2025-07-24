@@ -21,7 +21,6 @@ class DatabaseService:
         else:
             try:
                 self.client = create_client(self.supabase_url, self.supabase_service_role_key)
-                print("Supabase client initialized successfully")
             except Exception as e:
                 print(f"Error initializing Supabase client: {e}")
                 self.client = None
@@ -163,7 +162,6 @@ class DatabaseService:
         
         try:
             result = self.client.table("leads").select("*").eq("mobile_number", mobile_number).execute()
-            print("result:-", result)
             
             if result.data:
                 return result.data[0]
@@ -280,7 +278,6 @@ class SupabaseOTPStorage:
                 settings.SUPABASE_URL, 
                 settings.SUPABASE_SERVICE_ROLE_KEY
             )
-            print("Supabase client initialized successfully")
         except Exception as e:
             print(f"Error initializing Supabase client: {e}")
             raise

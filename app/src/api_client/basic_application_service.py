@@ -3,6 +3,7 @@ from typing import Dict, Any, Optional
 import logging
 import requests
 from app.services.processing import processing_service
+from app.utils.timezone_utils import get_ist_timestamp
 logger = logging.getLogger(__name__)
 
 class BasicApplicationService:
@@ -136,13 +137,12 @@ class BasicApplicationService:
         }
 
     def _get_current_timestamp(self) -> str:
-        """Get current timestamp in ISO format.
+        """Get current timestamp in IST timezone.
         
         Returns:
-            Current timestamp string
+            Current timestamp string in IST
         """
-        from datetime import datetime
-        return datetime.now().isoformat()
+        return get_ist_timestamp()
 
     def batch_data_extraction(self, application_ids: list[str]) -> Dict[str, Dict[str, Any]]:
         """Verify multiple applications in batch.
@@ -158,7 +158,6 @@ class BasicApplicationService:
         for app_id in application_ids:
             try:
                 result = self.verify_application(app_id)
-                print("APP ID:<<<<-----+++++++++++++++++------>>>>",app_id)
                 results[app_id] = result 
 
             except Exception as e:
@@ -168,7 +167,6 @@ class BasicApplicationService:
                 #            error=str(e))
                 results[app_id] = self._create_error_result(f"Batch verification error: {str(e)}")
         
-        print(f"Batch verification completed {results}")
         # logger.info("Batch verification completed", 
         #            total_applications=len(application_ids),
         #            successful_verifications=len([r for r in results.values() if r.get('success')]))

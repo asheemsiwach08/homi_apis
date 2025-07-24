@@ -81,15 +81,6 @@ class Config:
             'historical_worksheet_name': self.get('GOOGLE_HISTORICAL_WORKSHEET_NAME', 'Historical_Disbursements'),
             'live_spreadsheet_id': self.get('GOOGLE_LIVE_SPREADSHEET_ID'),
             'live_worksheet_name': self.get('GOOGLE_LIVE_WORKSHEET_NAME', 'Live_Disbursements'),
-            # 'columns': {
-            #     'timestamp': self.get('SHEETS_COLUMN_TIMESTAMP', 'A'),
-            #     'email_id': self.get('SHEETS_COLUMN_EMAIL_ID', 'B'),
-            #     'application_id': self.get('SHEETS_COLUMN_APPLICATION_ID', 'C'),
-            #     'applicant_name': self.get('SHEETS_COLUMN_APPLICANT_NAME', 'D'),
-            #     'status': self.get('SHEETS_COLUMN_STATUS', 'E'),
-            #     'verification_result': self.get('SHEETS_COLUMN_VERIFICATION_RESULT', 'F'),
-            #     'notes': self.get('SHEETS_COLUMN_NOTES', 'G')
-            # }
         }
     
     def get_app_config(self) -> Dict[str, Any]:

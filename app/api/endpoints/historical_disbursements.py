@@ -44,7 +44,6 @@ def get_historical_sheets_client() -> Optional[GoogleSheetsClient]:
         if historical_spreadsheet_id:
             sheets_client.spreadsheet_id = historical_spreadsheet_id
             sheets_client.range_name = historical_worksheet_name
-            logger.info(f"Historical sheets configured: {historical_spreadsheet_id} -> {historical_worksheet_name}")
             return sheets_client
         else:
             logger.warning("No historical spreadsheet ID configured")

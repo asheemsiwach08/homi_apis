@@ -8,6 +8,7 @@ import logging
 from openai import OpenAI
 
 from app.config.config import config
+from app.utils.timezone_utils import get_ist_timestamp
 from app.utils.validators import BankThreadApplications
 from ..data_processing.text_extractor import extract_all_attachment_texts
 
@@ -77,7 +78,6 @@ class OpenAIAnalyzer:
 
             # Parse the response
             response_content = response.choices[0].message.content
-            print("Tokens:----------->>>>",response.usage.total_tokens)
             if isinstance(response_content, str):
                 import json
                 response_content = json.loads(response_content)
@@ -109,8 +109,6 @@ class OpenAIAnalyzer:
                         # Handle case where disbursements is not a list
                         disbursements = []
 
-            print(f"Analysis Result: -------- OpenAI Analyzer.py --------->>>> {disbursements}")
-            
             return disbursements
             
         except Exception as e:
@@ -554,13 +552,12 @@ class OpenAIAnalyzer:
         }
     
     def _get_current_timestamp(self) -> str:
-        """Get current timestamp in ISO format.
+        """Get current timestamp in IST timezone.
         
         Returns:
-            Current timestamp string
+            Current timestamp string in IST
         """
-        from datetime import datetime
-        return datetime.now().isoformat()
+        return get_ist_timestamp()
     
     def _convert_to_dict(self, obj) -> Dict[str, Any]:
         """Convert Pydantic model or object to dictionary.

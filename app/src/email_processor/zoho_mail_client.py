@@ -1784,12 +1784,24 @@ Content:
         """
         try:
             from dateutil import parser
+            from datetime import timezone, timedelta
             email_date_str = email_data.get('date', '')
             if email_date_str:
-                return parser.parse(email_date_str).replace(tzinfo=None)
-            return datetime.now()
+                # Parse email date and ensure it's timezone-aware
+                parsed_date = parser.parse(email_date_str)
+                if parsed_date.tzinfo is None:
+                    # If no timezone info, assume IST
+                    ist_timezone = timezone(timedelta(hours=5, minutes=30))
+                    parsed_date = parsed_date.replace(tzinfo=ist_timezone)
+                return parsed_date
+            # Return current time in IST if no date found
+            ist_timezone = timezone(timedelta(hours=5, minutes=30))
+            return datetime.now(ist_timezone)
         except:
-            return datetime.now()
+            # Return current time in IST if parsing fails
+            from datetime import timezone, timedelta
+            ist_timezone = timezone(timedelta(hours=5, minutes=30))
+            return datetime.now(ist_timezone)
 
     def check_connection(self) -> bool:
         """

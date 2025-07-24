@@ -57,7 +57,6 @@ def get_live_sheets_client() -> Optional[GoogleSheetsClient]:
         if live_spreadsheet_id:
             sheets_client.spreadsheet_id = live_spreadsheet_id
             sheets_client.range_name = live_worksheet_name
-            logger.info(f"Live sheets configured: {live_spreadsheet_id} -> {live_worksheet_name}")
             return sheets_client
         else:
             logger.warning("No live spreadsheet ID configured")
@@ -233,7 +232,7 @@ async def perform_email_check(config: LiveMonitoringConfig) -> Dict[str, Any]:
                 time_filtered_emails = []
                 for email in emails:
                     email_date_str = email.get('date', '')
-                    print("Email date: ", email_date_str,"---------- () ----------- ()")
+                    
                     if email_date_str:
                         try:
                             # Parse email date and check if it's actually newer than since_time
@@ -242,7 +241,6 @@ async def perform_email_check(config: LiveMonitoringConfig) -> Dict[str, Any]:
                             if email_date.replace(tzinfo=None) >= since_time:
                                 time_filtered_emails.append(email)
                             else:
-                                print("Email too old: ", email.get('subject', '')[:30],"from", email_date_str,"---------- () ----------- ()")
                                 logger.debug(f"Email too old: {email.get('subject', '')[:30]} from {email_date_str}")
                         except Exception as e:
                             # If we can't parse the date, include the email to be safe

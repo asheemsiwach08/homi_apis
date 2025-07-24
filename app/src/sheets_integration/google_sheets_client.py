@@ -6,7 +6,7 @@ import os
 import json
 from typing import List, Dict, Any
 import logging
-from datetime import datetime
+from datetime import datetime, timezone, timedelta
 from google.oauth2.service_account import Credentials as ServiceAccountCredentials
 from google.oauth2.credentials import Credentials as OAuthCredentials
 from google_auth_oauthlib.flow import InstalledAppFlow
@@ -15,6 +15,7 @@ from googleapiclient.discovery import build
 from googleapiclient.errors import HttpError
 
 from app.config.config import config
+from app.utils.timezone_utils import get_ist_timestamp_formatted
 
 logger = logging.getLogger(__name__)
 
@@ -31,10 +32,10 @@ class GoogleSheetsClient:
         self.service = None
         
         # Debug logging
-        logger.info(f"Google Sheets Client initialized with:")
-        logger.info(f"  Credentials file: {self.credentials_file}")
-        logger.info(f"  Spreadsheet ID: {self.spreadsheet_id}")
-        logger.info(f"  Range: {self.range_name}")
+        # logger.info(f"Google Sheets Client initialized with:")
+        # logger.info(f"  Credentials file: {self.credentials_file}")
+        # logger.info(f"  Spreadsheet ID: {self.spreadsheet_id}")
+        # logger.info(f"  Range: {self.range_name}")
         
     def authenticate(self) -> bool:
         """Authenticate with Google Sheets API.
@@ -55,7 +56,7 @@ class GoogleSheetsClient:
                     import base64
                     # Decode base64 encoded JSON
                     creds_data = json.loads(base64.b64decode(google_creds_json).decode('utf-8'))
-                    logger.info("Using Google credentials from environment variable (base64)")
+                    # logger.info("Using Google credentials from environment variable (base64)")
                     credentials = ServiceAccountCredentials.from_service_account_info(
                         creds_data, 
                         scopes=scope
@@ -118,7 +119,7 @@ class GoogleSheetsClient:
                 required_fields = ['type', 'project_id', 'private_key_id', 'private_key', 'client_email', 'client_id']
                 if all(google_creds.get(field) for field in required_fields):
                     try:
-                        logger.info("Using Google credentials from individual environment variables")
+                        # logger.info("Using Google credentials from individual environment variables")
                         logger.debug(f"Private key starts with: {private_key[:50] if private_key else 'None'}...")
                         credentials = ServiceAccountCredentials.from_service_account_info(
                             google_creds, 
@@ -483,7 +484,8 @@ class GoogleSheetsClient:
             return str(value)
         
         # Extract data from bank application
-        timestamp = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+        # Generate IST timestamp
+        timestamp = get_ist_timestamp_formatted()
         
         # Basic application info
         first_name = safe_str(app.get('firstName'))

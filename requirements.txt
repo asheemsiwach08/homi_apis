@@ -1,12 +1,45 @@
+# Core web framework
 fastapi
-email-validator
-httpx
-python-multipart
-psycopg2-binary
-python-dotenv
-pydantic[email]
-requests
-supabase
 uvicorn[standard]
+pydantic[email]
+python-dotenv
+
+# Database and storage
+supabase
+psycopg2-binary
+
+# HTTP clients and requests
+httpx
+requests
+python-multipart
+
+# Email processing
+imaplib2
+email-validator
+
+# Document processing
+PyPDF2
+python-docx
+openpyxl
+pandas
+
+# Image text extraction (OCR)
+Pillow
+pytesseract
+
+# AI and OpenAI integration
+openai
+
+# Google Sheets integration
+google-auth
+google-auth-oauthlib
+google-auth-httplib2
+google-api-python-client
+
+# Background processing
 redis
 celery
+
+# Logging and utilities
+structlog
+python-dateutil

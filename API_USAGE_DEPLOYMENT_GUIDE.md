@@ -149,6 +149,36 @@ This guide details the API usage, endpoints, payloads, responses, error handling
 - **Path:** `/whatsapp/webhook`
 - **Description:** Webhook verification endpoint for WhatsApp Business API.
 
+### 8. Historical Disbursements Processing
+- **Method:** POST
+- **Path:** `/historical/start`
+- **Description:** Start historical email processing job for disbursement data extraction.
+- **Payload:**
+```json
+{
+  "days_back": 7,
+  "email_folders": ["INBOX"],
+  "subject_filter": "disbursement",
+  "sender_filter": "bank@example.com"
+}
+```
+
+### 9. Live Disbursements Monitoring
+- **Method:** POST
+- **Path:** `/live/start`
+- **Description:** Start live email monitoring for real-time disbursement tracking.
+- **Method:** POST
+- **Path:** `/live/stop`
+- **Description:** Stop live email monitoring.
+
+### 10. Job Status Tracking
+- **Method:** GET
+- **Path:** `/historical/status/{job_id}`
+- **Description:** Get status of historical processing job.
+- **Method:** GET
+- **Path:** `/live/status`
+- **Description:** Get status of live monitoring service.
+
 ## Phone Number Formats Supported
 
 The API automatically normalizes phone numbers to include the country code **91** (India) for WhatsApp services. The system handles various input formats:
@@ -247,6 +277,28 @@ curl -X POST "http://localhost:5000/api_v1/lead_status" \
 curl -X GET "http://localhost:5000/api_v1/health"
 ```
 
+### Start Historical Disbursements Processing
+```bash
+curl -X POST "http://localhost:5000/api_v1/historical/start" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "days_back": 30,
+    "email_folders": ["INBOX"],
+    "subject_filter": "disbursement"
+  }'
+```
+
+### Start Live Disbursements Monitoring
+```bash
+curl -X POST "http://localhost:5000/api_v1/live/start" \
+  -H "Content-Type: application/json"
+```
+
+### Check Job Status
+```bash
+curl -X GET "http://localhost:5000/api_v1/historical/status/{job_id}"
+```
+
 ## Error Responses Format
 
 ```json
@@ -320,6 +372,16 @@ OTP_EXPIRY_MINUTES=3
 
 # WhatsApp Webhook Configuration
 WHATSAPP_WEBHOOK_VERIFY_TOKEN=your_webhook_verify_token
+
+# Email Processing Configuration
+ZOHO_EMAIL=your_zoho_email@domain.com
+ZOHO_PASSWORD=your_zoho_password
+OPENAI_API_KEY=your_openai_api_key
+
+# Google Sheets Configuration
+GOOGLE_CREDENTIALS_JSON=base64_encoded_service_account_json
+GOOGLE_SPREADSHEET_ID=your_spreadsheet_id
+GOOGLE_WORKSHEET_NAME=your_worksheet_name
 ```
 
 ## Deployment Options
@@ -370,6 +432,26 @@ docker run -d \
 - The API automatically handles phone number normalization for WhatsApp services.
 - All database operations use Supabase with automatic fallback to local storage.
 - WhatsApp notifications are sent for lead creation and status updates.
+
+## Google Sheets Integration
+
+For disbursement tracking, the API integrates with Google Sheets:
+
+1. **Setup Google Service Account:**
+   - Create a service account in Google Cloud Console
+   - Download the JSON credentials file
+   - Convert to base64 using: `python scripts/convert_google_credentials.py credentials.json`
+
+2. **Configure Environment:**
+   ```bash
+   GOOGLE_CREDENTIALS_JSON=base64_encoded_json
+   GOOGLE_SPREADSHEET_ID=your_spreadsheet_id
+   GOOGLE_WORKSHEET_NAME=Sheet1
+   ```
+
+3. **Share Spreadsheet:**
+   - Share your Google Sheet with the service account email
+   - Grant "Editor" permissions for write access
 
 ## Contact & Support
 

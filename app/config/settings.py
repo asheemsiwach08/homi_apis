@@ -8,8 +8,8 @@ class Settings:
     """Application settings"""
     
     # API Configuration
-    API_TITLE = "HOM-i Whatsapp OTP,Lead Creation & Status API"
-    API_DESCRIPTION = "API for Whatsapp OTP Send, Verification,Lead Creation, Status retrieval, and WhatsApp Integration"
+    API_TITLE = "HOM-i"
+    API_DESCRIPTION = "API for Whatsapp OTP Send, Verification,Lead Creation, Status retrieval, WhatsApp Integration, Email Processing & Disbursements"
     API_VERSION = "1.0.0"
     
     # Server Configuration

@@ -1,6 +1,20 @@
+import sys
+import logging
 from fastapi import FastAPI
 from app.config.settings import settings
 from app.api.routes import api_router
+
+# Configure logging
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+    handlers=[
+        logging.StreamHandler(sys.stdout),
+        logging.FileHandler('basicverify.log')
+    ]
+)
+
+logger = logging.getLogger(__name__)
 
 # Create FastAPI application
 app = FastAPI(
@@ -11,6 +25,8 @@ app = FastAPI(
 
 # Include API routes
 app.include_router(api_router)
+
+
 
 if __name__ == "__main__":
     import uvicorn

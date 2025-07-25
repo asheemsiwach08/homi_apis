@@ -46,7 +46,6 @@ async def whatsapp_webhook(request: Request):
     try:
         # Get the raw body as JSON
         body = await request.json()
-        print(f"Received webhook payload: {json.dumps(body, indent=2)}")
         
         # Extract data from Gupshup payload structure
         app_name = body.get("app")

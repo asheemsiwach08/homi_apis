@@ -92,6 +92,117 @@ class BasicApplicationService:
             "loanTenure": lead_data.get("loan_tenure", 0)
         }
 
+    # Detailed Leads Creation API Payload - CreateFBBByBasicUser
+    def _prepare_FBB_by_basic_user_payload(self, lead_data: Dict) -> Dict:
+        """
+        Prepare FBB by basic user payload for Basic Application API
+        
+        Args:
+            lead_data: Lead data from request
+            
+        Returns:
+            Dict: Formatted payload for Basic Application API
+        """
+        # Format the date properly
+        dob = lead_data.get("dob")
+        if dob:
+            dob = self._format_date(dob)
+        
+        return {"annualIncome":lead_data.get("annual_income", 0),
+                "applicationAssignedToRm": "2762f5b5-ecdc-4826-b003-f332b658e6f4", # Use the same value as working curl
+                "city": lead_data.get("city", ""),
+                "createdFromPemId": "string", # Use the same value as working curl
+                "creditScore": lead_data.get("credit_score", 0),
+                "creditScoreTypeId": "string", # Use the same value as working curl
+                "customerId": "234", # Use the same value as working curl
+                "dateOfBirth": lead_data.get("date_of_birth", ""),
+                "district": lead_data.get("district", ""),
+                "email": lead_data.get("email", ""),
+                "firstName": lead_data.get("first_name", ""),
+                "gender": lead_data.get("gender", ""),
+                "id": "string", # Use the same value as working curl
+                "includeCreditScore": True,
+                "isLeadPrefilled": False, # Use the same value as working curl
+                "lastName": lead_data.get("last_name", ""),
+                "loanAmountReq": lead_data.get("loan_amount_req", 0),
+                "loanTenure": lead_data.get("loan_tenure", 0),
+                "loanType": lead_data.get("loan_type", ""),
+                "mobile": lead_data.get("mobile_number", ""),
+                "pan": lead_data.get("pan_number", ""),
+                "pincode": lead_data.get("pin_code", ""),
+                "qrShortCode": "string", # Use the same value as working curl
+                "remarks":"good", # Use the same value as working curl
+                "state": lead_data.get("state", "")}
+
+    # Detailed Leads Creation API Payload - SelfFullfilment
+    def _prepare_self_fullfilment_payload(self, lead_data: Dict) -> Dict:
+        """
+        Prepare self fullfilment payload for Basic Application API
+        
+        Args:
+            lead_data: Lead data from request
+            
+        Returns:
+            Dict: Formatted payload for Basic Application API
+        """
+        # Format the date properly
+        dob = lead_data.get("dob")
+        if dob:
+            dob = self._format_date(dob)
+        
+        return {"aggrementTypeId": "", # Use the same value as working curl
+                "annualIncome":lead_data.get("annual_income", 0),
+                "applicationAssignedToRm": "", # Use the same value as working curl
+                "builderId": "", # Use the same value as working curl
+                "builderName": "", # Use the same value as working curl
+                "city": lead_data.get("city", ""),
+                "coBorrowerIncome": "", # Use the same value as working curl
+                "companyId": "", # Use the same value as working curl
+                "companyName": "", # Use the same value as working curl
+                "createdFromPemId": "", # Use the same value as working curl
+                "creditScore": lead_data.get("credit_score", 0),
+                "creditScoreTypeId": "", # Use the same value as working curl
+                "customerId": "", # Use the same value as working curl
+                "dateOfBirth": lead_data.get("date_of_birth", ""),
+                "district": lead_data.get("district", ""),
+                "email": lead_data.get("email", ""),
+                "existingEmis": "", # Use the same value as working curl
+                "firstName": lead_data.get("first_name", ""),
+                "gender": lead_data.get("gender", ""),
+                "id": "", # Use the same value as working curl
+                "includeCreditScore": True,
+                "isLeadPrefilled": "", # Use the same value as working curl
+                "isPropertyIdentified": "", # Use the same value as working curl
+                "lastName": lead_data.get("last_name", ""),
+                "loanAmountReq": lead_data.get("loan_amount_req", 0),
+                "loanTenure": lead_data.get("loan_tenure", 0),
+                "loanType": lead_data.get("loan_type", ""),
+                "loanUsageTypeId": "", # Use the same value as working curl
+                "mobile": lead_data.get("mobile_number", ""),
+                "pan": lead_data.get("pan_number", ""),
+                "pincode": lead_data.get("pin_code", ""),
+                "professionId": "", # Use the same value as working curl
+                "professionName": "", # Use the same value as working curl
+                "projectId": "", # Use the same value as working curl
+                "propertyAddress": "", # Use the same value as working curl
+                "propertyCity": "", # Use the same value as working curl
+                "propertyDistrict": "", # Use the same value as working curl
+                "propertyPincode": "", # Use the same value as working curl
+                "propertyProjectName": "", # Use the same value as working curl
+                "propertyState": "", # Use the same value as working curl
+                "propertyTypeId": "", # Use the same value as working curl
+                "propertyValue": "", # Use the same value as working curl
+                # "qrShortCode": "", # Use the same value as working curl
+                "remarks":"", # Use the same value as working curl
+                "salaryCreditModeId": "", # Use the same value as working curl
+                "selfCompanyTypeId": "", # Use the same value as working curl
+                "selfCompanyTypeName": "", # Use the same value as working curl
+                "state": lead_data.get("state", ""),
+                "towerId": "", # Use the same value as working curl
+                "towerName": "", # Use the same value as working curl
+                "towerUnitType": "", # Use the same value as working curl
+                }
+  
     def normalize_url(self, url):
         parsed = urlparse(url)
         host = parsed.netloc.lower()
@@ -177,6 +288,122 @@ class BasicApplicationService:
             raise
         except Exception as e:
             raise HTTPException(status_code=500, detail=f"Error calling Basic Application API: {str(e)}")
+    
+    # Detailed Leads Creation API using CreateFBBByBasicUser
+    def create_FBB_by_basic_user(self, lead_data: Dict) -> Dict:
+        """
+        Create detailed lead in Basic Application API(CreateFBBByBasicUser)
+        
+        Args:
+            lead_data: Lead data from request
+            
+        Returns:
+            Dict: Response from Basic Application API
+            
+        Raises:
+            HTTPException: If API call fails
+        """
+        try:
+            api_payload = self._prepare_FBB_by_basic_user_payload(lead_data)
+            
+            if not self.basic_api_url:
+                raise HTTPException(
+                    status_code=500,
+                    detail="Basic Application API URL not configured"
+                )
+            print("API Payload: CreateFBBByBasicUser ", api_payload)
+            # Get signature headers
+            api_url = f"{self.basic_api_url}/api/v1/NewApplication/CreateFBBByBasicUser"
+            headers = self.generate_signature_headers(api_url, "POST", api_payload)
+            print("Headers: CreateFBBByBasicUser ", headers)
+            response = requests.post(api_url, headers=headers, json=api_payload)
+            print("Response: CreateFBBByBasicUser ", response.text)
+
+            if response.status_code in [200, 201]:
+                try:
+                    # Check if response has content before parsing JSON
+                    if response.text.strip():
+                        return response.json()
+                    else:
+                        raise HTTPException(
+                            status_code=400,
+                            detail="Empty response received from Basic Application API- CreateFBBByBasicUser"
+                        )
+                except json.JSONDecodeError as json_error:
+                    print(f"JSON parsing error: {json_error}")
+                    print(f"Response text: {response.text}")
+                    raise HTTPException(
+                        status_code=400,
+                        detail=f"Invalid JSON response from Basic Application API: {response.text}"
+                    )
+            else:
+                raise HTTPException(
+                    status_code=400, 
+                    detail=f"Failed to create lead in Basic Application API(CreateFBBByBasicUser): {response.text}"
+                )
+                    
+        except HTTPException:
+            raise
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=f"Error calling Basic Application API: {str(e)}")
+    
+
+    # Detailed Leads Creation API using SelfFullfilment
+    def create_self_fullfilment_lead(self, lead_data: Dict) -> Dict:
+        """
+        Create detailed lead in Basic Application API(SelfFullfilment)
+        
+        Args:
+            lead_data: Lead data from request
+            
+        Returns:
+            Dict: Response from Basic Application API
+            
+        Raises:
+            HTTPException: If API call fails
+        """
+        try:
+            api_payload = self._prepare_self_fullfilment_payload(lead_data)
+            
+            if not self.basic_api_url:
+                raise HTTPException(
+                    status_code=500,
+                    detail="Basic Application API URL not configured"
+                )
+            
+            # Get signature headers
+            api_url = f"{self.basic_api_url}/api/v1/NewApplication/SelfFullfilment"
+            headers = self.generate_signature_headers(api_url, "PUT", api_payload)
+            response = requests.put(api_url, headers=headers, json=api_payload)
+
+            if response.status_code in [200, 201]:
+                try:
+                    # Check if response has content before parsing JSON
+                    if response.text.strip():
+                        return response.json()
+                    else:
+                        raise HTTPException(
+                            status_code=400,
+                            detail="Empty response received from Basic Application API- SelfFullfilment"
+                        )
+                except json.JSONDecodeError as json_error:
+                    print(f"JSON parsing error: {json_error}")
+                    print(f"Response text: {response.text}")
+                    raise HTTPException(
+                        status_code=400,
+                        detail=f"Invalid JSON response from Basic Application API: {response.text}"
+                    )
+            else:
+                raise HTTPException(
+                    status_code=400, 
+                    detail=f"Failed to create lead in Basic Application API(SelfFullfilment): {response.text}"
+                )
+                    
+        except HTTPException:
+            raise
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=f"Error calling Basic Application API: {str(e)}")
+    
     
     async def get_lead_status(self, mobile_number: Optional[str] = None, basic_application_id: Optional[str] = None) -> Optional[Dict]:
         """

@@ -30,6 +30,24 @@ class LeadCreateRequest(BaseModel):
     dob: str
     pin_code: str
 
+class LeadCreateDetailedRequest(BaseModel):
+    first_name: str
+    last_name: str
+    gender: Optional[str] = None
+    mobile_number: str
+    credit_score: int
+    pan_number: str
+    annual_income: float
+    loan_type: str
+    loan_amount: float
+    loan_tenure: int
+    city: str
+    district: str
+    state: str
+    pin_code: str
+    email: EmailStr
+    dob: str
+    
 class LeadStatusRequest(BaseModel):
     mobile_number: Optional[str] = None
     basic_application_id: Optional[str] = None

@@ -249,7 +249,7 @@ curl -X POST "http://localhost:5000/api_v1/lead_create" \
     "mobile_number": "917888888888",
     "email": "john.doe@example.com",
     "pan_number": "ABCDE1234F",
-    "loan_type": "home_loan",
+    "loan_type": "home loan",
     "loan_amount": 500000,
     "loan_tenure": 36,
     "gender": "male",

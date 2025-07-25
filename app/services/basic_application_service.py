@@ -7,11 +7,14 @@ import json
 import hashlib
 import hmac
 import base64
+import logging
 from datetime import datetime
 from fastapi import HTTPException
 from typing import Dict, Optional
 from urllib.parse import urlparse, parse_qsl, urlencode
 from app.config.settings import settings
+
+logger = logging.getLogger(__name__)
 
 
 class BasicApplicationService:
@@ -48,7 +51,7 @@ class BasicApplicationService:
             # Format to ISO with timezone
             return date_obj.isoformat() + "Z"
         except Exception as e:
-            print(f"Error formatting date {date_str}: {e}")
+            logger.error(f"Error formatting date {date_str}: {e}")
             # If parsing fails, return the original string
             return date_str
     
@@ -161,8 +164,8 @@ class BasicApplicationService:
                             detail="Empty response received from Basic Application API"
                         )
                 except json.JSONDecodeError as json_error:
-                    print(f"JSON parsing error: {json_error}")
-                    print(f"Response text: {response.text}")
+                    logger.error(f"JSON parsing error: {json_error}")
+                    logger.error(f"Response text: {response.text}")
                     raise HTTPException(
                         status_code=400,
                         detail=f"Invalid JSON response from Basic Application API: {response.text}"
@@ -245,15 +248,15 @@ class BasicApplicationService:
                         if response.text.strip():
                             return response.json()
                         else:
-                            print("Empty response received from Basic Application API")
+                            logger.error("Empty response received from Basic Application API")
                             return None
                     except json.JSONDecodeError as json_error:
-                        print(f"JSON parsing error: {json_error}")
-                        print(f"Response text: {response.text}")
+                        logger.error(f"JSON parsing error: {json_error}")
+                        logger.error(f"Response text: {response.text}")    
                         return None
                 else:
-                    print(f"API call failed with status code: {response.status_code}")
-                    print(f"Response text: {response.text}")
+                    logger.error(f"API call failed with status code: {response.status_code}")
+                    logger.error(f"Response text: {response.text}")
                     return None
             else:
                 return None

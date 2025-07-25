@@ -1,9 +1,12 @@
-from fastapi import FastAPI, HTTPException, APIRouter
+import logging
+from fastapi import HTTPException, APIRouter
 from app.models.schemas import SendOTPRequest, ResendOTPRequest, VerifyOTPRequest, OTPResponse
 from app.services.whatsapp_service import whatsapp_service
 from app.services.database_service import otp_storage
 from app.config.settings import settings
 from app.utils.validators import validate_phone_number, normalize_phone_number
+
+logger = logging.getLogger(__name__)
 
 # Create API router with prefix
 router = APIRouter(prefix="/api_v1", tags=["OTP Operations"])
@@ -13,6 +16,7 @@ async def send_otp(request: SendOTPRequest):
     """Send OTP to the specified phone number"""
 
     if not validate_phone_number(request.phone_number):
+        logger.error(f"Invalid phone number format: {request.phone_number}")
         raise HTTPException(status_code=400, detail="Invalid phone number format")
 
     # Normalize phone number for WhatsApp service

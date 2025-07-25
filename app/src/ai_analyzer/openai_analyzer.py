@@ -112,7 +112,7 @@ class OpenAIAnalyzer:
             return disbursements
             
         except Exception as e:
-            print(f"Error analyzing email {str(e)}")
+            logger.error(f"Error analyzing email {str(e)}")
             # return self._create_error_result(email_data, str(e))
             return []
     
@@ -158,7 +158,7 @@ class OpenAIAnalyzer:
                     4. Convert Indian currency: 1 lakh = 100,000, 1 crore = 10,000,000
                     5. Create separate records for each customer disbursement
                     6. Use 'Disbursed', 'Pending', or 'No Status' for disbursementStage
-                    7. Use empty string '' or 'Not found' for missing data
+                    7. **CRITICAL: Use empty string '' or 'Not found' for missing data - NEVER repeat the same default value across multiple records**
                     8. **NAME SPLITTING RULES**: 
                        - For individual customers: Split full names into firstName and lastName
                        - firstName = First/given names, lastName = Family/surname 
@@ -167,10 +167,28 @@ class OpenAIAnalyzer:
                        - Examples: "DR. AMIT SINGH" → firstName: "AMIT", lastName: "SINGH"
                        - For companies: Put full company name in firstName, leave lastName empty
                        - Examples: "ABC Enterprises Pvt Ltd" → firstName: "ABC Enterprises Pvt Ltd", lastName: ""
-                    9. **LOAN ACCOUNT NUMBER (LAN) EXTRACTION CRITICAL RULES**:
+                    9. **BANK APPLICATION ID (bankAppId) EXTRACTION CRITICAL RULES**:
+                       - Look for ALL variations of bank application identifiers:
+                       - **Common Terms**: "Bank App ID", "Bank Application ID", "Application ID", "App ID", "Application Number", "Application No", "Application Ref", "Bank Reference", "Bank Ref No", "Ref No", "Reference Number", "Application Code", "App No", "Bank App No"
+                       - **Variations**: "App ID:", "Application ID:", "Appl ID:", "Bank App:", "Application No:", "Ref:", "Reference:", "App Ref:", "Bank Ref:", "Application#", "App#"
+                       - **Patterns to Look For**:
+                         * "Application ID: BHL123456789"
+                         * "Bank App ID: HDFC2024001234"
+                         * "App ID: APP789456123"
+                         * "Application Number: BKA987654321"
+                         * "Bank Reference: REF456789123"
+                         * "Application Code: AC123456"
+                         * "App No: 202400123456"
+                         * "Bank App No: BA567890123"
+                         * "Reference: BHL/2024/001234"
+                       - **In Tables**: Look for columns labeled "Application ID", "App ID", "Bank App ID", "Application Number", "Reference"
+                       - **Format Recognition**: Usually alphanumeric codes with 6-20 characters, may include bank/company prefixes
+                       - **Context Clues**: Usually appears near customer names, loan amounts, or disbursement details
+                       - **CRITICAL**: If no bankAppId found, use empty string "" - DO NOT use repeated default values like "APP001" or "UNKNOWN"
+                    10. **LOAN ACCOUNT NUMBER (LAN) EXTRACTION CRITICAL RULES**:
                        - Look for ALL variations of loan account numbers in emails
-                       - **Common Terms**: "LAN", "Loan Account Number", "Loan Account No", "Loan A/C No", "Account Number", "Loan Number", "L.A.N", "LAN ID", "LAN Number"
-                       - **Variations**: "LAN:", "LAN-", "LAN #", "LAN No:", "Loan A/C:", "A/C No:", "Account No:", "Loan ID:", "Reference No:"
+                       - **Common Terms**: "LAN", "Loan Account Number", "Loan Account No", "Loan A/C No", "Account Number", "Loan Number", "L.A.N", "LAN ID", "LAN Number", "Loan A/C", "Account No"
+                       - **Variations**: "LAN:", "LAN-", "LAN #", "LAN No:", "Loan A/C:", "A/C No:", "Account No:", "Loan ID:", "Reference No:", "Loan Ref:", "Account ID:"
                        - **Patterns to Look For**:
                          * "LAN: 0PVL2506000005110837"
                          * "Loan Account Number: ABC123456789"
@@ -179,10 +197,11 @@ class OpenAIAnalyzer:
                          * "Loan A/C No: HDFC0001234567"
                          * "Reference: REF123456789"
                          * "Loan Number: LN789456123"
-                         * "Application Number used as LAN when no other LAN found"
-                       - **In Tables**: Look for columns labeled "LAN", "Account No", "Loan Account", "A/C Number"
-                       - **Format Recognition**: Usually 10-20 digit alphanumeric codes
+                         * "Account ID: ACC456789123"
+                       - **In Tables**: Look for columns labeled "LAN", "Account No", "Loan Account", "A/C Number", "Loan A/C No"
+                       - **Format Recognition**: Usually 10-20 digit alphanumeric codes, may include bank prefixes
                        - **Priority**: Use actual LAN over application numbers when both are present
+                       - **CRITICAL**: If no loanAccountNumber found, use empty string "" - DO NOT use repeated default values like "LAN001" or "UNKNOWN"
 
                     Extract information in this JSON format:
                     {{
@@ -210,7 +229,12 @@ class OpenAIAnalyzer:
                         "dataFound": true
                     }}
 
-                    **CRITICAL NOTE**: The loanAccountNumber field is essential - look for LAN, Account No, A/C No, LAN ID, Reference No, or any loan identifier variations!
+                    **CRITICAL NOTES**: 
+                    1. The bankAppId field is essential - look for Application ID, Bank App ID, App ID, Application Number, Bank Reference, or any application identifier variations!
+                    2. The loanAccountNumber field is essential - look for LAN, Account No, A/C No, LAN ID, Reference No, or any loan identifier variations!
+                    3. **NEVER use repeated default values** - if bankAppId or loanAccountNumber not found, use empty string "" for each individual record
+                    4. **DO NOT use placeholder values** like "APP001", "LAN001", "UNKNOWN", "DEFAULT" across multiple records
+                    5. Each record must have unique bankAppId and loanAccountNumber when available, or empty string when not found
 
                     If no bank application information is found, set all fields to "Not found" and dataFound to false.
             """
@@ -289,9 +313,27 @@ class OpenAIAnalyzer:
                 5. **Multiple Disbursement Records**: Each email may contain multiple separate disbursements for different customers. Extract **ALL disbursement records** - create a separate record for each customer/disbursement. Each record must be uniquely identified by **loanAccountNumber** and **bankAppId**. Do NOT merge multiple customers into one record.
                 
                 6. **Data Mapping Guidelines**:
+                   - **BANK APPLICATION ID (bankAppId) EXTRACTION - CRITICAL FOR SUCCESS**:
+                     * **Primary Terms**: "Bank App ID", "Bank Application ID", "Application ID", "App ID", "Application Number", "Application No", "Application Ref", "Bank Reference", "Bank Ref No", "Reference Number", "Application Code", "App No", "Bank App No"
+                     * **Secondary Terms**: "Ref No", "Reference", "App Ref", "Bank Ref", "Application#", "App#", "Appl ID", "Application Code"
+                     * **Variations in Text**:
+                       - "Application ID: BHL123456789"
+                       - "Bank App ID: HDFC2024001234"
+                       - "App ID: APP789456123"
+                       - "Application Number: BKA987654321"
+                       - "Bank Reference: REF456789123"
+                       - "Application Code: AC123456"
+                       - "App No: 202400123456"
+                       - "Bank App No: BA567890123"
+                       - "Reference: BHL/2024/001234"
+                       - "Application Ref: AR456789"
+                     * **In Email Subject Lines**: "Application ID 123456789 disbursed", "App ID 987654321 approved"
+                     * **Context Clues**: Usually appears near customer names, loan amounts, or disbursement details
+                     * **Format Patterns**: Usually 6-20 character alphanumeric codes, may include bank/company prefixes
+                     * **CRITICAL**: If no bankAppId found, use empty string "" - DO NOT use repeated defaults
                    - **LOAN ACCOUNT NUMBER (LAN) EXTRACTION - CRITICAL FOR SUCCESS**:
                      * **Primary Terms**: "LAN", "Loan Account Number", "Loan Account No", "Loan A/C No", "Account Number", "Loan Number", "L.A.N", "LAN ID", "LAN Number"
-                     * **Secondary Terms**: "Account No", "A/C No", "A/C Number", "Acct No", "Reference Number", "Loan ID", "Customer ID"
+                     * **Secondary Terms**: "Account No", "A/C No", "A/C Number", "Acct No", "Reference Number", "Loan ID", "Customer ID", "Account ID", "Loan Ref"
                      * **Variations in Text**:
                        - "LAN: 0PVL2506000005110837" 
                        - "Loan Account Number: ABC123456789"
@@ -303,17 +345,20 @@ class OpenAIAnalyzer:
                        - "Loan Number: LN789456123"
                        - "Customer Account: CUST456789123"
                        - "Loan Reference: LR987654321"
+                       - "Account ID: ACC456789123"
                      * **In Email Subject Lines**: "Disbursement for LAN 123456789", "Account 987654321 disbursed"
                      * **In Tables/Structured Data**: Look for columns with headers like:
                        - "LAN" | "Loan Account No" | "Application Number" | "Sanction Amount" | "Disbursed Amount"
                        - "Customer Name" | "Account Number" | "Amount" | "Status"
                        - "Borrower" | "LAN ID" | "Disbursement" | "Date"
+                       - "Application ID" | "Bank App ID" | "App No" | "Reference"
                      * **Context Clues**: Numbers mentioned near customer names, amounts, or disbursement details
                      * **Format Patterns**: Usually 10-20 digit alphanumeric codes, may contain letters and numbers
                      * **Priority Rules**: 
                        - Use dedicated LAN/Account Number over Application Number when both present
                        - If only Application Number available, use as loanAccountNumber
                        - Bank-specific formats (e.g., HDFC, ICICI prefixes)
+                     * **CRITICAL**: If no loanAccountNumber found, use empty string "" - DO NOT use repeated defaults
                    - Disbursement amount may be mentioned as "loan amount", "disbursed amount", "payout", etc.
                    - Look for context clues about disbursement status (pending, completed, in-progress)
                    - Some emails may show pending status followed by confirmation in subsequent emails
@@ -373,9 +418,14 @@ class OpenAIAnalyzer:
                 
                 9. **Data Formatting Rules**:
                    - **For missing/unknown values**: Use empty string "" or "Not found" - NEVER use "Not specified", "N/A", "Unknown", etc.
+                   - **CRITICAL - NO REPEATED DEFAULTS**: Never use the same default value across multiple records
+                     * DO NOT use: "APP001", "LAN001", "UNKNOWN", "DEFAULT", "NOT_FOUND" for multiple records
+                     * DO use: Empty string "" for each record individually when data not found
                    - **For disbursementStage**: Use ONLY these exact values: "Disbursed", "Pending", "No Status" - do not create new status values
                    - **For dates**: Use YYYY-MM-DD format or leave empty if not found
                    - **For amounts**: Always use numbers without commas (e.g., 2300000, not 23,00,000)
+                   - **For bankAppId**: Extract actual application IDs or use "" - never repeat placeholder values
+                   - **For loanAccountNumber**: Extract actual LAN/account numbers or use "" - never repeat placeholder values
                 
                 10. **What to IGNORE**:
                    - Email sender/receiver names (these are banker/agent names)
@@ -415,6 +465,8 @@ class OpenAIAnalyzer:
                 5. If no disbursement or bank application details are found, return a single record with all fields as "Not found" and **"dataFound": false**.
                 6. **IMPORTANT**: Use only "Disbursed", "Pending", or "No Status" for disbursementStage field.
                 7. **IMPORTANT**: For any missing information, use empty string "" or "Not found" - never use "Not specified", "N/A", "Unknown".
+                8. **CRITICAL**: Never use repeated placeholder values like "APP001", "LAN001", "UNKNOWN" across multiple records - use empty string "" for missing data.
+                9. **CRITICAL**: Each record must have unique bankAppId and loanAccountNumber when available, or empty string "" when not found.
 
                 Respond strictly with the JSON array format as specified.
 
@@ -464,6 +516,18 @@ class OpenAIAnalyzer:
                 - Missing data: "" or "Not found" (NEVER "Not specified", "N/A", "Unknown")
                 - Dates: "2024-01-15" or "" (if not found)
                 - Phone: "+919876543210" or "" (if not found)
+                
+                **CORRECT bankAppId/loanAccountNumber Examples:**
+                - Customer 1: bankAppId: "BHL123456", loanAccountNumber: "LAN987654321"
+                - Customer 2: bankAppId: "APP789456", loanAccountNumber: "HDFC0001234567"
+                - Customer 3 (no data found): bankAppId: "", loanAccountNumber: ""
+                - Customer 4 (partial data): bankAppId: "REF456789", loanAccountNumber: ""
+                
+                **WRONG Examples (DO NOT DO THIS):**
+                - Customer 1: bankAppId: "UNKNOWN", loanAccountNumber: "UNKNOWN"
+                - Customer 2: bankAppId: "UNKNOWN", loanAccountNumber: "UNKNOWN"  ← WRONG: Same repeated value
+                - Customer 3: bankAppId: "APP001", loanAccountNumber: "LAN001"
+                - Customer 4: bankAppId: "APP001", loanAccountNumber: "LAN001"  ← WRONG: Same repeated value
                 
                 **Currency Conversion Examples:**
                 - "Loan of 25 lakh approved" → disbursementAmount: 2500000
@@ -599,9 +663,8 @@ class OpenAIAnalyzer:
             try:
                 result = self.analyze_email(email_data)
                 results.extend(result)
-                print(f"Email analysis completed {len(results)}")
             except Exception as e:
-                print(f"Error in batch analysis {str(e)}")
-        print(f"Batch analysis completed {len(email_list)}")
+                logger.error(f"Error in batch analysis {str(e)}")
+        logger.info(f"Batch analysis completed {len(email_list)}")
         
         return results 

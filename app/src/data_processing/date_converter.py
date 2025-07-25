@@ -1,4 +1,7 @@
+import logging
 from datetime import datetime
+
+logger = logging.getLogger(__name__)
 
 def convert_datetime_to_date(datetime_string):
     """
@@ -18,7 +21,7 @@ def convert_datetime_to_date(datetime_string):
         # Convert to string format
         return date_only.isoformat()
     except ValueError as e:
-        print(f"Error parsing datetime string: {e}")
+        logger.error(f"Error parsing datetime string: {e}")
         return None
 
 # Example usage
@@ -29,8 +32,8 @@ if __name__ == "__main__":
     # Convert to date
     date_result = convert_datetime_to_date(datetime_str)
     
-    print(f"Original datetime: {datetime_str}")
-    print(f"Converted date: {date_result}")
+    logger.info(f"Original datetime: {datetime_str}")
+    logger.info(f"Converted date: {date_result}")
     
     # Alternative method using string slicing (if you know the format is always the same)
     def simple_date_extraction(datetime_string):
@@ -38,4 +41,4 @@ if __name__ == "__main__":
         return datetime_string.split('T')[0]
     
     simple_result = simple_date_extraction(datetime_str)
-    print(f"Simple extraction: {simple_result}") 
+    logger.info(f"Simple extraction: {simple_result}")    

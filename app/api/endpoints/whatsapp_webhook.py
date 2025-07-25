@@ -1,5 +1,6 @@
 import re
 import json
+import logging
 from typing import Optional, Dict, Any
 from fastapi import APIRouter, HTTPException, Request, Form
 from app.models.schemas import WhatsAppStatusResponse
@@ -8,6 +9,8 @@ from app.services.whatsapp_service import whatsapp_service
 from app.services.database_service import database_service
 from app.utils.validators import validate_mobile_number
 from app.config.settings import settings
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api_v1", tags=["whatsapp-webhook"])
 
@@ -46,7 +49,7 @@ async def whatsapp_webhook(request: Request):
     try:
         # Get the raw body as JSON
         body = await request.json()
-        print(f"Received webhook payload: {json.dumps(body, indent=2)}")
+        logger.info(f"Received webhook payload: {json.dumps(body, indent=2)}")
         
         # Extract data from Gupshup payload structure
         app_name = body.get("app")
@@ -73,7 +76,7 @@ async def whatsapp_webhook(request: Request):
         country_code = sender.get("country_code", "")
         dial_code = sender.get("dial_code", "")
         
-        print(f"Received WhatsApp message from {sender_phone}: {message_text}")
+        logger.info(f"Received WhatsApp message from {sender_phone}: {message_text}")
         
         # Save the user message to database only if mobile number is available
         message_id = None
@@ -87,14 +90,14 @@ async def whatsapp_webhook(request: Request):
                 
                 save_result = database_service.save_whatsapp_message(message_data)
                 message_id = save_result.get('message_id')
-                print(f"User message saved to database with ID: {message_id}")
+                logger.info(f"User message saved to database with ID: {message_id}")
                 
             except Exception as save_error:
-                print(f"Failed to save user message to database: {save_error}")
+                logger.error(f"Failed to save user message to database: {save_error}")
                 message_id = None
                 # Continue processing even if save fails
         else:
-            print("Skipping database save - mobile number is None")
+            logger.info("Skipping database save - mobile number is None")
         
         # Check if this is a status check request
         if not is_status_check_request(message_text):
@@ -131,7 +134,7 @@ async def whatsapp_webhook(request: Request):
         else:
             phone_number = None
         
-        print(f"Processing status check for phone: {phone_number}")
+        logger.info(f"Processing status check for phone: {phone_number}")
         
         if not phone_number:
             # Send error message via WhatsApp
@@ -166,9 +169,9 @@ async def whatsapp_webhook(request: Request):
                     basic_app_id = lead_data.get("basic_application_id")
                     if basic_app_id:
                         database_service.update_lead_status(str(basic_app_id), str(status))
-                        print(f"Status updated in database for mobile: {phone_number}")
+                        logger.info(f"Status updated in database for mobile: {phone_number}")
             except Exception as db_error:
-                print(f"Failed to update status in database: {db_error}")
+                logger.error(f"Failed to update status in database: {db_error}")
             
             # Send WhatsApp response with the status
             if lead_data:
@@ -208,7 +211,7 @@ async def whatsapp_webhook(request: Request):
             }
         
     except Exception as e:
-        print(f"Error processing WhatsApp webhook: {str(e)}")
+        logger.error(f"Error processing WhatsApp webhook: {str(e)}")
         # Send error message to user if we have the phone number
         try:
             if 'sender_phone' in locals():
@@ -235,7 +238,7 @@ async def verify_webhook(
     verify_token = settings.WHATSAPP_WEBHOOK_VERIFY_TOKEN
     
     if hub_mode == "subscribe" and hub_verify_token == verify_token and hub_challenge:
-        print("Webhook verified successfully")
+        logger.info("Webhook verified successfully")
         return int(hub_challenge)
     else:
         raise HTTPException(status_code=403, detail="Verification failed") 

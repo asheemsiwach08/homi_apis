@@ -1,3 +1,4 @@
+import logging
 from fastapi import APIRouter, HTTPException
 from app.models.schemas import LeadCreateRequest, LeadCreateResponse, LeadStatusRequest, LeadStatusResponse
 from app.services.basic_application_service import BasicApplicationService
@@ -7,6 +8,8 @@ from app.utils.validators import (
     validate_loan_type, validate_loan_amount, validate_loan_tenure,
     validate_pan_number, validate_mobile_number, validate_pin_code
 )
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api_v1", tags=["leads"])
 
@@ -64,13 +67,11 @@ async def create_lead(lead_data: LeadCreateRequest):
         if not basic_application_id:
             raise HTTPException(status_code=400, detail="Failed to generate Basic Application ID")
         
-        print("basic_application_id", basic_application_id)
-        print("result", result)
         # Save lead data to Supabase database
         try:
             db_result = database_service.save_lead_data(api_data, result)
         except Exception as db_error:
-            print(f"Database error: {db_error}")
+            logger.error(f"Failed to save lead to database. - {db_error}")
             raise HTTPException(
                 status_code=500,
                 detail=f"Failed to save lead data to database: {str(db_error)}"
@@ -86,6 +87,7 @@ async def create_lead(lead_data: LeadCreateRequest):
                 phone_number="+91" + lead_data.mobile_number
             )
         except Exception as whatsapp_error:
+            logger.error(f"Failed to send WhatsApp confirmation. - {whatsapp_error}")
             raise HTTPException(
                 status_code=500,
                 detail=f"Failed to send WhatsApp confirmation: {str(whatsapp_error)}"
@@ -99,6 +101,7 @@ async def create_lead(lead_data: LeadCreateRequest):
     except HTTPException:
         raise
     except Exception as e:
+        logger.error(f"Internal server error: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
 
 @router.post("/lead_status", response_model=LeadStatusResponse)
@@ -129,7 +132,7 @@ async def get_lead_status(status_request: LeadStatusRequest):
                 if status_request.basic_application_id:
                     # Update status using basic application ID
                     database_service.update_lead_status(status_request.basic_application_id, str(status))
-                    print(f"Status updated in database for application ID: {status_request.basic_application_id}")
+                    logger.info(f"Status updated in database for application ID: {status_request.basic_application_id}")
                 elif status_request.mobile_number:
                     # Get lead data by mobile number and update status
                     lead_data = database_service.get_lead_by_mobile(status_request.mobile_number)
@@ -137,9 +140,9 @@ async def get_lead_status(status_request: LeadStatusRequest):
                         basic_app_id = lead_data.get("basic_application_id")
                         if basic_app_id:
                             database_service.update_lead_status(str(basic_app_id), str(status))
-                            print(f"Status updated in database for mobile: {status_request.mobile_number}")
+                            logger.info(f"Status updated in database for mobile: {status_request.mobile_number}")
             except Exception as db_error:
-                print(f"Failed to update status in database: {db_error}")
+                logger.error(f"Failed to update status in database: {db_error}")
             
             # Get mobile number for WhatsApp (either from request or database)
             mobile_number_for_whatsapp = status_request.mobile_number

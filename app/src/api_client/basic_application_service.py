@@ -161,7 +161,7 @@ class BasicApplicationService:
                 results[app_id] = result 
 
             except Exception as e:
-                print(f"Error in batch verification  {str(e)}")
+                logger.error(f"Error in batch verification  {str(e)}")
                 # logger.error("Error in batch verification", 
                 #            application_id=app_id,
                 #            error=str(e))

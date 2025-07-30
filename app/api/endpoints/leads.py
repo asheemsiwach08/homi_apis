@@ -63,7 +63,8 @@ async def create_lead(lead_data: LeadCreateRequest):
 
         # Extract application ID from Basic API response
         basic_application_id = result.get("result", {}).get("basicAppId")
-        
+        reference_id = result.get("result", {}).get("applicationComments",{})[0].get("refId")
+
         if not basic_application_id:
             raise HTTPException(status_code=400, detail="Failed to generate Basic Application ID")
         
@@ -95,6 +96,7 @@ async def create_lead(lead_data: LeadCreateRequest):
         
         return LeadCreateResponse(
             basic_application_id=basic_application_id,
+            reference_id=reference_id,
             message="Lead Created Successfully."
         )
         
@@ -168,7 +170,7 @@ async def get_lead_status(status_request: LeadStatusRequest):
                             status=str(status)
                         )
                 except Exception as whatsapp_error:
-                    print(f"Failed to send WhatsApp status update: {whatsapp_error}")
+                    logger.error(f"Failed to send WhatsApp status update: {whatsapp_error}")
             
             return LeadStatusResponse(status=str(status), message=message)
         else:

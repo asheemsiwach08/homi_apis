@@ -26,6 +26,42 @@ def validate_loan_tenure(tenure: int) -> bool:
     """Validate loan tenure"""
     return tenure > 0
 
+def validate_annual_income(income: float) -> bool:
+    """Validate annual income"""
+    return income > 0
+
+def validate_city(city: str) -> bool:
+    """Validate city"""
+    return city.strip() != ""
+
+def validate_state(state: str) -> bool:
+    """Validate state"""
+    return state.strip() != ""
+
+def validate_district(district: str) -> bool:
+    """Validate district"""
+    return district.strip() != ""
+
+def validate_credit_score(credit_score: int) -> bool:
+    """Validate credit score"""
+    return credit_score > 0 and credit_score <= 1000
+
+def validate_email(email: str) -> bool:
+    """Validate email"""
+    return email.strip() != ""
+
+def validate_first_name(first_name: str) -> bool:
+    """Validate first name"""
+    return first_name.strip() != ""
+
+def validate_last_name(last_name: str) -> bool:
+    """Validate last name"""
+    return last_name.strip() != ""
+
+def validate_gender(gender: str) -> bool:
+    """Validate gender"""
+    return gender.strip() != ""
+
 def validate_loan_type(loan_type: str) -> bool:
     """Validate loan type"""
     valid_types = settings.LOAN_TYPE_MAPPING.keys()

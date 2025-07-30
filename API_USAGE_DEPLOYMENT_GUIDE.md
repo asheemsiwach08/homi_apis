@@ -141,7 +141,78 @@ This guide details the API usage, endpoints, payloads, responses, error handling
 }
 ```
 
-### 7. WhatsApp Webhook
+### 7. Create Detailed Lead
+- **Method:** POST
+- **Path:** `/detailed_leads_create`
+- **Description:** Creates a comprehensive detailed lead through multi-stage processing (FBB → Basic Fulfillment → Self Fulfillment).
+- **Payload:**
+```json
+{
+  "first_name": "John",
+  "last_name": "Doe",
+  "mobile_number": "7988362283",
+  "email": "john.doe@example.com",
+  "pan_number": "ABCDE1234F",
+  "loan_type": "HL",
+  "loan_amount": 100000,
+  "loan_tenure": 24,
+  "annual_income": 500000,
+  "credit_score": 750,
+  "city": "Jind",
+  "district": "Jind",
+  "state": "HARYANA",
+  "pin_code": "126102",
+  "dob": "10/04/2000",
+  "gender": "Male"
+}
+```
+
+**Success Response:**
+```json
+{
+  "basic_application_id": "B002BJF",
+  "reference_id": "adfd2272-c572-420d-bafc-b134ed3a0aa3",
+  "message": "Lead Created Successfully."
+}
+```
+
+**Features:**
+- Multi-stage API processing with comprehensive validation
+- Automatic database storage with complete audit trail
+- Error handling for each processing stage
+- Integration with CreateFBBByBasicUser and SelfFullfilment APIs
+
+### 8. Book Appointment
+- **Method:** POST
+- **Path:** `/book_appointment`
+- **Description:** Books an appointment by creating a task/comment in the Basic Application system.
+- **Payload:**
+```json
+{
+  "date": "30-07-2025",
+  "time": "6:00 PM",
+  "reference_id": "TEST_REF_123456"
+}
+```
+
+**Success Response:**
+```json
+{
+  "success": true,
+  "message": "Appointment booked successfully",
+  "appointment_id": "83648839-b281-433b-841b-6a58a55fef00",
+  "basic_app_id": "B0027J8",
+  "comment_ref": "TH9O8YM2GPT"
+}
+```
+
+**Features:**
+- Integration with Basic Application API CreateTaskOrComment
+- Flexible date/time format support
+- Automatic database storage of appointment details
+- Complete audit trail and status tracking
+
+### 9. WhatsApp Webhook
 - **Method:** POST
 - **Path:** `/whatsapp/webhook`
 - **Description:** Receives WhatsApp messages from Gupshup for status inquiries.
@@ -149,7 +220,7 @@ This guide details the API usage, endpoints, payloads, responses, error handling
 - **Path:** `/whatsapp/webhook`
 - **Description:** Webhook verification endpoint for WhatsApp Business API.
 
-### 8. Historical Disbursements Processing
+### 10. Historical Disbursements Processing
 - **Method:** POST
 - **Path:** `/historical/start`
 - **Description:** Start historical email processing job for disbursement data extraction.
@@ -163,7 +234,7 @@ This guide details the API usage, endpoints, payloads, responses, error handling
 }
 ```
 
-### 9. Live Disbursements Monitoring
+### 11. Live Disbursements Monitoring
 - **Method:** POST
 - **Path:** `/live/start`
 - **Description:** Start live email monitoring for real-time disbursement tracking.
@@ -171,7 +242,7 @@ This guide details the API usage, endpoints, payloads, responses, error handling
 - **Path:** `/live/stop`
 - **Description:** Stop live email monitoring.
 
-### 10. Job Status Tracking
+### 12. Job Status Tracking
 - **Method:** GET
 - **Path:** `/historical/status/{job_id}`
 - **Description:** Get status of historical processing job.
@@ -249,7 +320,7 @@ curl -X POST "http://localhost:5000/api_v1/lead_create" \
     "mobile_number": "917888888888",
     "email": "john.doe@example.com",
     "pan_number": "ABCDE1234F",
-    "loan_type": "home_loan",
+    "loan_type": "home loan",
     "loan_amount": 500000,
     "loan_tenure": 36,
     "gender": "male",
@@ -270,6 +341,41 @@ curl -X POST "http://localhost:5000/api_v1/lead_status" \
 curl -X POST "http://localhost:5000/api_v1/lead_status" \
   -H "Content-Type: application/json" \
   -d '{"basic_application_id": "BA123456789"}'
+```
+
+### Create Detailed Lead
+```bash
+curl -X POST "http://localhost:5000/api_v1/detailed_leads_create" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "first_name": "John",
+    "last_name": "Doe",
+    "mobile_number": "7988362283",
+    "email": "john.doe@example.com",
+    "pan_number": "ABCDE1234F",
+    "loan_type": "HL",
+    "loan_amount": 100000,
+    "loan_tenure": 24,
+    "annual_income": 500000,
+    "credit_score": 750,
+    "city": "Jind",
+    "district": "Jind",
+    "state": "HARYANA",
+    "pin_code": "126102",
+    "dob": "1996-12-08",
+    "gender": "Male"
+  }'
+```
+
+### Book Appointment
+```bash
+curl -X POST "http://localhost:5000/api_v1/book_appointment" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "date": "30-07-2025",
+    "time": "6:00 PM",
+    "reference_id": "TEST_REF_123456"
+  }'
 ```
 
 ### Health Check

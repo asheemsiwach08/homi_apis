@@ -11,8 +11,10 @@ A comprehensive FastAPI-based REST API for WhatsApp OTP verification, lead creat
   - Phone number validation and normalization
 - ✅ **Lead Management**
   - Create leads with Basic Application API integration
+  - **Detailed lead creation** with comprehensive multi-stage processing
   - Track lead status by mobile number or application ID
-  - Comprehensive lead data validation
+  - **Appointment booking** with calendar integration
+  - Comprehensive lead data validation and storage
 - ✅ **Email Processing & Disbursements**
   - **Historical disbursement processing** from email archives
   - **Live email monitoring** for real-time disbursement tracking
@@ -372,7 +374,7 @@ Content-Type: application/json
 
 ### Lead Management
 
-#### 1. Create Lead
+#### 1. Create Lead (Simple)
 ```http
 POST /api_v1/lead_create
 Content-Type: application/json
@@ -400,7 +402,76 @@ Content-Type: application/json
 }
 ```
 
-#### 2. Get Lead Status
+#### 2. Create Detailed Lead (Comprehensive)
+```http
+POST /api_v1/detailed_leads_create
+Content-Type: application/json
+
+{
+    "first_name": "John",
+    "last_name": "Doe",
+    "mobile_number": "7988362283",
+    "email": "john.doe@example.com",
+    "pan_number": "ABCDE1234F",
+    "loan_type": "HL",
+    "loan_amount": 100000,
+    "loan_tenure": 24,
+    "annual_income": 500000,
+    "credit_score": 750,
+    "city": "Jind",
+    "district": "Jind",
+    "state": "HARYANA",
+    "pin_code": "126102",
+    "dob": "1996-12-08",
+    "gender": "Male"
+}
+```
+
+**Response:**
+```json
+{
+    "basic_application_id": "B002BJF",
+    "reference_id": "adfd2272-c572-420d-bafc-b134ed3a0aa3",
+    "message": "Lead Created Successfully."
+}
+```
+
+**Features:**
+- Multi-stage processing (FBB → Basic Fulfillment → Self Fulfillment)
+- Comprehensive data validation and error handling
+- Automatic database storage with complete audit trail
+- Integration with multiple Basic Application APIs
+
+#### 3. Book Appointment
+```http
+POST /api_v1/book_appointment
+Content-Type: application/json
+
+{
+    "date": "30-07-2025",
+    "time": "6:00 PM",
+    "reference_id": "cc9a13c6-06f6-4a2d-b219-5055d3489a19"
+}
+```
+
+**Response:**
+```json
+{
+    "success": true,
+    "message": "Appointment booked successfully",
+
+    "basic_app_id": "B0027J8",
+
+}
+```
+
+**Features:**
+- Integration with Basic Application API for task/comment creation
+- Automatic database storage of appointment details
+- Support for flexible date/time formats
+- Complete audit trail and status tracking
+
+#### 4. Get Lead Status
 ```http
 POST /api_v1/lead_status
 Content-Type: application/json
@@ -527,6 +598,74 @@ GET /api_v1/whatsapp/messages/9876543210?limit=20
     "count": 1
 }
 ```
+
+### Email Processing & Disbursements
+
+#### 1. Process Historical Disbursements
+```http
+POST /api_v1/historical_disbursements
+Content-Type: application/json
+
+{
+    "email": "user@example.com",
+    "password": "app_password",
+    "folder": "INBOX",
+    "limit": 100,
+    "days_back": 30,
+    "include_attachments": true
+}
+```
+
+**Response:**
+```json
+{
+    "success": true,
+    "message": "Historical disbursements processed successfully",
+    "summary": {
+        "total_emails": 45,
+        "processed_emails": 42,
+        "disbursement_emails": 15,
+        "google_sheets_updates": 15,
+        "processing_time": "2.5 minutes"
+    }
+}
+```
+
+#### 2. Start Live Disbursement Monitoring
+```http
+POST /api_v1/live_disbursements
+Content-Type: application/json
+
+{
+    "email": "user@example.com",
+    "password": "app_password",
+    "folder": "INBOX",
+    "check_interval": 60,
+    "include_attachments": true
+}
+```
+
+**Response:**
+```json
+{
+    "success": true,
+    "message": "Live disbursement monitoring started",
+    "monitoring": {
+        "status": "active",
+        "check_interval": 60,
+        "last_check": "2024-01-15T10:30:00Z"
+    }
+}
+```
+
+**Features:**
+- **AI-powered email analysis** using OpenAI for automatic data extraction
+- **Google Sheets integration** for real-time disbursement tracking
+- **Attachment processing** for PDF and document analysis
+- **Intelligent email filtering** to identify disbursement-related messages
+- **Automatic data normalization** and validation
+- **Background processing** for live monitoring
+- **Comprehensive logging** and error handling
 
 ### Health Check
 

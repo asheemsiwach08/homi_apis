@@ -22,6 +22,9 @@ class BasicApplicationService:
         
         self.BASIC_APPLICATION_USER_ID = os.getenv("BASIC_APPLICATION_USER_ID")
         self.BASIC_APPLICATION_API_KEY = os.getenv("BASIC_APPLICATION_API_KEY")
+
+        self.BASIC_APPLICATION_AGENT_USER_ID = os.getenv("BASIC_APPLICATION_AGENT_USER_ID")
+        self.BASIC_APPLICATION_AGENT_API_KEY = os.getenv("BASIC_APPLICATION_AGENT_API_KEY")
         
         # Loan type mapping
         self.loan_type_mapping = settings.LOAN_TYPE_MAPPING
@@ -109,29 +112,29 @@ class BasicApplicationService:
             dob = self._format_date(dob)
         
         return {"annualIncome":lead_data.get("annual_income", 0),
-                "applicationAssignedToRm": "2762f5b5-ecdc-4826-b003-f332b658e6f4", # Use the same value as working curl
+                "applicationAssignedToRm": "2762f5b5-ecdc-4826-b003-f332b658e6f4",
                 "city": lead_data.get("city", ""),
-                "createdFromPemId": "string", # Use the same value as working curl
+                "createdFromPemId": "string", 
                 "creditScore": lead_data.get("credit_score", 0),
-                "creditScoreTypeId": "string", # Use the same value as working curl
-                "customerId": "234", # Use the same value as working curl
+                "creditScoreTypeId": "string", 
+                "customerId": "234", 
                 "dateOfBirth": lead_data.get("date_of_birth", ""),
                 "district": lead_data.get("district", ""),
                 "email": lead_data.get("email", ""),
                 "firstName": lead_data.get("first_name", ""),
                 "gender": lead_data.get("gender", ""),
-                "id": "string", # Use the same value as working curl
+                "id": "6749d3e6-0c69-4148-a200-667c165ab18c", 
                 "includeCreditScore": True,
-                "isLeadPrefilled": False, # Use the same value as working curl
+                "isLeadPrefilled": True,
                 "lastName": lead_data.get("last_name", ""),
                 "loanAmountReq": lead_data.get("loan_amount_req", 0),
                 "loanTenure": lead_data.get("loan_tenure", 0),
-                "loanType": lead_data.get("loan_type", ""),
-                "mobile": lead_data.get("mobile_number", ""),
+                "loanType": lead_data.get("loan_type", "HL"),
+                "mobile": lead_data.get("mobile", ""),
                 "pan": lead_data.get("pan_number", ""),
-                "pincode": lead_data.get("pin_code", ""),
-                "qrShortCode": "string", # Use the same value as working curl
-                "remarks":"good", # Use the same value as working curl
+                "pincode": lead_data.get("pin_code", "126102"),
+                "qrShortCode": "BAE000247",
+                "remarks":"good", 
                 "state": lead_data.get("state", "")}
 
     # Detailed Leads Creation API Payload - SelfFullfilment
@@ -150,58 +153,244 @@ class BasicApplicationService:
         if dob:
             dob = self._format_date(dob)
         
-        return {"aggrementTypeId": "", # Use the same value as working curl
-                "annualIncome":lead_data.get("annual_income", 0),
-                "applicationAssignedToRm": "", # Use the same value as working curl
-                "builderId": "", # Use the same value as working curl
-                "builderName": "", # Use the same value as working curl
+        return {
+                "annualIncome": lead_data.get("annual_income", 0),
                 "city": lead_data.get("city", ""),
-                "coBorrowerIncome": "", # Use the same value as working curl
-                "companyId": "", # Use the same value as working curl
-                "companyName": "", # Use the same value as working curl
-                "createdFromPemId": "", # Use the same value as working curl
-                "creditScore": lead_data.get("credit_score", 0),
-                "creditScoreTypeId": "", # Use the same value as working curl
-                "customerId": "", # Use the same value as working curl
+                "coBorrowerIncome": lead_data.get("co_borrower_income", 0),
                 "dateOfBirth": lead_data.get("date_of_birth", ""),
                 "district": lead_data.get("district", ""),
+                "documents": [],
                 "email": lead_data.get("email", ""),
-                "existingEmis": "", # Use the same value as working curl
+                "existingEmis": lead_data.get("existingEmis", ""),
                 "firstName": lead_data.get("first_name", ""),
                 "gender": lead_data.get("gender", ""),
-                "id": "", # Use the same value as working curl
-                "includeCreditScore": True,
-                "isLeadPrefilled": "", # Use the same value as working curl
-                "isPropertyIdentified": "", # Use the same value as working curl
+                "id": lead_data.get("id", ""),
                 "lastName": lead_data.get("last_name", ""),
                 "loanAmountReq": lead_data.get("loan_amount_req", 0),
-                "loanTenure": lead_data.get("loan_tenure", 0),
-                "loanType": lead_data.get("loan_type", ""),
-                "loanUsageTypeId": "", # Use the same value as working curl
-                "mobile": lead_data.get("mobile_number", ""),
-                "pan": lead_data.get("pan_number", ""),
-                "pincode": lead_data.get("pin_code", ""),
-                "professionId": "", # Use the same value as working curl
-                "professionName": "", # Use the same value as working curl
-                "projectId": "", # Use the same value as working curl
-                "propertyAddress": "", # Use the same value as working curl
-                "propertyCity": "", # Use the same value as working curl
-                "propertyDistrict": "", # Use the same value as working curl
-                "propertyPincode": "", # Use the same value as working curl
-                "propertyProjectName": "", # Use the same value as working curl
-                "propertyState": "", # Use the same value as working curl
-                "propertyTypeId": "", # Use the same value as working curl
-                "propertyValue": "", # Use the same value as working curl
-                # "qrShortCode": "", # Use the same value as working curl
-                "remarks":"", # Use the same value as working curl
-                "salaryCreditModeId": "", # Use the same value as working curl
-                "selfCompanyTypeId": "", # Use the same value as working curl
-                "selfCompanyTypeName": "", # Use the same value as working curl
+                "loanType": lead_data.get("loan_type", "HL"),
+                "mobile": lead_data.get("mobile", ""),
+                "pincode": lead_data.get("pincode", ""),
+                "professionId": "34e544e6-1e22-49f4-a56a-44c14a32b484", # TODO: Get it my mapping(to be done)
+                "professionName": "Salaried", # TODO: Get it my mapping(to be done)
                 "state": lead_data.get("state", ""),
-                "towerId": "", # Use the same value as working curl
-                "towerName": "", # Use the same value as working curl
-                "towerUnitType": "", # Use the same value as working curl
-                }
+                "selfCompanyTypeName": "",
+                "pan": lead_data.get("pan", ""),
+                "canCustomerUploadDocuments": False,
+                "isOsvByConsultantAvailable": False,
+                "isLeadPrefilled": lead_data.get("isLeadPrefilled", False),
+                "includeCreditScore": lead_data.get("includeCreditScore", False),
+                "recentCreditReportExists": False,
+                "salaryCreditModeId": "ef70c7ce-577a-4302-a485-adccdf31968d", # TODO: Get it my mapping(to be done)
+                "loanTenure": lead_data.get("loan_tenure", 0),
+                "isPropertyIdentified": False,
+                "isReferralLead": False,
+                "propertyDistrict": "",
+                "propertyPincode": "",
+                "builderId": "",
+                "projectId": "",
+                "towerId": "",
+                "builderName": "",
+                "propertyProjectName": "",
+                "towerName": "",
+                "creditScoreTypeId": "string",
+                "creditScoreTypeName": "",
+                "creditScore": 0,
+                "creditScoreStatus": "",
+                "isVistedNextPage": True,
+                "manualCreditScore": 0,
+                "salaryCreditModeName": "",
+                "selfCompanyTypeId": "",
+                "companyName": "",
+                "propertyTypeId": "",
+                "propertyValue": "",
+                "loanUsageTypeId": "",
+                "aggrementTypeId": "",
+                "towerUnitType": ""
+            }
+
+# {"aggrementTypeId": "",
+#                 "annualIncome":lead_data.get("annual_income", 0),
+#                 "applicationAssignedToRm": lead_data.get("applicationAssignedToRm", ""), 
+#                 "builderId": "", 
+#                 "builderName": "", 
+#                 "city": lead_data.get("city", ""),
+#                 "coBorrowerIncome": "", 
+#                 "companyId": "",
+#                 "companyName": "", 
+#                 "createdFromPemId": "",
+#                 "creditScore": lead_data.get("credit_score", 0),
+#                 "creditScoreTypeId": "",
+#                 "customerId": lead_data.get("customerId", ""),
+#                 "dateOfBirth": lead_data.get("date_of_birth", ""),
+#                 "district": lead_data.get("district", ""),
+#                 "email": lead_data.get("email", ""),
+#                 "existingEmis": lead_data.get("existingEmis", ""),
+#                 "firstName": lead_data.get("first_name", ""),
+#                 "gender": lead_data.get("gender", ""),
+#                 "id": lead_data.get("id", "6a645ede-de6f-4bf4-8e05-0830b7dafaaf"), 
+#                 "includeCreditScore": True,
+#                 "isLeadPrefilled": lead_data.get("isLeadPrefilled", False), 
+#                 "isPropertyIdentified": "",
+#                 "lastName": lead_data.get("last_name", ""),
+#                 "loanAmountReq": lead_data.get("loan_amount_req", 0),
+#                 "loanTenure": lead_data.get("loan_tenure", 0),
+#                 "loanType": lead_data.get("loan_type", "HL"),
+#                 "loanUsageTypeId": "",
+#                 "mobile": lead_data.get("mobile", ""),
+#                 "pan": lead_data.get("pan", ""),
+#                 "pincode": lead_data.get("pincode", "126102"),
+#                 "professionId": "714624ae-b86f-4ffc-a710-389d6905ddd9",  ## TODO: Get it from YD Poonia
+#                 "professionName": "Private", ## TODO: Get it from YD Poonia
+#                 "projectId": "",
+#                 "propertyAddress": "",
+#                 "propertyCity": "",
+#                 "propertyDistrict": "",
+#                 "propertyPincode": "",
+#                 "propertyProjectName": "",
+#                 "propertyState": "",
+#                 "propertyTypeId": "",
+#                 "propertyValue": "",
+#                 "qrShortCode": "BAE000247",
+#                 "remarks":"",
+#                 "salaryCreditModeId": "",
+#                 "selfCompanyTypeId": "",
+#                 "selfCompanyTypeName": "",
+#                 "state": lead_data.get("state", ""),
+#                 "towerId": "",
+#                 "towerName": "",
+#                 "towerUnitType": "",
+#                 }
+
+    # Book Appointment Creation API Payload - CreateTaskOrComment
+    def _prepare_book_appointment_payload(self, lead_data: Dict) -> Dict:
+        """
+        Prepare book appointment payload for Basic Application API
+        
+        Args:
+            lead_data: Lead data from request
+            
+        Returns:
+            Dict: Formatted payload for Basic Application API
+        """
+        # Format the dueDate properly with comprehensive date/time parsing
+        date = lead_data.get("date", "")
+        time = lead_data.get("time", "")
+        
+        # Import required modules for date/time handling
+        from datetime import datetime, timezone
+        import re
+        
+        def parse_and_format_datetime(date_str, time_str):
+            """Parse various date/time formats and return ISO 8601 format"""
+            try:
+                # Clean inputs
+                clean_date = date_str.strip().replace('T', '') if date_str else ""
+                clean_time = time_str.strip().replace('T', '') if time_str else ""
+                
+                # Handle different date formats
+                if clean_date:
+                    # Try to parse different date formats
+                    date_formats = [
+                        "%Y-%m-%d",      # 2025-07-30
+                        "%d-%m-%Y",      # 17-07-2025
+                        "%m/%d/%Y",      # 07/17/2025
+                        "%d/%m/%Y",      # 17/07/2025
+                        "%Y/%m/%d",      # 2025/07/17
+                    ]
+                    
+                    parsed_date = None
+                    for fmt in date_formats:
+                        try:
+                            parsed_date = datetime.strptime(clean_date, fmt)
+                            break
+                        except ValueError:
+                            continue
+                    
+                    if not parsed_date:
+                        # If all formats fail, use current date
+                        parsed_date = datetime.now()
+                else:
+                    parsed_date = datetime.now()
+                
+                # Handle different time formats
+                if clean_time:
+                    # Remove AM/PM and convert to 24-hour format
+                    time_clean = clean_time.upper()
+                    is_pm = 'PM' in time_clean
+                    is_am = 'AM' in time_clean
+                    
+                    # Remove AM/PM indicators
+                    time_clean = re.sub(r'\s*(AM|PM)\s*', '', time_clean)
+                    
+                    # Try to parse different time formats
+                    time_formats = [
+                        "%H:%M:%S",      # 17:30:00
+                        "%H:%M",         # 17:30
+                        "%I:%M:%S",      # 5:30:00 (12-hour)
+                        "%I:%M",         # 5:30 (12-hour)
+                    ]
+                    
+                    parsed_time = None
+                    for fmt in time_formats:
+                        try:
+                            time_obj = datetime.strptime(time_clean, fmt).time()
+                            hour = time_obj.hour
+                            
+                            # Convert 12-hour to 24-hour if AM/PM was present
+                            if is_pm and hour != 12:
+                                hour += 12
+                            elif is_am and hour == 12:
+                                hour = 0
+                            
+                            parsed_time = time_obj.replace(hour=hour)
+                            break
+                        except ValueError:
+                            continue
+                    
+                    if not parsed_time:
+                        # Default to current time if parsing fails
+                        parsed_time = datetime.now().time()
+                else:
+                    parsed_time = datetime.now().time()
+                
+                # Combine date and time
+                combined_datetime = datetime.combine(parsed_date.date(), parsed_time)
+                
+                # Return in ISO 8601 format
+                return combined_datetime.strftime("%Y-%m-%dT%H:%M:%S")
+                
+            except Exception as e:
+                # Fallback to current datetime if all else fails
+                return datetime.now().strftime("%Y-%m-%dT%H:%M:%S")
+        
+        # Generate properly formatted dueDate
+        if date or time:
+            due_date = parse_and_format_datetime(date, time)
+        else:
+            # Default to current time + 1 hour if no date/time provided
+            from datetime import timedelta
+            due_date = (datetime.now() + timedelta(hours=1)).strftime("%Y-%m-%dT%H:%M:%S")
+        
+        return {
+                "comment": f"call back at {date} {time}",
+                "assignedTo": "Self",
+                "dueDate": due_date,
+                "visibleTo": "BasicUsers",
+                "assignedToUserId": "b3981dc9-02b3-44be-be96-5a09a5547d51", ##TODO: Hom-i Bot User id
+                "assignedToUserName": "Hom-i", #TODO: Hom-i name
+                "assignedToUserRefCode": "",
+                "spaToTaskAssigneeRoleId": "",
+                "sendupdateviawhatsapp": "",
+                "uploadedDocs": [],
+                "tagIds": [],
+                "createdByTenantName": "Basic Enterprises Private Limited",
+                "createdByUserName": "Hom-i", #TODO: Hom-i name
+                "refId": lead_data.get("reference_id", ""),
+                "customerWAnotificationDirection": "None",
+                "refType": "Application",
+                "type": "Task"
+            }
+
   
     def normalize_url(self, url):
         parsed = urlparse(url)
@@ -210,8 +399,8 @@ class BasicApplicationService:
         query_params = urlencode((parse_qsl(parsed.query)))
         return f"{host}{path}?{query_params}" if query_params else f"{host}{path}"
 
-    def generate_signature_headers(self, url, method, body=None):
-        if not self.BASIC_APPLICATION_USER_ID or not self.BASIC_APPLICATION_API_KEY:
+    def generate_signature_headers(self, url, method, body=None, user_id=None, api_key=None):
+        if not user_id or not api_key:
             raise HTTPException(
                 status_code=500,
                 detail="BASIC_APPLICATION_USER_ID and BASIC_APPLICATION_API_KEY must be configured in environment variables"
@@ -222,12 +411,12 @@ class BasicApplicationService:
         timestamp = int(datetime.now().timestamp())
         nonce = str(uuid.uuid4())
         body_md5 = hashlib.md5(body_str.encode()).hexdigest().lower() if body_str else ""
-        message = self.BASIC_APPLICATION_USER_ID + str(timestamp) + normalized + method.lower() + nonce + body_md5
-        signature = base64.b64encode(hmac.new(self.BASIC_APPLICATION_API_KEY.encode(), message.encode(), hashlib.sha512).digest()).decode()
+        message = user_id + str(timestamp) + normalized + method.lower() + nonce + body_md5
+        signature = base64.b64encode(hmac.new(api_key.encode(), message.encode(), hashlib.sha512).digest()).decode()
         headers = {
             "accept": "text/plain",
             "Content-Type": "application/json-patch+json",
-            "UserId": self.BASIC_APPLICATION_USER_ID,
+            "UserId": user_id,
             "CurrentTimestamp": str(timestamp),
             "Authorization": f"Signature {signature}",
             "Nonce": nonce
@@ -258,7 +447,11 @@ class BasicApplicationService:
             
             # Get signature headers
             api_url = f"{self.basic_api_url}/api/v1/NewApplication/FullfilmentByBasic"
-            headers = self.generate_signature_headers(api_url, "POST", api_payload)
+            headers = self.generate_signature_headers(
+                api_url, "POST",
+                 api_payload,
+                 self.BASIC_APPLICATION_AGENT_USER_ID,
+                 self.BASIC_APPLICATION_AGENT_API_KEY)
             response = requests.post(api_url, headers=headers, json=api_payload)
 
             if response.status_code in [200, 201]:
@@ -305,19 +498,22 @@ class BasicApplicationService:
         """
         try:
             api_payload = self._prepare_FBB_by_basic_user_payload(lead_data)
+            print("API Payload: CreateFBBByBasicUser ", api_payload)
             
             if not self.basic_api_url:
                 raise HTTPException(
                     status_code=500,
                     detail="Basic Application API URL not configured"
                 )
-            print("API Payload: CreateFBBByBasicUser ", api_payload)
             # Get signature headers
             api_url = f"{self.basic_api_url}/api/v1/NewApplication/CreateFBBByBasicUser"
-            headers = self.generate_signature_headers(api_url, "POST", api_payload)
-            print("Headers: CreateFBBByBasicUser ", headers)
+            headers = self.generate_signature_headers(
+                api_url, "POST",
+                 api_payload,
+                 self.BASIC_APPLICATION_USER_ID,
+                 self.BASIC_APPLICATION_API_KEY)
+
             response = requests.post(api_url, headers=headers, json=api_payload)
-            print("Response: CreateFBBByBasicUser ", response.text)
 
             if response.status_code in [200, 201]:
                 try:
@@ -347,6 +543,69 @@ class BasicApplicationService:
         except Exception as e:
             raise HTTPException(status_code=500, detail=f"Error calling Basic Application API: {str(e)}")
     
+    # API for Fullfilment by Basic User by application id
+    def create_fullfilment_using_application_id(self, lead_data: Dict) -> Dict:
+        """
+        Use this API to create fullfilment by basic user by application id
+
+        Agrs:
+            lead_data: Lead data from request
+        Returns:
+            Dict: Response from Basic Application API
+        Raises:
+            HTTPException: If API call fails
+        """
+        application_id = lead_data.get("id", "")
+        if not application_id:
+            raise HTTPException(status_code=400, detail="Application ID not found")
+        try:
+            api_payload = {
+            "applicationId": application_id,
+            "confirm": True,
+            }
+            if not self.basic_api_url:
+                    raise HTTPException(
+                        status_code=500,
+                        detail="Basic Application API URL not configured"
+                    )
+            
+            # Get signature headers
+            api_url = f"{self.basic_api_url}/api/v1/Application/Activity/BasicFullFilment"
+            headers = self.generate_signature_headers(
+                api_url, "PUT",
+                 api_payload,
+                 self.BASIC_APPLICATION_USER_ID,
+                 self.BASIC_APPLICATION_API_KEY)
+            response = requests.put(api_url, headers=headers, json=api_payload)
+
+            if response.status_code in [200, 201]:
+                try:
+                    # Check if response has content before parsing JSON
+                    if response.text.strip():
+                        return response.json()
+                    else:
+                        raise HTTPException(
+                            status_code=400,
+                            detail="Empty response received from Basic Application API- Basic Fullfilment"
+                        )
+                except json.JSONDecodeError as json_error:
+                    print(f"JSON parsing error: {json_error}")
+                    print(f"Response text: {response.text}")
+                    raise HTTPException(
+                        status_code=400,
+                        detail=f"Invalid JSON response from Basic Application API: {response.text}"
+                    )
+            else:
+                raise HTTPException(
+                    status_code=400, 
+                    detail=f"Failed to create lead in Basic Application API(Basic Fullfilment): {response.text}"
+                )
+                    
+        except HTTPException:
+            raise
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=f"Error calling Basic Application API: {str(e)}")
+    
 
     # Detailed Leads Creation API using SelfFullfilment
     def create_self_fullfilment_lead(self, lead_data: Dict) -> Dict:
@@ -364,6 +623,7 @@ class BasicApplicationService:
         """
         try:
             api_payload = self._prepare_self_fullfilment_payload(lead_data)
+            print("API Payload: SelfFullfilment ", api_payload)
             
             if not self.basic_api_url:
                 raise HTTPException(
@@ -373,7 +633,11 @@ class BasicApplicationService:
             
             # Get signature headers
             api_url = f"{self.basic_api_url}/api/v1/NewApplication/SelfFullfilment"
-            headers = self.generate_signature_headers(api_url, "PUT", api_payload)
+            headers = self.generate_signature_headers(
+                api_url, "PUT",
+                 api_payload,
+                 self.BASIC_APPLICATION_USER_ID,
+                 self.BASIC_APPLICATION_API_KEY)
             response = requests.put(api_url, headers=headers, json=api_payload)
 
             if response.status_code in [200, 201]:
@@ -462,7 +726,12 @@ class BasicApplicationService:
             # Now we have both mobile number and basic_application_id, call the GetActivity API
             if final_mobile_number and final_basic_application_id:
                 api_url = f"{self.basic_api_url}/api/v1/Application/Activity/GetActivity/{final_basic_application_id}/{final_mobile_number}"
-                headers = self.generate_signature_headers(api_url, "GET")
+                headers = self.generate_signature_headers(
+                    api_url,
+                     "GET",
+                     None,
+                     self.BASIC_APPLICATION_USER_ID,
+                     self.BASIC_APPLICATION_API_KEY)
                 
                 response = requests.get(api_url, headers=headers)
                     
@@ -489,3 +758,67 @@ class BasicApplicationService:
             raise
         except Exception as e:
             return None 
+
+
+    # Detailed Leads Creation API using CreateFBBByBasicUser
+    def create_appointment_by_basic_user(self, lead_data: Dict) -> Dict:
+        """
+        Create/book appointment in Basic Application API
+        
+        Args:
+            lead_data: Lead data from request
+            
+        Returns:
+            Dict: Response from Basic Application API
+            
+        Raises:
+            HTTPException: If API call fails
+        """
+        try:
+            print("Lead Data: CreateTaskOrComment ", lead_data)
+            api_payload = self._prepare_book_appointment_payload(lead_data)
+            print("API Payload: CreateTaskOrComment ", api_payload)
+            
+            if not self.basic_api_url:
+                raise HTTPException(
+                    status_code=500,
+                    detail="Basic Application API URL not configured"
+                )
+            # print("API Payload: CreateTaskOrComment ", api_payload)
+            # Get signature headers
+            api_url = f"{self.basic_api_url}/api/v1/ApplicationCommentsAndTasks/CreateTaskOrComment"
+            headers = self.generate_signature_headers(
+                api_url, "POST",
+                 api_payload,
+                 self.BASIC_APPLICATION_USER_ID,
+                 self.BASIC_APPLICATION_API_KEY)
+            response = requests.post(api_url, headers=headers, json=api_payload)
+
+            if response.status_code in [200, 201]:
+                try:
+                    # Check if response has content before parsing JSON
+                    if response.text.strip():
+                        return response.json()
+                    else:
+                        raise HTTPException(
+                            status_code=400,
+                            detail="Empty response received from Basic Application API- CreateTaskOrComment"
+                        )
+                except json.JSONDecodeError as json_error:
+                    print(f"JSON parsing error: {json_error}")
+                    print(f"Response text: {response.text}")
+                    raise HTTPException(
+                        status_code=400,
+                        detail=f"Invalid JSON response from Basic Application API: {response.text}"
+                    )
+            else:
+                raise HTTPException(
+                    status_code=400, 
+                    detail=f"Failed to create lead in Basic Application API(CreateTaskOrComment): {response.text}"
+                )
+                    
+        except HTTPException:
+            raise
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=f"Error calling Basic Application API: {str(e)}")
+    

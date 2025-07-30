@@ -44,11 +44,11 @@ class ZohoMailClient:
                 self.zoho_config['password']
             )
             
-            print("Successfully connected to Zoho Mail")
+            logger.info("Successfully connected to Zoho Mail")
             return True
             
         except Exception as e:
-            print(f"Failed to connect to Zoho Mail: {str(e)}")
+            logger.error(f"Failed to connect to Zoho Mail: {str(e)}")
             return False
     
     def disconnect(self) -> None:
@@ -56,9 +56,9 @@ class ZohoMailClient:
         if self.connection:
             try:
                 self.connection.logout()
-                print("Disconnected from Zoho Mail")
+                logger.info("Disconnected from Zoho Mail")
             except Exception as e:
-                print(f"Error disconnecting from Zoho Mail: {str(e)}")
+                logger.error(f"Error disconnecting from Zoho Mail: {str(e)}")
             finally:
                 self.connection = None
 
@@ -174,7 +174,7 @@ class ZohoMailClient:
             The original read/unread status of emails in the mail account is preserved.
         """
         if not self.connection:
-            print("Not connected to Zoho Mail")
+            logger.error("Not connected to Zoho Mail")
             return []
         
         try:
@@ -187,7 +187,7 @@ class ZohoMailClient:
             _, message_numbers = self.connection.search(None, search_criteria)
             
             if not message_numbers[0]:
-                print("No unread emails found")
+                logger.info("No unread emails found")
                 return []
             
             email_list = message_numbers[0].split()
@@ -203,14 +203,14 @@ class ZohoMailClient:
                     if email_data:
                         emails.append(email_data)
                 except Exception as e:
-                    print(f"Error fetching email {num}: {str(e)}")
+                    logger.error(f"Error fetching email {num}: {str(e)}")
                     continue
             
-            print(f"Fetched emails successfully: {len(emails)}")
+            logger.info(f"Fetched emails successfully: {len(emails)}")
             return emails
             
         except Exception as e:
-            print("Error fetching unread emails: {str(e)}")
+            logger.error(f"Error fetching unread emails: {str(e)}")
             return []
 
     def fetch_recent_emails(self, months_back: int = 3, max_emails: Optional[int] = None) -> List[Dict[str, Any]]:
@@ -228,7 +228,7 @@ class ZohoMailClient:
             The original read/unread status of emails in the mail account is preserved.
         """
         if not self.connection:
-            print("Not connected to Zoho Mail")
+            logger.error("Not connected to Zoho Mail")
             return []
         
         try:
@@ -242,12 +242,12 @@ class ZohoMailClient:
             
             # Search for emails since the calculated date
             search_criteria = f'SINCE {date_str}'
-            print(f"Searching for emails since: {date_str}")
+            logger.info(f"Searching for emails since: {date_str}")
             
             _, message_numbers = self.connection.search(None, search_criteria)
             
             if not message_numbers[0]:
-                print(f"No emails found since {date_str}")
+                logger.info(f"No emails found since {date_str}")  
                 return []
             
             email_list = message_numbers[0].split()
@@ -263,14 +263,14 @@ class ZohoMailClient:
                     if email_data:
                         emails.append(email_data)
                 except Exception as e:
-                    print(f"Error fetching email {num}: {str(e)}")
+                    logger.error(f"Error fetching email {num}: {str(e)}")
                     continue
             
-            print(f"Fetched {len(emails)} emails from the last {months_back} months")
+            logger.info(f"Fetched {len(emails)} emails from the last {months_back} months")
             return emails
             
         except Exception as e:
-            print(f"Error fetching recent emails: {str(e)}")
+            logger.error(f"Error fetching recent emails: {str(e)}")
             return []
 
     def fetch_emails_by_date_range(self, start_months_back: int, end_months_back: int, max_emails: Optional[int] = None) -> List[Dict[str, Any]]:
@@ -289,7 +289,7 @@ class ZohoMailClient:
             The original read/unread status of emails in the mail account is preserved.
         """
         if not self.connection:
-            print("Not connected to Zoho Mail")
+            logger.error("Not connected to Zoho Mail")
             return []
         
         try:
@@ -309,12 +309,12 @@ class ZohoMailClient:
             # Search for emails within the date range
             # IMAP uses SINCE and BEFORE for date ranges
             search_criteria = f'SINCE {start_date_str} BEFORE {end_date_str}'
-            print(f"Searching for emails from {start_date_str} to {end_date_str}")
+            logger.info(f"Searching for emails from {start_date_str} to {end_date_str}")
             
             _, message_numbers = self.connection.search(None, search_criteria)
             
             if not message_numbers[0]:
-                print(f"No emails found in the specified date range")
+                logger.info(f"No emails found in the specified date range")       
                 return []
             
             email_list = message_numbers[0].split()
@@ -330,15 +330,15 @@ class ZohoMailClient:
                     if email_data:
                         emails.append(email_data)
                 except Exception as e:
-                    print(f"Error fetching email {num}: {str(e)}")
+                    logger.error(f"Error fetching email {num}: {str(e)}")
                     continue
             
-            print(f"Fetched {len(emails)} emails from {start_months_back} to {end_months_back} months back")
-            print("Note: Email read/unread status has been preserved in the original mail account")
+            logger.info(f"Fetched {len(emails)} emails from {start_months_back} to {end_months_back} months back")
+            logger.info("Note: Email read/unread status has been preserved in the original mail account")
             return emails
             
         except Exception as e:
-            print(f"Error fetching emails by date range: {str(e)}")
+            logger.error(f"Error fetching emails by date range: {str(e)}")
             return []
 
     def get_email_flags(self, email_num: bytes) -> List[str]:
@@ -370,7 +370,7 @@ class ZohoMailClient:
             return []
             
         except Exception as e:
-            print(f"Error getting flags for email {email_num}: {str(e)}")
+            logger.error(f"Error getting flags for email {email_num}: {str(e)}")
             return []
     
     def _fetch_email_data(self, email_num: bytes) -> Optional[Dict[str, Any]]:
@@ -425,7 +425,7 @@ class ZohoMailClient:
             return email_data
             
         except Exception as e:
-            print(f"Error processing email {email_num}: {str(e)}")
+            logger.error(f"Error processing email {email_num}: {str(e)}")
             return None
     
     def _decode_header(self, header: Optional[str]) -> str:
@@ -455,7 +455,7 @@ class ZohoMailClient:
             
             return decoded_string
         except Exception as e:
-            print(f"Error decoding header {header}: {str(e)}")
+            logger.error(f"Error decoding header {header}: {str(e)}")
             return str(header) if header else ""
     
     def _extract_email_content(self, email_message: Message) -> str:
@@ -478,7 +478,7 @@ class ZohoMailClient:
                             charset = part.get_content_charset() or 'utf-8'
                             content += payload.decode(charset, errors='ignore')
                     except Exception as e:
-                        print(f"Error extracting multipart content {str(e)}")
+                        logger.error(f"Error extracting multipart content {str(e)}")
         else:
             try:
                 payload = email_message.get_payload(decode=True)
@@ -486,7 +486,7 @@ class ZohoMailClient:
                     charset = email_message.get_content_charset() or 'utf-8'
                     content = payload.decode(charset, errors='ignore')
             except Exception as e:
-                print(f"Error extracting single part content {str(e)}")
+                logger.error(f"Error extracting single part content {str(e)}")
         
         return content
 
@@ -545,7 +545,7 @@ class ZohoMailClient:
                     # print(f"Extracted attachment: {filename} ({len(attachment_data)} bytes)")
         
         except Exception as e:
-            print(f"Error extracting attachments: {str(e)}")
+            logger.error(f"Error extracting attachments: {str(e)}")
         
         return attachments
 
@@ -584,11 +584,11 @@ class ZohoMailClient:
             with open(file_path, 'wb') as f:
                 f.write(attachment_data['data'])
             
-            print(f"Saved attachment: {file_path}")
+            logger.info(f"Saved attachment: {file_path}")
             return file_path
             
         except Exception as e:
-            print(f"Error saving attachment {filename}: {str(e)}")
+            logger.error(f"Error saving attachment {filename}: {str(e)}")
             return ""
 
     def save_all_attachments(self, email_data: Dict[str, Any], save_dir: str = "attachments") -> List[str]:
@@ -801,7 +801,7 @@ class ZohoMailClient:
             Dictionary mapping thread IDs to lists of emails
         """
         if not self.connection:
-            print("Not connected to email server")
+            logger.warning("Not connected to email server")
             return {}
         
         try:
@@ -828,12 +828,12 @@ class ZohoMailClient:
             # Search for emails within the date range
             # IMAP uses SINCE and BEFORE for date ranges
             search_criteria = f'SINCE {start_date_str} BEFORE {end_date_str}'
-            print(f"Searching for emails from {start_date_str} to {end_date_str}")
+            logger.info(f"Searching for emails from {start_date_str} to {end_date_str}")
             
             _, message_numbers = self.connection.search(None, search_criteria)
             
             if not message_numbers[0]:
-                print("No recent emails found")
+                logger.info("No recent emails found")
                 return {}
 
             
@@ -850,7 +850,7 @@ class ZohoMailClient:
                     if email_data:
                         all_emails.append(email_data)
                 except Exception as e:
-                    print(f"Error fetching email {num}: {str(e)}")
+                    logger.error(f"Error fetching email {num}: {str(e)}")
                     continue
             
             # Group into threads
@@ -874,11 +874,11 @@ class ZohoMailClient:
                 limited_threads[thread_id] = thread_emails
                 thread_count += 1
             
-            print(f"Found {len(limited_threads)} recent threads")
+            logger.info(f"Found {len(limited_threads)} recent threads")
             return limited_threads
             
         except Exception as e:
-            print(f"Error fetching recent threads: {str(e)}")
+            logger.error(f"Error fetching recent threads: {str(e)}")
             return {}
     
     # def fetch_bank_application_threads(self, max_threads: int = 10) -> Dict[str, List[Dict[str, Any]]]:

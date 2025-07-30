@@ -7,7 +7,6 @@ from supabase import create_client, Client
 from fastapi import HTTPException
 from app.config.settings import settings
 
-# Setup logging
 logger = logging.getLogger(__name__)
 
 
@@ -19,14 +18,14 @@ class DatabaseService:
         self.supabase_service_role_key = settings.SUPABASE_SERVICE_ROLE_KEY 
         
         if not self.supabase_url or not self.supabase_service_role_key:
-            print("WARNING: Supabase credentials not configured.")
-            print("Please set SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY environment variables.")
+            logger.error("WARNING: Supabase credentials not configured.")
+            logger.error("Please set SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY environment variables.")
             self.client = None
         else:
             try:
                 self.client = create_client(self.supabase_url, self.supabase_service_role_key)
             except Exception as e:
-                print(f"Error initializing Supabase client: {e}")
+                logger.error(f"Error initializing Supabase client: {e}")
                 self.client = None
     
     def save_lead_data(self, lead_data: Dict, basic_api_response: Dict) -> Dict:
@@ -929,7 +928,7 @@ class SupabaseOTPStorage:
                 settings.SUPABASE_SERVICE_ROLE_KEY
             )
         except Exception as e:
-            print(f"Error initializing Supabase client: {e}")
+            logger.error(f"Error initializing Supabase client: {e}")
             raise
         self.table_name = "otp_storage"
         # self._ensure_table_exists()
@@ -1028,7 +1027,7 @@ class SupabaseOTPStorage:
             return otp_record["otp"]
             
         except Exception as e:
-            print(f"Error getting OTP: {e}")
+            logger.error(f"Error getting OTP: {e}")
             return None
     
     def mark_otp_as_used(self, phone_number: str):
@@ -1038,7 +1037,7 @@ class SupabaseOTPStorage:
                 {"is_used": True}
             ).eq("phone_number", phone_number).execute()
         except Exception as e:
-            print(f"Error marking OTP as used: {e}")
+            logger.error(f"Error marking OTP as used: {e}")
     
 
     
@@ -1050,9 +1049,9 @@ class SupabaseOTPStorage:
 try:
     otp_storage = SupabaseOTPStorage()
 except Exception as e:
-    print(f"Warning: Could not initialize Supabase storage: {e}")
-    print("Error type:", type(e).__name__)
-    print("Falling back to local storage...")
+    logger.error(f"Warning: Could not initialize Supabase storage: {e}")
+    logger.error("Error type:", type(e).__name__)
+    logger.error("Falling back to local storage...")
     
     # Fallback to local storage
     import time
@@ -1092,11 +1091,6 @@ except Exception as e:
                     del self._storage[phone_number]
         
 
-        
-
-        
-
-    
     otp_storage = LocalOTPStorage() 
     
 # Global database service instance

@@ -304,7 +304,7 @@ class DatabaseService:
                         # Parse ISO format: "2025-07-29T18:21:00"
                         due_date = datetime.fromisoformat(due_date_str.replace('Z', '+00:00'))
                     except Exception as e:
-                        print(f"Warning: Could not parse due_date '{due_date_str}': {e}")
+                        logger.warning(f"Could not parse due_date '{due_date_str}': {e}")
                         due_date = datetime.now()
                 else:
                     due_date = datetime.now()
@@ -321,7 +321,7 @@ class DatabaseService:
                     if updated_date_str:
                         updated_date = datetime.fromisoformat(updated_date_str.replace('Z', '+00:00'))
                 except Exception as e:
-                    print(f"Warning: Could not parse audit dates: {e}")
+                    logger.warning(f"Could not parse audit dates: {e}")
                 
                 # Prepare appointment record for database
                 appointment_record = {
@@ -763,7 +763,7 @@ class DatabaseService:
             result = self.client.table("detailed_leads").select("*").eq("customer_mobile", mobile).order("created_at", desc=True).execute()
             return result.data if result.data else []
         except Exception as e:
-            print(f"Error retrieving detailed leads by mobile: {e}")
+            logger.error(f"Error retrieving detailed leads by mobile: {e}")
             return []
 
     def get_detailed_leads_by_basic_app_id(self, basic_app_id: str) -> List[Dict]:
@@ -786,7 +786,7 @@ class DatabaseService:
             result = self.client.table("detailed_leads").select("*").eq("basic_app_id", basic_app_id).order("created_at", desc=True).execute()
             return result.data if result.data else []
         except Exception as e:
-            print(f"Error retrieving detailed leads by Basic App ID: {e}")
+            logger.error(f"Error retrieving detailed leads by Basic App ID: {e}")
             return []
 
     def get_detailed_leads_statistics(self) -> Dict:
@@ -818,7 +818,7 @@ class DatabaseService:
                     "avg_loan_amount": 0
                 }
         except Exception as e:
-            print(f"Error retrieving detailed leads statistics: {e}")
+            logger.error(f"Error retrieving detailed leads statistics: {e}")
             return {
                 "total_detailed_leads": 0,
                 "completed_leads": 0,

@@ -16,36 +16,56 @@ class VerifyOTPRequest(BaseModel):
 class WhatsAppMessageRequest(BaseModel):
     message: str = Field(..., description="WhatsApp message content")
 
-class LeadCreateRequest(BaseModel):
-    loan_type: str
-    loan_amount: float
-    loan_tenure: int
-    pan_number: str
-    first_name: str
-    last_name: str
-    gender: Optional[str] = None
-    mobile_number: str
-    email: EmailStr
-    dob: str
-    pin_code: str
+# class LeadCreateRequest(BaseModel):
+#     loan_type: str
+#     loan_amount: float
+#     loan_tenure: int
+#     pan_number: str
+#     first_name: str
+#     last_name: str
+#     gender: Optional[str] = None
+#     mobile_number: str
+#     email: EmailStr
+#     dob: str
+#     pin_code: str
 
-class LeadCreateDetailedRequest(BaseModel):
-    first_name: str
-    last_name: str
+class LeadCreateRequest(BaseModel):
+    firstName: str
+    lastName: str
     gender: Optional[str] = None
-    mobile_number: str
-    credit_score: int
-    pan_number: str
-    annual_income: float
-    loan_type: str
-    loan_amount: float
-    loan_tenure: int
-    city: str
-    district: str
-    state: str
-    pin_code: str
+    mobile: str
+    creditScore: int
+    pan: str
+    loanType: str
+    loanAmountReq: float
+    loanTenure: int
+    pincode: str
     email: EmailStr
-    dob: str
+    dateOfBirth: str
+
+class LeadFlashRequest(BaseModel):
+    firstName: str
+    lastName: str
+    gender: Optional[str] = None
+    mobile: str
+    creditScore: int
+    pan: str
+    loanType: str
+    loanAmountReq: float
+    loanTenure: int
+    pincode: str
+    email: EmailStr
+    dateOfBirth: str
+    applicationId: str
+    propertyIdentified: str
+    propertyName: str
+    estimatedPropertyValue: str
+    propertyType: str
+    agreementType: str
+    unitType: str
+    location: str
+    usageType: str
+    unitNumber: str
 
 class BookAppointmentRequest(BaseModel):
   date: str
@@ -62,7 +82,13 @@ class LeadCreateResponse(BaseModel):
     reference_id: str
     message: str
 
-class LeadCreateDetailedResponse(BaseModel):
+class LeadCreateResponse(BaseModel):
+    basic_application_id: str
+    applicationId:str
+    reference_id: str
+    message: str
+
+class LeadFlashResponse(BaseModel):
     basic_application_id: str
     reference_id: str
     message: str

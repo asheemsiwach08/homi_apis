@@ -42,30 +42,73 @@ def validate_district(district: str) -> bool:
     """Validate district"""
     return district.strip() != ""
 
-def validate_credit_score(credit_score: int) -> bool:
+def validate_credit_score(creditScore: int) -> bool:
     """Validate credit score"""
-    return credit_score > 0 and credit_score <= 1000
+    return creditScore > 0 and creditScore <= 1000
 
 def validate_email(email: str) -> bool:
     """Validate email"""
     return email.strip() != ""
 
-def validate_first_name(first_name: str) -> bool:
+def validate_first_name(firstName: str) -> bool:
     """Validate first name"""
-    return first_name.strip() != ""
+    return firstName.strip() != ""
 
-def validate_last_name(last_name: str) -> bool:
+def validate_last_name(lastName: str) -> bool:
     """Validate last name"""
-    return last_name.strip() != ""
+    return lastName.strip() != ""
 
 def validate_gender(gender: str) -> bool:
     """Validate gender"""
     return gender.strip() != ""
 
-def validate_loan_type(loan_type: str) -> bool:
+def validate_loan_type(loanType: str) -> bool:
     """Validate loan type"""
     valid_types = settings.LOAN_TYPE_MAPPING.keys()
-    return loan_type in valid_types 
+    return loanType in valid_types 
+
+###################################### LEAD FLASH VALIDATORS #####################################
+def validate_application_id(applicationId: str) -> bool:
+    """Validate application id"""
+    return applicationId.strip() != ""
+
+def validate_property_identified(propertyIdentified: str) -> bool:
+    """Validate property identified"""
+    return propertyIdentified.strip() != ""
+
+def validate_property_name(propertyName: str) -> bool:
+    """Validate property name"""
+    return propertyName.strip() != ""
+
+def validate_estimated_property_value(estimatedPropertyValue: str) -> bool:
+    """Validate estimated property value"""
+    return estimatedPropertyValue.strip() != ""
+
+def validate_property_type(propertyType: str) -> bool:
+    """Validate property type"""
+    return propertyType.strip() != ""
+
+def validate_aggrement_type(agreementType: str) -> bool:
+    """Validate aggrement type"""
+    return agreementType.strip() != ""
+
+def validate_unit_type(unitType: str) -> bool:
+    """Validate unit type"""
+    return unitType.strip() != ""
+
+def validate_location(location: str) -> bool:
+    """Validate location"""
+    return location.strip() != ""
+
+def validate_usage_type(usageType: str) -> bool:
+    """Validate usage type"""
+    return usageType.strip() != ""
+
+def validate_unit_number(unitNumber: str) -> bool:
+    """Validate unit number"""
+    return unitNumber.strip() != ""
+
+###################################### END OF LEAD FLASH VALIDATORS #####################################
 
 def validate_phone_number(phone_number: str) -> bool:
     """Validate phone number format after normalization"""

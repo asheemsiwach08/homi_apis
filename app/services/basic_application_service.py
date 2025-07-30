@@ -114,28 +114,28 @@ class BasicApplicationService:
         if dob:
             dob = self._format_date(dob)
         
-        return {"annualIncome":lead_data.get("annual_income", 0),
+        return {"annualIncome":0,
                 "applicationAssignedToRm": "2762f5b5-ecdc-4826-b003-f332b658e6f4",
                 "city": lead_data.get("city", ""),
                 "createdFromPemId": "string", 
-                "creditScore": lead_data.get("credit_score", 0),
+                "creditScore": lead_data.get("creditScore", 0),
                 "creditScoreTypeId": "string", 
                 "customerId": "234", 
-                "dateOfBirth": lead_data.get("date_of_birth", ""),
+                "dateOfBirth": lead_data.get("dateOfBirth", ""),  
                 "district": lead_data.get("district", ""),
                 "email": lead_data.get("email", ""),
-                "firstName": lead_data.get("first_name", ""),
+                "firstName": lead_data.get("firstName", ""),
                 "gender": lead_data.get("gender", ""),
                 "id": "6749d3e6-0c69-4148-a200-667c165ab18c", 
                 "includeCreditScore": True,
                 "isLeadPrefilled": True,
-                "lastName": lead_data.get("last_name", ""),
-                "loanAmountReq": lead_data.get("loan_amount_req", 0),
-                "loanTenure": lead_data.get("loan_tenure", 0),
-                "loanType": lead_data.get("loan_type", "HL"),
+                "lastName": lead_data.get("lastName", ""),
+                "loanAmountReq": lead_data.get("loanAmountReq", 0),
+                "loanTenure": lead_data.get("loanTenure", 0),
+                "loanType": lead_data.get("loanType", "HL"),
                 "mobile": lead_data.get("mobile", ""),
-                "pan": lead_data.get("pan_number", ""),
-                "pincode": lead_data.get("pin_code", "126102"),
+                "pan": lead_data.get("pan", ""),
+                "pincode": lead_data.get("pincode", "126102"),
                 "qrShortCode": "BAE000247",
                 "remarks":"good", 
                 "state": lead_data.get("state", "")}
@@ -157,20 +157,20 @@ class BasicApplicationService:
             dob = self._format_date(dob)
         
         return {
-                "annualIncome": lead_data.get("annual_income", 0),
+                "annualIncome": lead_data.get("annualIncome", 0),
                 "city": lead_data.get("city", ""),
-                "coBorrowerIncome": lead_data.get("co_borrower_income", 0),
-                "dateOfBirth": lead_data.get("date_of_birth", ""),
+                "coBorrowerIncome": lead_data.get("coBorrowerIncome", 0),
+                "dateOfBirth": lead_data.get("dateOfBirth", ""),
                 "district": lead_data.get("district", ""),
                 "documents": [],
                 "email": lead_data.get("email", ""),
                 "existingEmis": lead_data.get("existingEmis", ""),
-                "firstName": lead_data.get("first_name", ""),
+                "firstName": lead_data.get("firstName", ""),
                 "gender": lead_data.get("gender", ""),
-                "id": lead_data.get("id", ""),
-                "lastName": lead_data.get("last_name", ""),
-                "loanAmountReq": lead_data.get("loan_amount_req", 0),
-                "loanType": lead_data.get("loan_type", "HL"),
+                "id": lead_data.get("applicationId", ""),
+                "lastName": lead_data.get("lastName", ""),
+                "loanAmountReq": lead_data.get("loanAmountReq", 0),
+                "loanType": lead_data.get("loanType", "HL"),
                 "mobile": lead_data.get("mobile", ""),
                 "pincode": lead_data.get("pincode", ""),
                 "professionId": "34e544e6-1e22-49f4-a56a-44c14a32b484", # TODO: Get it my mapping(to be done)
@@ -184,7 +184,7 @@ class BasicApplicationService:
                 "includeCreditScore": lead_data.get("includeCreditScore", False),
                 "recentCreditReportExists": False,
                 "salaryCreditModeId": "ef70c7ce-577a-4302-a485-adccdf31968d", # TODO: Get it my mapping(to be done)
-                "loanTenure": lead_data.get("loan_tenure", 0),
+                "loanTenure": lead_data.get("loanTenure", 0),
                 "isPropertyIdentified": False,
                 "isReferralLead": False,
                 "propertyDistrict": "",
@@ -379,7 +379,7 @@ class BasicApplicationService:
                 "assignedTo": "Self",
                 "dueDate": due_date,
                 "visibleTo": "BasicUsers",
-                "assignedToUserId": "b3981dc9-02b3-44be-be96-5a09a5547d51", ##TODO: Hom-i Bot User id
+                "assignedToUserId": "dabfb1c0-2ac6-4d9f-90f8-1fbbd4f68108", ##TODO: Hom-i Bot User id
                 "assignedToUserName": "Hom-i", #TODO: Hom-i name
                 "assignedToUserRefCode": "",
                 "spaToTaskAssigneeRoleId": "",
@@ -501,7 +501,6 @@ class BasicApplicationService:
         """
         try:
             api_payload = self._prepare_FBB_by_basic_user_payload(lead_data)
-            print("API Payload: CreateFBBByBasicUser ", api_payload)
             
             if not self.basic_api_url:
                 raise HTTPException(
@@ -517,6 +516,7 @@ class BasicApplicationService:
                  self.BASIC_APPLICATION_API_KEY)
 
             response = requests.post(api_url, headers=headers, json=api_payload)
+            print("Lead Create:", response.text)
 
             if response.status_code in [200, 201]:
                 try:
@@ -529,8 +529,8 @@ class BasicApplicationService:
                             detail="Empty response received from Basic Application API- CreateFBBByBasicUser"
                         )
                 except json.JSONDecodeError as json_error:
-                    print(f"JSON parsing error: {json_error}")
-                    print(f"Response text: {response.text}")
+                    logger.error(f"JSON parsing error: {json_error}")
+                    logger.error(f"Response text: {response.text}")
                     raise HTTPException(
                         status_code=400,
                         detail=f"Invalid JSON response from Basic Application API: {response.text}"
@@ -558,7 +558,7 @@ class BasicApplicationService:
         Raises:
             HTTPException: If API call fails
         """
-        application_id = lead_data.get("id", "")
+        application_id = lead_data.get("applicationId", "")
         if not application_id:
             raise HTTPException(status_code=400, detail="Application ID not found")
         try:
@@ -580,6 +580,7 @@ class BasicApplicationService:
                  self.BASIC_APPLICATION_USER_ID,
                  self.BASIC_APPLICATION_API_KEY)
             response = requests.put(api_url, headers=headers, json=api_payload)
+            print("**********************",response.text, response.status_code,"**********************")
 
             if response.status_code in [200, 201]:
                 try:
@@ -592,8 +593,8 @@ class BasicApplicationService:
                             detail="Empty response received from Basic Application API- Basic Fullfilment"
                         )
                 except json.JSONDecodeError as json_error:
-                    print(f"JSON parsing error: {json_error}")
-                    print(f"Response text: {response.text}")
+                    logger.error(f"JSON parsing error: {json_error}")
+                    logger.error(f"Response text: {response.text}")
                     raise HTTPException(
                         status_code=400,
                         detail=f"Invalid JSON response from Basic Application API: {response.text}"
@@ -626,7 +627,7 @@ class BasicApplicationService:
         """
         try:
             api_payload = self._prepare_self_fullfilment_payload(lead_data)
-            print("API Payload: SelfFullfilment ", api_payload)
+            logger.info(f"API Payload: SelfFullfilment {api_payload}")
             
             if not self.basic_api_url:
                 raise HTTPException(
@@ -654,8 +655,8 @@ class BasicApplicationService:
                             detail="Empty response received from Basic Application API- SelfFullfilment"
                         )
                 except json.JSONDecodeError as json_error:
-                    print(f"JSON parsing error: {json_error}")
-                    print(f"Response text: {response.text}")
+                    logger.error(f"JSON parsing error: {json_error}")
+                    logger.error(f"Response text: {response.text}")
                     raise HTTPException(
                         status_code=400,
                         detail=f"Invalid JSON response from Basic Application API: {response.text}"
@@ -778,16 +779,13 @@ class BasicApplicationService:
             HTTPException: If API call fails
         """
         try:
-            print("Lead Data: CreateTaskOrComment ", lead_data)
             api_payload = self._prepare_book_appointment_payload(lead_data)
-            print("API Payload: CreateTaskOrComment ", api_payload)
             
             if not self.basic_api_url:
                 raise HTTPException(
                     status_code=500,
                     detail="Basic Application API URL not configured"
                 )
-            # print("API Payload: CreateTaskOrComment ", api_payload)
             # Get signature headers
             api_url = f"{self.basic_api_url}/api/v1/ApplicationCommentsAndTasks/CreateTaskOrComment"
             headers = self.generate_signature_headers(
@@ -808,8 +806,8 @@ class BasicApplicationService:
                             detail="Empty response received from Basic Application API- CreateTaskOrComment"
                         )
                 except json.JSONDecodeError as json_error:
-                    print(f"JSON parsing error: {json_error}")
-                    print(f"Response text: {response.text}")
+                    logger.error(f"JSON parsing error: {json_error}")
+                    logger.error(f"Response text: {response.text}")
                     raise HTTPException(
                         status_code=400,
                         detail=f"Invalid JSON response from Basic Application API: {response.text}"

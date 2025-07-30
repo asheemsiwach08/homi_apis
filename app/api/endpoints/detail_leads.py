@@ -13,7 +13,7 @@ from app.utils.validators import (
 # Setup logging
 logger = logging.getLogger(__name__)
 
-router = APIRouter(prefix="/api_v1", tags=['detailed_leads'])
+router = APIRouter(prefix="/api_v1", tags=['leads'])
 
 # Initialize services
 basic_app_service = BasicApplicationService()
@@ -139,10 +139,8 @@ async def detailed_leads_creation(request: LeadCreateDetailedRequest):
 
         # Call CreateFBBByBasicUser API
         fbb_user_result = basic_app_service.create_FBB_by_basic_user(api_data)
-        print(fbb_user_result,"-------------->>")
         
         if not fbb_user_result:
-            print('+++++++++++++++++++++++++++++++++++++++++++++++++++++++')
             error_msg = "Failed to create FBB record"
             if fbb_user_result and fbb_user_result.get("responseException"):
                 error_msg = fbb_user_result.get("responseException", {}).get("exceptionMessage", error_msg)

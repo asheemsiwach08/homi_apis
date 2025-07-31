@@ -290,11 +290,15 @@ class DatabaseService:
             reference_id = appointment_data.get("reference_id", "")
             
             # Check if API call was successful
-            is_success = not basic_api_response.get("isError", True)
+            # For Book Appointment API, success is indicated by presence of result and success message
+            result = basic_api_response.get("result", {})
+            message = basic_api_response.get("message", "")
+            is_success = bool(result and result.get("id") and "success" in message.lower())
+            
+            logger.info(f"Book Appointment API Success Check - Has Result: {bool(result)}, Message: {message}, API ID: {result.get('id') if result else 'None'}, Success: {is_success}")
             
             if is_success:
-                # Extract data from successful API response
-                result = basic_api_response.get("result", {})
+                # Extract data from successful API response (already extracted above)
                 
                 # Parse due_date
                 due_date_str = result.get("dueDate")
@@ -390,6 +394,11 @@ class DatabaseService:
                 
                 internal_status = "success"
                 
+                # Log what's being saved to database
+                logger.info(f"Database Record - API ID: {appointment_record.get('api_id')}, Basic App ID: {appointment_record.get('basic_app_id')}, Status: {appointment_record.get('status')}")
+                logger.info(f"Database Record - Comment: {appointment_record.get('comment')}, Comment Ref: {appointment_record.get('comment_ref')}")
+                logger.info(f"Database Record Fields Count: {len(appointment_record)}")
+                
             else:
                 # Handle failed API response
                 exception_info = basic_api_response.get("responseException", {})
@@ -455,12 +464,13 @@ class DatabaseService:
                 detail=f"Failed to save appointment to database: {str(e)}"
             )
 
-    def save_detailed_lead_data(self, request_data: Dict, fbb_response: Dict, self_fullfilment_response: Dict) -> Dict:
+    def save_lead_data(self, request_data: Dict, fbb_response: Dict, self_fullfilment_response: Dict) -> Dict:
         """
-        Save detailed lead data to Supabase database
+        Save lead data to Supabase database
         
         This method processes and stores comprehensive lead information from multiple API responses.
         It handles both successful and failed API responses, storing complete audit trails.
+        Supports upsert functionality - updates existing records or creates new ones based on application ID.
         
         Args:
             request_data (Dict): Original request data from API call containing user input
@@ -470,6 +480,7 @@ class DatabaseService:
         Returns:
             Dict: Database operation result containing:
                 - success (bool): Whether the save operation succeeded
+                - operation_type (str): Type of operation performed (created/updated)
                 - lead_id (int): Database ID of the saved lead record
                 - internal_status (str): Internal processing status (completed/failed)
                 - basic_app_id (str): Basic Application ID from API response
@@ -485,11 +496,11 @@ class DatabaseService:
             2. Checks API response success status
             3. For successful responses: Maps all 60+ API fields to database columns
             4. For failed responses: Stores minimal data with error details
-            5. Inserts record into detailed_leads table
+            5. Performs upsert operation (insert new or update existing record)
             6. Returns operation result with relevant IDs and status
         """
         if not self.client:
-            logger.error("Supabase client not initialized for detailed lead saving")
+            logger.error("Supabase client not initialized for lead saving")
             raise HTTPException(
                 status_code=500,
                 detail="Supabase client not initialized. Check database configuration."
@@ -500,14 +511,17 @@ class DatabaseService:
         customer_pan = request_data.get("pan", "unknown")
         request_id = f"{customer_mobile}_{customer_pan}"
         
-        logger.info(f"[{request_id}] Starting detailed lead data save to database")
+        # logger.info(f"[{request_id}] Starting lead data save to database")
         
         try:
             from datetime import datetime
             
             # Check if self_fullfilment API call was successful
-            is_success = not self_fullfilment_response.get("isError", True)
-            logger.info(f"[{request_id}] API response status - Success: {is_success}")
+            # API is successful if isError is explicitly False or not present
+            is_error = self_fullfilment_response.get("isError", False)
+            is_success = not is_error
+            # logger.info(f"[{request_id}] API response status - isError: {is_error}, Success: {is_success}")
+            # logger.info(f"[{request_id}] API response keys: {list(self_fullfilment_response.keys()) if self_fullfilment_response else 'No response'}")
             
             if is_success:
                 logger.info(f"[{request_id}] Processing successful API response")
@@ -515,6 +529,12 @@ class DatabaseService:
                 result = self_fullfilment_response.get("result", {})
                 primary_borrower = result.get("primaryBorrower", {})
                 credit_report = result.get("primaryBorrowerCreditReportDetails", {})
+                
+                # Log key information about the API response
+                # logger.info(f"[{request_id}] Extracted API ID: {result.get('id')}")
+                # logger.info(f"[{request_id}] Extracted Basic App ID: {result.get('basicAppId')}")
+                # logger.info(f"[{request_id}] Status field values - applicationStatus: {result.get('applicationStatus')}, latestStatus: {result.get('latestStatus')}, status: {result.get('status')}")
+                # logger.info(f"[{request_id}] Available result keys: {list(result.keys()) if result else 'No result object'}")
                 
                 # Parse dates
                 application_date = None
@@ -538,18 +558,29 @@ class DatabaseService:
                 except Exception as e:
                     logger.warning(f"[{request_id}] Date parsing warning: {str(e)}")
                 
-                # Prepare detailed lead record for database
-                detailed_lead_record = {
+                # Helper function to safely convert to integer
+                def safe_int(value):
+                    if value is None or value == "":
+                        return None
+                    try:
+                        return int(float(str(value)))  # Convert to float first to handle "0.0" cases
+                    except (ValueError, TypeError):
+                        return None
+                
+                # Prepare lead record for database
+                lead_record = {
                     # Core Application Fields
                     "api_id": result.get("id"),
                     "basic_app_id": result.get("basicAppId"),
                     "loan_type": result.get("loanType"),
                     "loan_amount_req": result.get("loanAmountReq"),
-                    "loan_tenure": result.get("loanTenure"),
+                    "loan_tenure": safe_int(result.get("loanTenure")),
                     
                     # Application Status & Dates
                     "application_date": application_date.isoformat() if application_date else None,
-                    "application_status": result.get("applicationStatus"),
+                    "application_status": (result.get("applicationStatus") or 
+                                      result.get("latestStatus") or 
+                                      result.get("status")),
                     "application_stage": result.get("applicationStage"),
                     "fbb_date": fbb_date.isoformat() if fbb_date else None,
                     "fbb_outcome": result.get("fbbOutcome"),
@@ -604,17 +635,17 @@ class DatabaseService:
                     "existing_emis": result.get("existingEmis"),
                     
                     # Credit Information
-                    "credit_score": result.get("creditScore"),
+                    "credit_score": safe_int(result.get("creditScore")),
                     "credit_score_type_id": result.get("creditScoreTypeId"),
-                    "customer_credit_score": credit_report.get("customerCreditScore"),
+                    "customer_credit_score": safe_int(credit_report.get("customerCreditScore")),
                     "credit_report_status": credit_report.get("creditReportStatus"),
                     
                     # Scores & Badges
-                    "demo_score": result.get("demoScore"),
-                    "product_score": result.get("productScore"),
-                    "fin_score": result.get("finScore"),
-                    "prop_score": result.get("propScore"),
-                    "total_score": result.get("totalScore"),
+                    "demo_score": safe_int(result.get("demoScore")),
+                    "product_score": safe_int(result.get("productScore")),
+                    "fin_score": safe_int(result.get("finScore")),
+                    "prop_score": safe_int(result.get("propScore")),
+                    "total_score": safe_int(result.get("totalScore")),
                     "lead_badge": result.get("leadBadge"),
                     
                     # Property Information
@@ -635,7 +666,7 @@ class DatabaseService:
                     
                     # Additional Flags
                     "is_referral_lead": result.get("isReferralLead"),
-                    "referred_to_banks": result.get("referredTobanks"),
+                    "referred_to_banks": safe_int(result.get("referredTobanks")),
                     "can_customer_upload_documents": result.get("canCustomerUploadDocuments"),
                     "is_pbb_lead": result.get("isPbbLead"),
                     "is_osv_by_consultant_available": result.get("isOsvByConsultantAvailable"),
@@ -647,7 +678,7 @@ class DatabaseService:
                     # Qualification & Agents
                     "qualified_by_agent_user_id": result.get("qualifiedByAgentUserId"),
                     "qualified_by_agent_type": result.get("qualifiedByAgentType"),
-                    "auto_referral_attempt_count": result.get("autoReferralAttemptCount"),
+                    "auto_referral_attempt_count": safe_int(result.get("autoReferralAttemptCount")),
                     
                     # JSONB Storage Fields
                     "application_comments": result.get("applicationComments"),
@@ -663,14 +694,20 @@ class DatabaseService:
                     "fbb_api_response": fbb_response,
                     "self_fullfilment_api_response": self_fullfilment_response,
                     
-                    # Internal Status & Error Handling
+                    # Internal Status & Error Handling (will be set based on source endpoint below)
                     "internal_status": "completed",
                     "processing_stage": "completed",
                     "error_message": None
                 }
                 
                 internal_status = "completed"
-                logger.info(f"[{request_id}] Detailed lead record prepared with {len(detailed_lead_record)} fields")
+                logger.info(f"[{request_id}] Lead record prepared with {len(lead_record)} fields")
+                
+                # Log key field population status
+                non_null_fields = {k: v for k, v in lead_record.items() if v is not None and v != ""}
+                logger.info(f"[{request_id}] Populated {len(non_null_fields)} non-null fields in database record")
+                logger.info(f"[{request_id}] Database record application_status: {lead_record.get('application_status')}")
+                logger.info(f"[{request_id}] Database record internal_status: {lead_record.get('internal_status')}")
                 
             else:
                 logger.warning(f"[{request_id}] Processing failed API response")
@@ -688,8 +725,8 @@ class DatabaseService:
                 
                 logger.error(f"[{request_id}] API failure details: {error_message}")
                 
-                # Prepare minimal record for failed detailed lead
-                detailed_lead_record = {
+                # Prepare minimal record for failed lead
+                lead_record = {
                     # Original Request Data
                     "original_request_data": request_data,
                     "fbb_api_response": fbb_response,
@@ -701,57 +738,107 @@ class DatabaseService:
                     "error_message": error_message,
                     
                     # Set minimal required fields from request
-                    "customer_first_name": request_data.get("first_name"),
-                    "customer_last_name": request_data.get("last_name"),
+                    "customer_first_name": request_data.get("firstName"),
+                    "customer_last_name": request_data.get("lastName"),
                     "customer_mobile": request_data.get("mobile"),
                     "customer_email": request_data.get("email"),
                     "customer_pan": request_data.get("pan"),
-                    "loan_type": request_data.get("loan_type"),
-                    "loan_amount_req": request_data.get("loan_amount_req"),
-                    "loan_tenure": request_data.get("loan_tenure")
+                    "loan_type": request_data.get("loanType"),
+                    "loan_amount_req": request_data.get("loanAmountReq"),
+                    "loan_tenure": safe_int(request_data.get("loanTenure"))
                 }
                 
                 internal_status = "failed"
             
-            # Insert into detailed_leads table
-            logger.info(f"[{request_id}] Inserting detailed lead record into database")
-            db_result = self.client.table("detailed_leads").insert(detailed_lead_record).execute()
+            # Set processing stage based on source endpoint for new records
+            source_endpoint = request_data.get("source_endpoint", "")
+            if source_endpoint == "create_lead":
+                lead_record["processing_stage"] = "fbb"
+                lead_record["internal_status"] = "fbb_completed"
+                internal_status = "fbb_completed"
+            elif source_endpoint == "lead_flash":
+                lead_record["processing_stage"] = "completed"
+                lead_record["internal_status"] = "completed"
+                internal_status = "completed"
             
-            if db_result.data:
-                lead_id = db_result.data[0]["id"]
-                basic_app_id = detailed_lead_record.get("basic_app_id")
+            # Check if record already exists based on API ID or Basic App ID
+            existing_record = None
+            api_id = lead_record.get("api_id")
+            basic_app_id = lead_record.get("basic_app_id")
+            
+            if api_id:
+                logger.info(f"[{request_id}] Checking for existing record with API ID: {api_id}")
+                existing_check = self.client.table("leads").select("id, internal_status, processing_stage").eq("api_id", api_id).execute()
+                if existing_check.data:
+                    existing_record = existing_check.data[0]
+            elif basic_app_id:
+                logger.info(f"[{request_id}] Checking for existing record with Basic App ID: {basic_app_id}")
+                existing_check = self.client.table("leads").select("id, internal_status, processing_stage").eq("basic_app_id", basic_app_id).execute()
+                if existing_check.data:
+                    existing_record = existing_check.data[0]
+            
+            if existing_record:
+                # UPDATE existing record
+                existing_id = existing_record["id"]
+                existing_stage = existing_record.get("processing_stage", "")
+                logger.info(f"[{request_id}] Updating existing record with ID: {existing_id}, current stage: {existing_stage}")
                 
-                logger.info(f"[{request_id}] Detailed lead saved successfully - Database ID: {lead_id}, Basic App ID: {basic_app_id}")
+                # Determine the new processing stage based on source endpoint
+                source_endpoint = request_data.get("source_endpoint", "")
+                if source_endpoint == "create_lead" and existing_stage in ["", "fbb"]:
+                    # If create_lead is called on existing record, update with FBB data
+                    lead_record["processing_stage"] = "fbb"
+                elif source_endpoint == "lead_flash":
+                    # If lead_flash is called, mark as completed (full process)
+                    lead_record["processing_stage"] = "completed"
+                    lead_record["internal_status"] = "completed"
                 
-                return {
-                    "success": True,
-                    "lead_id": lead_id,
-                    "internal_status": internal_status,
-                    "basic_app_id": basic_app_id,
-                    "api_id": detailed_lead_record.get("api_id"),
-                    "customer_mobile": detailed_lead_record.get("customer_mobile"),
-                    "message": f"Detailed lead data saved successfully in database"
-                }
+                # Update the record with new data
+                db_result = self.client.table("leads").update(lead_record).eq("id", existing_id).execute()
+                lead_id = existing_id
+                operation_type = "updated"
             else:
-                logger.error(f"[{request_id}] No data returned from database insert operation")
-                raise Exception("No data returned from insert operation")
+                # INSERT new record
+                logger.info(f"[{request_id}] Inserting new lead record into database")
+                db_result = self.client.table("leads").insert(lead_record).execute()
+                
+                if db_result.data:
+                    lead_id = db_result.data[0]["id"]
+                    operation_type = "created"
+                else:
+                    raise Exception("No data returned from insert operation")
+            
+            # Return success response
+            basic_app_id = lead_record.get("basic_app_id")
+            logger.info(f"[{request_id}] Lead {operation_type} successfully - Database ID: {lead_id}, Basic App ID: {basic_app_id}")
+            
+            return {
+                "success": True,
+                "lead_id": lead_id,
+                "internal_status": internal_status,
+                "basic_app_id": basic_app_id,
+                "api_id": lead_record.get("api_id"),
+                "customer_mobile": lead_record.get("customer_mobile"),
+                "operation_type": operation_type,
+                "message": f"Lead data {operation_type} successfully in database"
+            }
                 
         except Exception as e:
             logger.error(f"[{request_id}] Database save error: {str(e)}", exc_info=True)
             raise HTTPException(
                 status_code=500,
-                detail=f"Failed to save detailed lead to database: {str(e)}"
+                detail=f"Failed to save lead to database: {str(e)}"
             )
 
-    def get_detailed_leads_by_mobile(self, mobile: str) -> List[Dict]:
+    def get_leads_by_mobile(self, mobile: str) -> List[Dict]:
         """
-        Get detailed leads by mobile number
+        Get leads by mobile number
         
         Args:
             mobile: Mobile number to search for
             
         Returns:
-            List[Dict]: List of detailed leads
+            List[Dict]: List of leads
         """
         if not self.client:
             raise HTTPException(
@@ -760,21 +847,21 @@ class DatabaseService:
             )
         
         try:
-            result = self.client.table("detailed_leads").select("*").eq("customer_mobile", mobile).order("created_at", desc=True).execute()
+            result = self.client.table("leads").select("*").eq("customer_mobile", mobile).order("created_at", desc=True).execute()
             return result.data if result.data else []
         except Exception as e:
-            logger.error(f"Error retrieving detailed leads by mobile: {e}")
+            logger.error(f"Error retrieving leads by mobile: {e}")
             return []
 
-    def get_detailed_leads_by_basic_app_id(self, basic_app_id: str) -> List[Dict]:
+    def get_leads_by_basic_app_id(self, basic_app_id: str) -> List[Dict]:
         """
-        Get detailed leads by Basic Application ID
+        Get leads by Basic Application ID
         
         Args:
             basic_app_id: Basic Application ID to search for
             
         Returns:
-            List[Dict]: List of detailed leads
+            List[Dict]: List of leads
         """
         if not self.client:
             raise HTTPException(
@@ -783,22 +870,57 @@ class DatabaseService:
             )
         
         try:
-            result = self.client.table("detailed_leads").select("*").eq("basic_app_id", basic_app_id).order("created_at", desc=True).execute()
+            result = self.client.table("leads").select("*").eq("basic_app_id", basic_app_id).order("created_at", desc=True).execute()
             return result.data if result.data else []
         except Exception as e:
-            logger.error(f"Error retrieving detailed leads by Basic App ID: {e}")
+            logger.error(f"Error retrieving leads by Basic App ID: {e}")
             return []
 
-    def get_detailed_leads_statistics(self) -> Dict:
+    def update_lead_status(self, basic_app_id: str, new_status: str) -> bool:
         """
-        Get detailed leads statistics
+        Update the application status for a lead record
+        
+        Args:
+            basic_app_id: Basic Application ID to update
+            new_status: New status to set
+            
+        Returns:
+            bool: True if update was successful, False otherwise
+        """
+        if not self.client:
+            logger.error("Supabase client not initialized for lead status update")
+            return False
+        
+        try:
+            # Update the application_status and updated_at timestamp
+            update_data = {
+                "application_status": new_status,
+                "updated_at": "now()"
+            }
+            
+            result = self.client.table("leads").update(update_data).eq("basic_app_id", basic_app_id).execute()
+            
+            if result.data:
+                logger.info(f"Successfully updated lead status for Basic App ID: {basic_app_id} to: {new_status}")
+                return True
+            else:
+                logger.warning(f"No lead found with Basic App ID: {basic_app_id}")
+                return False
+                
+        except Exception as e:
+            logger.error(f"Error updating lead status: {e}")
+            return False
+
+    def get_leads_statistics(self) -> Dict:
+        """
+        Get leads statistics
         
         Returns:
-            Dict: Detailed leads statistics
+            Dict: Leads statistics
         """
         if not self.client:
             return {
-                "total_detailed_leads": 0,
+                "total_leads": 0,
                 "completed_leads": 0,
                 "failed_leads": 0,
                 "leads_last_24h": 0,
@@ -806,21 +928,21 @@ class DatabaseService:
             }
         
         try:
-            result = self.client.table("detailed_leads_statistics").select("*").execute()
+            result = self.client.table("leads_statistics").select("*").execute()
             if result.data and len(result.data) > 0:
                 return result.data[0]
             else:
                 return {
-                    "total_detailed_leads": 0,
+                    "total_leads": 0,
                     "completed_leads": 0,
                     "failed_leads": 0,
                     "leads_last_24h": 0,
                     "avg_loan_amount": 0
                 }
         except Exception as e:
-            logger.error(f"Error retrieving detailed leads statistics: {e}")
+            logger.error(f"Error retrieving leads statistics: {e}")
             return {
-                "total_detailed_leads": 0,
+                "total_leads": 0,
                 "completed_leads": 0,
                 "failed_leads": 0,
                 "leads_last_24h": 0,

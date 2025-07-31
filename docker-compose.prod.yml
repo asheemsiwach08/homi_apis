@@ -11,11 +11,11 @@ services:
       - PORT=${PORT:-5000}
       - DEBUG=${DEBUG:-False}
       
-      # Basic Application API Configuration
+      # Basic Application API Configuration (Default Employee)
       - BASIC_APPLICATION_API_URL=${BASIC_APPLICATION_API_URL}
       - BASIC_APPLICATION_USER_ID=${BASIC_APPLICATION_USER_ID}
       - BASIC_APPLICATION_API_KEY=${BASIC_APPLICATION_API_KEY}
-      
+
       # Gupshup WhatsApp API Configuration
       - GUPSHUP_API_KEY=${GUPSHUP_API_KEY}
       - GUPSHUP_SOURCE=${GUPSHUP_SOURCE}
@@ -31,11 +31,29 @@ services:
       
       # Supabase Configuration
       - SUPABASE_URL=${SUPABASE_URL}
-
       - SUPABASE_SERVICE_ROLE_KEY=${SUPABASE_SERVICE_ROLE_KEY}
       
       # OTP Configuration
       - OTP_EXPIRY_MINUTES=${OTP_EXPIRY_MINUTES:-3}
+      
+      # WhatsApp Webhook Configuration
+      - WHATSAPP_WEBHOOK_VERIFY_TOKEN=${WHATSAPP_WEBHOOK_VERIFY_TOKEN}
+      
+      # Email Processing Configuration (Zoho Mail)
+      - ZOHO_MAIL_SERVER=${ZOHO_MAIL_SERVER:-imap.zoho.com}
+      - ZOHO_MAIL_PORT=${ZOHO_MAIL_PORT:-993}
+      - ZOHO_MAIL_USERNAME=${ZOHO_MAIL_USERNAME}
+      - ZOHO_MAIL_PASSWORD=${ZOHO_MAIL_PASSWORD}
+      - ZOHO_MAIL_USE_SSL=${ZOHO_MAIL_USE_SSL:-true}
+      
+      # OpenAI Configuration (for AI-powered email analysis)
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - OPENAI_MODEL=${OPENAI_MODEL:-gpt-4}
+      
+      # Google Sheets Configuration
+      - GOOGLE_SPREADSHEET_ID=${GOOGLE_SPREADSHEET_ID}
+      - GOOGLE_WORKSHEET_NAME=${GOOGLE_WORKSHEET_NAME}
+      - GOOGLE_CREDENTIALS_JSON=${GOOGLE_CREDENTIALS_JSON}
       
       # Production settings
       - PYTHONPATH=/app

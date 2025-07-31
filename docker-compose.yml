@@ -11,7 +11,7 @@ services:
       - PORT=${PORT:-5000}
       - DEBUG=${DEBUG:-True}
       
-      # Basic Application API Configuration
+      # Basic Application API Configuration (Default Employee)
       - BASIC_APPLICATION_API_URL=${BASIC_APPLICATION_API_URL}
       - BASIC_APPLICATION_USER_ID=${BASIC_APPLICATION_USER_ID}
       - BASIC_APPLICATION_API_KEY=${BASIC_APPLICATION_API_KEY}
@@ -31,11 +31,38 @@ services:
       
       # Supabase Configuration
       - SUPABASE_URL=${SUPABASE_URL}
-
       - SUPABASE_SERVICE_ROLE_KEY=${SUPABASE_SERVICE_ROLE_KEY}
       
       # OTP Configuration
       - OTP_EXPIRY_MINUTES=${OTP_EXPIRY_MINUTES:-3}
+      
+      # WhatsApp Webhook Configuration
+      - WHATSAPP_WEBHOOK_VERIFY_TOKEN=${WHATSAPP_WEBHOOK_VERIFY_TOKEN}
+      
+      # Email Processing Configuration (Zoho Mail)
+      - ZOHO_MAIL_SERVER=${ZOHO_MAIL_SERVER:-imap.zoho.com}
+      - ZOHO_MAIL_PORT=${ZOHO_MAIL_PORT:-993}
+      - ZOHO_MAIL_USERNAME=${ZOHO_MAIL_USERNAME}
+      - ZOHO_MAIL_PASSWORD=${ZOHO_MAIL_PASSWORD}
+      - ZOHO_MAIL_USE_SSL=${ZOHO_MAIL_USE_SSL:-true}
+      
+      # OpenAI Configuration (for AI-powered email analysis)
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - OPENAI_MODEL=${OPENAI_MODEL:-gpt-4}
+      
+      # Google Sheets Configuration
+      - GOOGLE_SPREADSHEET_ID=${GOOGLE_SPREADSHEET_ID}
+      - GOOGLE_WORKSHEET_NAME=${GOOGLE_WORKSHEET_NAME}
+      - GOOGLE_CREDENTIALS_JSON=${GOOGLE_CREDENTIALS_JSON}
+      - GOOGLE_CREDENTIALS_JSON_PLAIN=${GOOGLE_CREDENTIALS_JSON_PLAIN}
+      
+      # Google Credentials Individual Fields (Alternative)
+      - GOOGLE_CREDENTIALS_TYPE=${GOOGLE_CREDENTIALS_TYPE}
+      - GOOGLE_CREDENTIALS_PROJECT_ID=${GOOGLE_CREDENTIALS_PROJECT_ID}
+      - GOOGLE_CREDENTIALS_PRIVATE_KEY_ID=${GOOGLE_CREDENTIALS_PRIVATE_KEY_ID}
+      - GOOGLE_CREDENTIALS_PRIVATE_KEY=${GOOGLE_CREDENTIALS_PRIVATE_KEY}
+      - GOOGLE_CREDENTIALS_CLIENT_EMAIL=${GOOGLE_CREDENTIALS_CLIENT_EMAIL}
+      - GOOGLE_CREDENTIALS_CLIENT_ID=${GOOGLE_CREDENTIALS_CLIENT_ID}
     env_file:
       - .env
     restart: unless-stopped

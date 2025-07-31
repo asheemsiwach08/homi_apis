@@ -11,10 +11,11 @@ A comprehensive FastAPI-based REST API for WhatsApp OTP verification, lead creat
   - Phone number validation and normalization
 - ✅ **Lead Management**
   - Create leads with Basic Application API integration
-  - **Detailed lead creation** with comprehensive multi-stage processing
+  - **Comprehensive lead creation** with flexible field support (optional fields for enhanced data capture)
+  - **Lead flash processing** for complete application workflow
   - Track lead status by mobile number or application ID
   - **Appointment booking** with calendar integration
-  - Comprehensive lead data validation and storage
+  - Comprehensive lead data validation and storage with upsert logic
 - ✅ **Email Processing & Disbursements**
   - **Historical disbursement processing** from email archives
   - **Live email monitoring** for real-time disbursement tracking
@@ -402,28 +403,28 @@ Content-Type: application/json
 }
 ```
 
-#### 2. Create Detailed Lead (Comprehensive)
+#### 2. Create Lead (Comprehensive)
 ```http
-POST /api_v1/detailed_leads_create
+POST /api_v1/create_lead
 Content-Type: application/json
 
 {
-    "first_name": "John",
-    "last_name": "Doe",
-    "mobile_number": "7988362283",
+    "firstName": "John",
+    "lastName": "Doe",
+    "mobile": "7999999999",
     "email": "john.doe@example.com",
-    "pan_number": "ABCDE1234F",
-    "loan_type": "HL",
-    "loan_amount": 100000,
-    "loan_tenure": 24,
-    "annual_income": 500000,
-    "credit_score": 750,
-    "city": "Jind",
-    "district": "Jind",
-    "state": "HARYANA",
-    "pin_code": "126102",
-    "dob": "1996-12-08",
-    "gender": "Male"
+    "pan": "ABCDE1234F",
+    "loanType": "HL",
+    "loanAmountReq": 100000,
+    "loanTenure": 24,
+    "creditScore": 750,
+    "pincode": "126102",
+    "dateOfBirth": "1996-12-08",
+    "gender": "Male",
+    "annualIncome": 1200000,
+    "applicationAssignedToRm": "b3981dc9-02b3-44be-be96-5a09a5547d51",
+    "remarks": "Priority lead",
+    "state": "HARYANA"
 }
 ```
 
@@ -441,8 +442,54 @@ Content-Type: application/json
 - Comprehensive data validation and error handling
 - Automatic database storage with complete audit trail
 - Integration with multiple Basic Application APIs
+- Flexible optional fields for enhanced data capture
 
-#### 3. Book Appointment
+#### 3. Lead Flash (Complete Application Processing)
+```http
+POST /api_v1/lead_flash
+Content-Type: application/json
+
+{
+    "firstName": "John",
+    "lastName": "Doe",
+    "mobile": "7999999999",
+    "email": "john.doe@example.com",
+    "pan": "ABCDE1234F",
+    "loanType": "HL",
+    "loanAmountReq": 100000,
+    "loanTenure": 24,
+    "creditScore": 750,
+    "pincode": "126102",
+    "dateOfBirth": "1996-12-08",
+    "gender": "Male",
+    "applicationId": "adfd2272-c572-420d-bafc-b134ed3a0aa3",
+    "professionId": "34e544e6-1e22-49f4-a56a-44c14a32b484",
+    "professionName": "Salaried",
+    "propertyIdentified": "Yes",
+    "propertyName": "Green Valley Apartments",
+    "propertyType": "Apartment",
+    "agreementType": "Sale Deed",
+    "location": "Gurgaon",
+    "propertyValue": 8500000
+}
+```
+
+**Response:**
+```json
+{
+    "basic_application_id": "B002BJF",
+    "reference_id": "adfd2272-c572-420d-bafc-b134ed3a0aa3",
+    "message": "Lead Flash processed successfully"
+}
+```
+
+**Features:**
+- Complete application workflow processing
+- Property and profession information capture
+- Self-fulfillment API integration
+- Full application status update
+
+#### 4. Book Appointment
 ```http
 POST /api_v1/book_appointment
 Content-Type: application/json
@@ -471,7 +518,7 @@ Content-Type: application/json
 - Support for flexible date/time formats
 - Complete audit trail and status tracking
 
-#### 4. Get Lead Status
+#### 5. Get Lead Status
 ```http
 POST /api_v1/lead_status
 Content-Type: application/json
@@ -499,7 +546,7 @@ Content-Type: application/json
 }
 ```
 
-#### 3. Process WhatsApp Message
+#### 6. Process WhatsApp Message
 ```http
 POST /api_v1/whatsapp/process_message
 Content-Type: application/json
@@ -739,53 +786,6 @@ This creates:
 1. **OTP Storage**: `database_setup/supabase_setup.sql`
 2. **Leads Management**: `database_setup/supabase_setup.sql`
 3. **WhatsApp Messages**: `database_setup/whatsapp_messages_table.sql`
-
-## Testing
-
-### Test OTP Operations
-```bash
-# Test OTP send
-curl -X POST "http://localhost:5000/api_v1/otp_send" \
-  -H "Content-Type: application/json" \
-  -d '{"phone_number": "788888888"}'
-
-# Test OTP verify
-curl -X POST "http://localhost:5000/api_v1/otp_verify" \
-  -H "Content-Type: application/json" \
-  -d '{"phone_number": "788888888", "otp": "123456"}'
-```
-
-### Test Lead Operations
-```bash
-# Test lead creation
-curl -X POST "http://localhost:5000/api_v1/lead_create" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "loan_type": "home_loan",
-    "loan_amount": 5000000,
-    "loan_tenure": 20,
-    "pan_number": "ABCDE1234F",
-    "first_name": "John",
-    "last_name": "Doe",
-    "mobile_number": "788888888",
-    "email": "john.doe@example.com",
-    "dob": "15/06/1990",
-    "pin_code": "400001"
-  }'
-
-# Test lead status
-curl -X POST "http://localhost:5000/api_v1/lead_status" \
-  -H "Content-Type: application/json" \
-  -d '{"mobile_number": "788888888"}'
-
-# Test WhatsApp message processing
-curl -X POST "http://localhost:5000/api_v1/whatsapp/process_message" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "message": "I want to check my application status. My mobile number is 9876543210",
-    "phone_number": "+919876543210"
-  }'
-```
 
 ## Troubleshooting
 

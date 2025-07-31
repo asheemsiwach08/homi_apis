@@ -3,7 +3,7 @@
 ## Overview
 This guide details the API usage, endpoints, payloads, responses, error handling, and common CURL examples for HOM-i WhatsApp OTP Verification API hosted at:
 
-**Base URL:** `http://localhost:5000/api_v1`
+**Base URL:** `http://localhost:8000/api_v1`
 
 ## API Endpoints
 
@@ -141,29 +141,33 @@ This guide details the API usage, endpoints, payloads, responses, error handling
 }
 ```
 
-### 7. Create Detailed Lead
+### 7. Create Lead
 - **Method:** POST
-- **Path:** `/detailed_leads_create`
-- **Description:** Creates a comprehensive detailed lead through multi-stage processing (FBB → Basic Fulfillment → Self Fulfillment).
+- **Path:** `/create_lead`
+- **Description:** Creates a comprehensive lead through FBB (First Bank Branch) processing with complete customer information and flexible optional fields.
 - **Payload:**
 ```json
 {
-  "first_name": "John",
-  "last_name": "Doe",
-  "mobile_number": "7988362283",
+  "firstName": "John",
+  "lastName": "Doe",
+  "mobile": "7999999999",
   "email": "john.doe@example.com",
-  "pan_number": "ABCDE1234F",
-  "loan_type": "HL",
-  "loan_amount": 100000,
-  "loan_tenure": 24,
-  "annual_income": 500000,
-  "credit_score": 750,
-  "city": "Jind",
-  "district": "Jind",
+  "pan": "ABCDE1234F",
+  "loanType": "HL",
+  "loanAmountReq": 100000,
+  "loanTenure": 24,
+  "creditScore": 750,
+  "pincode": "126102",
+  "dateOfBirth": "1996-12-08",
+  "gender": "Male",
+  "annualIncome": 1200000,
+  "applicationAssignedToRm": "b3981dc9-02b3-44be-be96-5a09a5547d51",
+  "remarks": "Priority lead",
   "state": "HARYANA",
-  "pin_code": "126102",
-  "dob": "10/04/2000",
-  "gender": "Male"
+  "qrShortCode": "BAE000247",
+  "customerId": "CX123",
+  "includeCreditScore": true,
+  "isLeadPrefilled": true
 }
 ```
 
@@ -181,8 +185,59 @@ This guide details the API usage, endpoints, payloads, responses, error handling
 - Automatic database storage with complete audit trail
 - Error handling for each processing stage
 - Integration with CreateFBBByBasicUser and SelfFullfilment APIs
+- Flexible optional fields for enhanced data capture
 
-### 8. Book Appointment
+### 8. Lead Flash (Complete Application Processing)
+- **Method:** POST
+- **Path:** `/lead_flash`
+- **Description:** Processes a complete application workflow including property and profession details through Self-Fulfillment API.
+- **Payload:**
+```json
+{
+  "firstName": "John",
+  "lastName": "Doe",
+  "mobile": "7999999999",
+  "email": "john.doe@example.com",
+  "pan": "ABCDE1234F",
+  "loanType": "HL",
+  "loanAmountReq": 100000,
+  "loanTenure": 24,
+  "creditScore": 750,
+  "pincode": "126102",
+  "dateOfBirth": "1996-12-08",
+  "gender": "Male",
+  "applicationId": "adfd2272-c572-420d-bafc-b134ed3a0aa3",
+  "professionId": "34e544e6-1e22-49f4-a56a-44c14a32b484",
+  "professionName": "Salaried",
+  "propertyIdentified": "Yes",
+  "propertyName": "Green Valley Apartments",
+  "propertyType": "Apartment",
+  "agreementType": "Sale Deed",
+  "location": "Gurgaon",
+  "propertyValue": 8500000,
+  "salaryCreditModeId": "ef70c7ce-577a-4302-a485-adccdf31968d",
+  "salaryCreditModeName": "Bank Transfer",
+  "companyName": "Tech Solutions Inc"
+}
+```
+
+**Success Response:**
+```json
+{
+  "basic_application_id": "B002BJF",
+  "reference_id": "adfd2272-c572-420d-bafc-b134ed3a0aa3",
+  "message": "Lead Flash processed successfully"
+}
+```
+
+**Features:**
+- Complete application workflow processing
+- Property and profession information capture
+- Self-fulfillment API integration
+- Full application status update
+- Database storage with complete audit trail
+
+### 9. Book Appointment
 - **Method:** POST
 - **Path:** `/book_appointment`
 - **Description:** Books an appointment by creating a task/comment in the Basic Application system.
@@ -291,28 +346,28 @@ The API supports automatic mapping of loan types to Basic Application codes:
 
 ### Send OTP
 ```bash
-curl -X POST "http://localhost:5000/api_v1/otp_send" \
+curl -X POST "http://localhost:8000/api_v1/otp_send" \
   -H "Content-Type: application/json" \
   -d '{"phone_number": "917888888888"}'
 ```
 
 ### Verify OTP
 ```bash
-curl -X POST "http://localhost:5000/api_v1/otp_verify" \
+curl -X POST "http://localhost:8000/api_v1/otp_verify" \
   -H "Content-Type: application/json" \
   -d '{"phone_number": "917888888888", "otp": "123456"}'
 ```
 
 ### Resend OTP
 ```bash
-curl -X POST "http://localhost:5000/api_v1/otp_resend" \
+curl -X POST "http://localhost:8000/api_v1/otp_resend" \
   -H "Content-Type: application/json" \
   -d '{"phone_number": "917888888888"}'
 ```
 
 ### Create Lead
 ```bash
-curl -X POST "http://localhost:5000/api_v1/lead_create" \
+curl -X POST "http://localhost:8000/api_v1/lead_create" \
   -H "Content-Type: application/json" \
   -d '{
     "first_name": "John",
@@ -331,45 +386,70 @@ curl -X POST "http://localhost:5000/api_v1/lead_create" \
 
 ### Lead Status by Mobile Number
 ```bash
-curl -X POST "http://localhost:5000/api_v1/lead_status" \
+curl -X POST "http://localhost:8000/api_v1/lead_status" \
   -H "Content-Type: application/json" \
   -d '{"mobile_number": "917888888888"}'
 ```
 
 ### Lead Status by Application ID
 ```bash
-curl -X POST "http://localhost:5000/api_v1/lead_status" \
+curl -X POST "http://localhost:8000/api_v1/lead_status" \
   -H "Content-Type: application/json" \
   -d '{"basic_application_id": "BA123456789"}'
 ```
 
-### Create Detailed Lead
+### Create Lead
 ```bash
-curl -X POST "http://localhost:5000/api_v1/detailed_leads_create" \
+curl -X POST "http://localhost:8000/api_v1/create_lead" \
   -H "Content-Type: application/json" \
   -d '{
-    "first_name": "John",
-    "last_name": "Doe",
-    "mobile_number": "7988362283",
+    "firstName": "John",
+    "lastName": "Doe",
+    "mobile": "7999999999",
     "email": "john.doe@example.com",
-    "pan_number": "ABCDE1234F",
-    "loan_type": "HL",
-    "loan_amount": 100000,
-    "loan_tenure": 24,
-    "annual_income": 500000,
-    "credit_score": 750,
-    "city": "Jind",
-    "district": "Jind",
+    "pan": "ABCDE1234F",
+    "loanType": "HL",
+    "loanAmountReq": 100000,
+    "loanTenure": 24,
+    "creditScore": 750,
+    "pincode": "126102",
+    "dateOfBirth": "1996-12-08",
+    "gender": "Male",
+    "annualIncome": 1200000,
     "state": "HARYANA",
-    "pin_code": "126102",
-    "dob": "1996-12-08",
-    "gender": "Male"
+    "remarks": "Priority lead"
+  }'
+```
+
+### Lead Flash
+```bash
+curl -X POST "http://localhost:8000/api_v1/lead_flash" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "firstName": "John",
+    "lastName": "Doe",
+    "mobile": "7999999999",
+    "email": "john.doe@example.com",
+    "pan": "ABCDE1234F",
+    "loanType": "HL",
+    "loanAmountReq": 100000,
+    "loanTenure": 24,
+    "creditScore": 750,
+    "pincode": "126102",
+    "dateOfBirth": "1996-12-08",
+    "gender": "Male",
+    "applicationId": "adfd2272-c572-420d-bafc-b134ed3a0aa3",
+    "professionId": "34e544e6-1e22-49f4-a56a-44c14a32b484",
+    "professionName": "Salaried",
+    "propertyIdentified": "Yes",
+    "propertyName": "Green Valley Apartments",
+    "propertyValue": 8500000
   }'
 ```
 
 ### Book Appointment
 ```bash
-curl -X POST "http://localhost:5000/api_v1/book_appointment" \
+curl -X POST "http://localhost:8000/api_v1/book_appointment" \
   -H "Content-Type: application/json" \
   -d '{
     "date": "30-07-2025",
@@ -380,12 +460,12 @@ curl -X POST "http://localhost:5000/api_v1/book_appointment" \
 
 ### Health Check
 ```bash
-curl -X GET "http://localhost:5000/api_v1/health"
+curl -X GET "http://localhost:8000/api_v1/health"
 ```
 
 ### Start Historical Disbursements Processing
 ```bash
-curl -X POST "http://localhost:5000/api_v1/historical/start" \
+curl -X POST "http://localhost:8000/api_v1/historical/start" \
   -H "Content-Type: application/json" \
   -d '{
     "days_back": 30,
@@ -396,13 +476,13 @@ curl -X POST "http://localhost:5000/api_v1/historical/start" \
 
 ### Start Live Disbursements Monitoring
 ```bash
-curl -X POST "http://localhost:5000/api_v1/live/start" \
+curl -X POST "http://localhost:8000/api_v1/live/start" \
   -H "Content-Type: application/json"
 ```
 
 ### Check Job Status
 ```bash
-curl -X GET "http://localhost:5000/api_v1/historical/status/{job_id}"
+curl -X GET "http://localhost:8000/api_v1/historical/status/{job_id}"
 ```
 
 ## Error Responses Format

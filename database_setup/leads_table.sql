@@ -2,8 +2,8 @@
 -- Based on the CreateFBBByBasicUser and SelfFullfilment API response structure
 -- Run this in your Supabase SQL Editor
 
--- Create the detailed_leads table
-CREATE TABLE IF NOT EXISTS detailed_leads (
+-- Create the leads table
+CREATE TABLE IF NOT EXISTS leads (
     id BIGSERIAL PRIMARY KEY,
     
     -- Core Application Fields
@@ -140,21 +140,21 @@ CREATE TABLE IF NOT EXISTS detailed_leads (
 );
 
 -- Create indexes for better performance
-CREATE INDEX IF NOT EXISTS idx_detailed_leads_api_id ON detailed_leads(api_id);
-CREATE INDEX IF NOT EXISTS idx_detailed_leads_basic_app_id ON detailed_leads(basic_app_id);
-CREATE INDEX IF NOT EXISTS idx_detailed_leads_customer_id ON detailed_leads(customer_id);
-CREATE INDEX IF NOT EXISTS idx_detailed_leads_customer_mobile ON detailed_leads(customer_mobile);
-CREATE INDEX IF NOT EXISTS idx_detailed_leads_customer_pan ON detailed_leads(customer_pan);
-CREATE INDEX IF NOT EXISTS idx_detailed_leads_customer_email ON detailed_leads(customer_email);
-CREATE INDEX IF NOT EXISTS idx_detailed_leads_application_status ON detailed_leads(application_status);
-CREATE INDEX IF NOT EXISTS idx_detailed_leads_application_stage ON detailed_leads(application_stage);
-CREATE INDEX IF NOT EXISTS idx_detailed_leads_loan_type ON detailed_leads(loan_type);
-CREATE INDEX IF NOT EXISTS idx_detailed_leads_internal_status ON detailed_leads(internal_status);
-CREATE INDEX IF NOT EXISTS idx_detailed_leads_processing_stage ON detailed_leads(processing_stage);
-CREATE INDEX IF NOT EXISTS idx_detailed_leads_created_at ON detailed_leads(created_at);
+CREATE INDEX IF NOT EXISTS idx_leads_api_id ON leads(api_id);
+CREATE INDEX IF NOT EXISTS idx_leads_basic_app_id ON leads(basic_app_id);
+CREATE INDEX IF NOT EXISTS idx_leads_customer_id ON leads(customer_id);
+CREATE INDEX IF NOT EXISTS idx_leads_customer_mobile ON leads(customer_mobile);
+CREATE INDEX IF NOT EXISTS idx_leads_customer_pan ON leads(customer_pan);
+CREATE INDEX IF NOT EXISTS idx_leads_customer_email ON leads(customer_email);
+CREATE INDEX IF NOT EXISTS idx_leads_application_status ON leads(application_status);
+CREATE INDEX IF NOT EXISTS idx_leads_application_stage ON leads(application_stage);
+CREATE INDEX IF NOT EXISTS idx_leads_loan_type ON leads(loan_type);
+CREATE INDEX IF NOT EXISTS idx_leads_internal_status ON leads(internal_status);
+CREATE INDEX IF NOT EXISTS idx_leads_processing_stage ON leads(processing_stage);
+CREATE INDEX IF NOT EXISTS idx_leads_created_at ON leads(created_at);
 
 -- Create updated_at trigger
-CREATE OR REPLACE FUNCTION update_detailed_leads_updated_at_column()
+CREATE OR REPLACE FUNCTION update_leads_updated_at_column()
 RETURNS TRIGGER AS $$
 BEGIN
     NEW.updated_at = NOW();
@@ -162,23 +162,23 @@ BEGIN
 END;
 $$ language 'plpgsql';
 
-DROP TRIGGER IF EXISTS update_detailed_leads_updated_at ON detailed_leads;
-CREATE TRIGGER update_detailed_leads_updated_at 
-    BEFORE UPDATE ON detailed_leads 
+DROP TRIGGER IF EXISTS update_leads_updated_at ON leads;
+CREATE TRIGGER update_leads_updated_at 
+    BEFORE UPDATE ON leads 
     FOR EACH ROW 
-    EXECUTE FUNCTION update_detailed_leads_updated_at_column();
+    EXECUTE FUNCTION update_leads_updated_at_column();
 
 -- Grant permissions to service role
-GRANT ALL ON detailed_leads TO service_role;
-GRANT USAGE, SELECT ON SEQUENCE detailed_leads_id_seq TO service_role;
+GRANT ALL ON leads TO service_role;
+GRANT USAGE, SELECT ON SEQUENCE leads_id_seq TO service_role;
 
 -- Disable Row Level Security for this table
-ALTER TABLE detailed_leads DISABLE ROW LEVEL SECURITY;
+ALTER TABLE leads DISABLE ROW LEVEL SECURITY;
 
 -- Create a view for detailed leads statistics
-CREATE OR REPLACE VIEW detailed_leads_statistics AS
+CREATE OR REPLACE VIEW leads_statistics AS
 SELECT 
-    COUNT(*) as total_detailed_leads,
+    COUNT(*) as total_leads,
     COUNT(CASE WHEN internal_status = 'created' THEN 1 END) as created_leads,
     COUNT(CASE WHEN internal_status = 'fbb_completed' THEN 1 END) as fbb_completed_leads,
     COUNT(CASE WHEN internal_status = 'self_fullfilment_completed' THEN 1 END) as self_fullfilment_completed_leads,
@@ -192,13 +192,13 @@ SELECT
     COUNT(CASE WHEN created_at >= NOW() - INTERVAL '7 days' THEN 1 END) as leads_last_7d,
     AVG(loan_amount_req) as avg_loan_amount,
     AVG(loan_tenure) as avg_loan_tenure
-FROM detailed_leads;
+FROM leads;
 
 -- Grant permissions on the view
-GRANT SELECT ON detailed_leads_statistics TO service_role;
+GRANT SELECT ON leads_statistics TO service_role;
 
 -- Create functions for common queries
-CREATE OR REPLACE FUNCTION get_detailed_leads_by_mobile(mobile VARCHAR)
+CREATE OR REPLACE FUNCTION get_leads_by_mobile(mobile VARCHAR)
 RETURNS TABLE (
     id BIGINT,
     api_id UUID,
@@ -222,13 +222,13 @@ BEGIN
         dl.application_status,
         dl.internal_status,
         dl.created_at
-    FROM detailed_leads dl
+    FROM leads dl
     WHERE dl.customer_mobile = mobile
     ORDER BY dl.created_at DESC;
 END;
 $$ LANGUAGE plpgsql;
 
-CREATE OR REPLACE FUNCTION get_detailed_leads_by_basic_app_id(app_id VARCHAR)
+CREATE OR REPLACE FUNCTION get_leads_by_basic_app_id(app_id VARCHAR)
 RETURNS TABLE (
     id BIGINT,
     api_id UUID,
@@ -252,12 +252,12 @@ BEGIN
         dl.application_status,
         dl.internal_status,
         dl.created_at
-    FROM detailed_leads dl
+    FROM leads dl
     WHERE dl.basic_app_id = app_id
     ORDER BY dl.created_at DESC;
 END;
 $$ LANGUAGE plpgsql;
 
 -- Grant execute permissions on functions
-GRANT EXECUTE ON FUNCTION get_detailed_leads_by_mobile(VARCHAR) TO service_role;
-GRANT EXECUTE ON FUNCTION get_detailed_leads_by_basic_app_id(VARCHAR) TO service_role; 
+GRANT EXECUTE ON FUNCTION get_leads_by_mobile(VARCHAR) TO service_role;
+GRANT EXECUTE ON FUNCTION get_leads_by_basic_app_id(VARCHAR) TO service_role; 

@@ -2,7 +2,6 @@ import httpx
 import requests
 import os
 import uuid
-import time
 import json
 import hashlib
 import hmac
@@ -98,7 +97,7 @@ class BasicApplicationService:
             "loanTenure": lead_data.get("loan_tenure", 0)
         }
 
-    # Detailed Leads Creation API Payload - CreateFBBByBasicUser
+    # Leads Creation API Payload - CreateFBBByBasicUser
     def _prepare_FBB_by_basic_user_payload(self, lead_data: Dict) -> Dict:
         """
         Prepare FBB by basic user payload for Basic Application API
@@ -114,21 +113,21 @@ class BasicApplicationService:
         if dob:
             dob = self._format_date(dob)
         
-        return {"annualIncome":0,
-                "applicationAssignedToRm": "2762f5b5-ecdc-4826-b003-f332b658e6f4",
+        return {"annualIncome":lead_data.get("annualIncome", 0),
+                "applicationAssignedToRm": lead_data.get("applicationAssignedToRm", "b3981dc9-02b3-44be-be96-5a09a5547d51"),
                 "city": lead_data.get("city", ""),
-                "createdFromPemId": "string", 
+                "createdFromPemId": lead_data.get("createdFromPemId", ""), 
                 "creditScore": lead_data.get("creditScore", 0),
-                "creditScoreTypeId": "string", 
-                "customerId": "234", 
+                "creditScoreTypeId": lead_data.get("creditScoreTypeId", ""), 
+                "customerId": lead_data.get("customerId", "234"), 
                 "dateOfBirth": lead_data.get("dateOfBirth", ""),  
                 "district": lead_data.get("district", ""),
                 "email": lead_data.get("email", ""),
                 "firstName": lead_data.get("firstName", ""),
                 "gender": lead_data.get("gender", ""),
-                "id": "6749d3e6-0c69-4148-a200-667c165ab18c", 
-                "includeCreditScore": True,
-                "isLeadPrefilled": True,
+                "id": str(uuid.uuid4()), 
+                "includeCreditScore": lead_data.get("includeCreditScore", True),
+                "isLeadPrefilled": lead_data.get("isLeadPrefilled", True),
                 "lastName": lead_data.get("lastName", ""),
                 "loanAmountReq": lead_data.get("loanAmountReq", 0),
                 "loanTenure": lead_data.get("loanTenure", 0),
@@ -136,11 +135,11 @@ class BasicApplicationService:
                 "mobile": lead_data.get("mobile", ""),
                 "pan": lead_data.get("pan", ""),
                 "pincode": lead_data.get("pincode", "126102"),
-                "qrShortCode": "BAE000247",
-                "remarks":"good", 
+                "qrShortCode": lead_data.get("qrShortCode", "BAE000247"),
+                "remarks": lead_data.get("remarks", "good"), 
                 "state": lead_data.get("state", "")}
 
-    # Detailed Leads Creation API Payload - SelfFullfilment
+    # Leads Creation API Payload - SelfFullfilment
     def _prepare_self_fullfilment_payload(self, lead_data: Dict) -> Dict:
         """
         Prepare self fullfilment payload for Basic Application API
@@ -173,17 +172,17 @@ class BasicApplicationService:
                 "loanType": lead_data.get("loanType", "HL"),
                 "mobile": lead_data.get("mobile", ""),
                 "pincode": lead_data.get("pincode", ""),
-                "professionId": "34e544e6-1e22-49f4-a56a-44c14a32b484", # TODO: Get it my mapping(to be done)
-                "professionName": "Salaried", # TODO: Get it my mapping(to be done)
+                "professionId": lead_data.get("professionId", ""), 
+                "professionName": lead_data.get("professionName", ""), 
                 "state": lead_data.get("state", ""),
-                "selfCompanyTypeName": "",
+                "selfCompanyTypeName": lead_data.get("selfCompanyTypeName", ""), #
                 "pan": lead_data.get("pan", ""),
                 "canCustomerUploadDocuments": False,
                 "isOsvByConsultantAvailable": False,
                 "isLeadPrefilled": lead_data.get("isLeadPrefilled", False),
                 "includeCreditScore": lead_data.get("includeCreditScore", False),
                 "recentCreditReportExists": False,
-                "salaryCreditModeId": "ef70c7ce-577a-4302-a485-adccdf31968d", # TODO: Get it my mapping(to be done)
+                "salaryCreditModeId": lead_data.get("salaryCreditModeId", ""),
                 "loanTenure": lead_data.get("loanTenure", 0),
                 "isPropertyIdentified": False,
                 "isReferralLead": False,
@@ -197,17 +196,17 @@ class BasicApplicationService:
                 "towerName": "",
                 "creditScoreTypeId": "string",
                 "creditScoreTypeName": "",
-                "creditScore": 0,
-                "creditScoreStatus": "",
-                "isVistedNextPage": True,
+                "creditScore": lead_data.get("creditScore", 0), #
+                "creditScoreStatus": lead_data.get("creditScoreStatus", ""), #
+                "isVistedNextPage": False,
                 "manualCreditScore": 0,
-                "salaryCreditModeName": "",
-                "selfCompanyTypeId": "",
-                "companyName": "",
-                "propertyTypeId": "",
-                "propertyValue": "",
-                "loanUsageTypeId": "",
-                "aggrementTypeId": "",
+                "salaryCreditModeName": lead_data.get("salaryCreditModeName", ""), #
+                "selfCompanyTypeId": lead_data.get("selfCompanyTypeId", ""), #
+                "companyName": lead_data.get("companyName", ""), #
+                "propertyTypeId": lead_data.get("propertyTypeId", ""), #
+                "propertyValue": lead_data.get("propertyValue", 0), #
+                "loanUsageTypeId": lead_data.get("loanUsageTypeId", ""), #
+                "aggrementTypeId": lead_data.get("aggrementTypeId", ""), #
                 "towerUnitType": ""
             }
 
@@ -485,10 +484,10 @@ class BasicApplicationService:
         except Exception as e:
             raise HTTPException(status_code=500, detail=f"Error calling Basic Application API: {str(e)}")
     
-    # Detailed Leads Creation API using CreateFBBByBasicUser
+    # Leads Creation API using CreateFBBByBasicUser
     def create_FBB_by_basic_user(self, lead_data: Dict) -> Dict:
         """
-        Create detailed lead in Basic Application API(CreateFBBByBasicUser)
+        Create lead in Basic Application API(CreateFBBByBasicUser)
         
         Args:
             lead_data: Lead data from request
@@ -516,7 +515,6 @@ class BasicApplicationService:
                  self.BASIC_APPLICATION_API_KEY)
 
             response = requests.post(api_url, headers=headers, json=api_payload)
-            print("Lead Create:", response.text)
 
             if response.status_code in [200, 201]:
                 try:
@@ -580,7 +578,6 @@ class BasicApplicationService:
                  self.BASIC_APPLICATION_USER_ID,
                  self.BASIC_APPLICATION_API_KEY)
             response = requests.put(api_url, headers=headers, json=api_payload)
-            print("**********************",response.text, response.status_code,"**********************")
 
             if response.status_code in [200, 201]:
                 try:
@@ -611,10 +608,10 @@ class BasicApplicationService:
             raise HTTPException(status_code=500, detail=f"Error calling Basic Application API: {str(e)}")
     
 
-    # Detailed Leads Creation API using SelfFullfilment
+    # Leads Creation API using SelfFullfilment
     def create_self_fullfilment_lead(self, lead_data: Dict) -> Dict:
         """
-        Create detailed lead in Basic Application API(SelfFullfilment)
+        Create lead in Basic Application API(SelfFullfilment)
         
         Args:
             lead_data: Lead data from request
@@ -764,7 +761,7 @@ class BasicApplicationService:
             return None 
 
 
-    # Detailed Leads Creation API using CreateFBBByBasicUser
+    # Leads Creation API using CreateFBBByBasicUser
     def create_appointment_by_basic_user(self, lead_data: Dict) -> Dict:
         """
         Create/book appointment in Basic Application API

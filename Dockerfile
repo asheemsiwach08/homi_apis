@@ -15,6 +15,8 @@ RUN apt-get update \
         gcc \
         g++ \
         libpq-dev \
+        curl \
+        ca-certificates \
     && rm -rf /var/lib/apt/lists/*
 
 # Copy requirements first for better caching
@@ -27,13 +29,20 @@ RUN pip install --no-cache-dir --upgrade pip \
 # Copy application code
 COPY . .
 
+# Create logs directory for application logs
+RUN mkdir -p /app/logs
+
 # Create non-root user for security
 RUN adduser --disabled-password --gecos '' appuser \
     && chown -R appuser:appuser /app
 USER appuser
 
-# Expose port
+# Expose port (updated to 5000)
 EXPOSE 5000
 
-# Run the application
+# Health check
+HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
+    CMD curl -f http://localhost:5000/api_v1/health || exit 1
+
+# Run the application on port 5000
 CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "5000"] 

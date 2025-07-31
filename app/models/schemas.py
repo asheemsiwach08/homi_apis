@@ -74,6 +74,7 @@ class LeadFlashRequest(BaseModel):
     agreementType: Optional[str] = None
     propertyTypeId: Optional[str] = None
     aggrementTypeId: Optional[str] = None
+    coBorrowerIncome: Optional[float] = None
     salaryCreditModeId: Optional[str] = None
     propertyIdentified: Optional[str] = None
     salaryCreditModeName: Optional[str] = None

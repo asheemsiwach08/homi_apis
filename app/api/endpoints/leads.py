@@ -304,6 +304,7 @@ async def lead_flash_api(request: LeadFlashRequest):
             "applicationId": request.applicationId,
             "professionId": request.professionId, 
             "professionName": request.professionName, 
+            "coBorrowerIncome": request.coBorrowerIncome,
             "propertyIdentified": request.propertyIdentified,
             "propertyName": request.propertyName,
             "propertyType": request.propertyType,

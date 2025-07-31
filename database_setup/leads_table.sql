@@ -1,4 +1,4 @@
--- Detailed Leads Table Setup for Supabase
+-- Leads Table Setup for Supabase
 -- Based on the CreateFBBByBasicUser and SelfFullfilment API response structure
 -- Run this in your Supabase SQL Editor
 
@@ -175,7 +175,7 @@ GRANT USAGE, SELECT ON SEQUENCE leads_id_seq TO service_role;
 -- Disable Row Level Security for this table
 ALTER TABLE leads DISABLE ROW LEVEL SECURITY;
 
--- Create a view for detailed leads statistics
+-- Create a view for leads statistics
 CREATE OR REPLACE VIEW leads_statistics AS
 SELECT 
     COUNT(*) as total_leads,

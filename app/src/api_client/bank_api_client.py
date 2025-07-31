@@ -42,7 +42,7 @@ class BankAPIClient:
         return self._make_api_request(url, "GET")
     
     def get_application_details(self, application_id: str) -> Dict[str, Any]:
-        """Get detailed information about a bank application.
+        """Get information about a bank application.
         
         Args:
             application_id: Bank application ID

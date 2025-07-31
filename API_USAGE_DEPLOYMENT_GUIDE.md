@@ -3,7 +3,7 @@
 ## Overview
 This guide details the API usage, endpoints, payloads, responses, error handling, and common CURL examples for HOM-i WhatsApp OTP Verification API hosted at:
 
-**Base URL:** `http://localhost:8000/api_v1`
+**Base URL:** `http://localhost:5000/api_v1`
 
 ## API Endpoints
 
@@ -346,28 +346,28 @@ The API supports automatic mapping of loan types to Basic Application codes:
 
 ### Send OTP
 ```bash
-curl -X POST "http://localhost:8000/api_v1/otp_send" \
+curl -X POST "http://localhost:5000/api_v1/otp_send" \
   -H "Content-Type: application/json" \
   -d '{"phone_number": "917888888888"}'
 ```
 
 ### Verify OTP
 ```bash
-curl -X POST "http://localhost:8000/api_v1/otp_verify" \
+curl -X POST "http://localhost:5000/api_v1/otp_verify" \
   -H "Content-Type: application/json" \
   -d '{"phone_number": "917888888888", "otp": "123456"}'
 ```
 
 ### Resend OTP
 ```bash
-curl -X POST "http://localhost:8000/api_v1/otp_resend" \
+curl -X POST "http://localhost:5000/api_v1/otp_resend" \
   -H "Content-Type: application/json" \
   -d '{"phone_number": "917888888888"}'
 ```
 
 ### Create Lead
 ```bash
-curl -X POST "http://localhost:8000/api_v1/lead_create" \
+curl -X POST "http://localhost:5000/api_v1/lead_create" \
   -H "Content-Type: application/json" \
   -d '{
     "first_name": "John",
@@ -386,21 +386,21 @@ curl -X POST "http://localhost:8000/api_v1/lead_create" \
 
 ### Lead Status by Mobile Number
 ```bash
-curl -X POST "http://localhost:8000/api_v1/lead_status" \
+curl -X POST "http://localhost:5000/api_v1/lead_status" \
   -H "Content-Type: application/json" \
   -d '{"mobile_number": "917888888888"}'
 ```
 
 ### Lead Status by Application ID
 ```bash
-curl -X POST "http://localhost:8000/api_v1/lead_status" \
+curl -X POST "http://localhost:5000/api_v1/lead_status" \
   -H "Content-Type: application/json" \
   -d '{"basic_application_id": "BA123456789"}'
 ```
 
 ### Create Lead
 ```bash
-curl -X POST "http://localhost:8000/api_v1/create_lead" \
+curl -X POST "http://localhost:5000/api_v1/create_lead" \
   -H "Content-Type: application/json" \
   -d '{
     "firstName": "John",
@@ -423,7 +423,7 @@ curl -X POST "http://localhost:8000/api_v1/create_lead" \
 
 ### Lead Flash
 ```bash
-curl -X POST "http://localhost:8000/api_v1/lead_flash" \
+curl -X POST "http://localhost:5000/api_v1/lead_flash" \
   -H "Content-Type: application/json" \
   -d '{
     "firstName": "John",
@@ -449,7 +449,7 @@ curl -X POST "http://localhost:8000/api_v1/lead_flash" \
 
 ### Book Appointment
 ```bash
-curl -X POST "http://localhost:8000/api_v1/book_appointment" \
+curl -X POST "http://localhost:5000/api_v1/book_appointment" \
   -H "Content-Type: application/json" \
   -d '{
     "date": "30-07-2025",
@@ -460,12 +460,12 @@ curl -X POST "http://localhost:8000/api_v1/book_appointment" \
 
 ### Health Check
 ```bash
-curl -X GET "http://localhost:8000/api_v1/health"
+curl -X GET "http://localhost:5000/api_v1/health"
 ```
 
 ### Start Historical Disbursements Processing
 ```bash
-curl -X POST "http://localhost:8000/api_v1/historical/start" \
+curl -X POST "http://localhost:5000/api_v1/historical/start" \
   -H "Content-Type: application/json" \
   -d '{
     "days_back": 30,
@@ -476,13 +476,13 @@ curl -X POST "http://localhost:8000/api_v1/historical/start" \
 
 ### Start Live Disbursements Monitoring
 ```bash
-curl -X POST "http://localhost:8000/api_v1/live/start" \
+curl -X POST "http://localhost:5000/api_v1/live/start" \
   -H "Content-Type: application/json"
 ```
 
 ### Check Job Status
 ```bash
-curl -X GET "http://localhost:8000/api_v1/historical/status/{job_id}"
+curl -X GET "http://localhost:5000/api_v1/historical/status/{job_id}"
 ```
 
 ## Error Responses Format

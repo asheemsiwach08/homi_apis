@@ -289,39 +289,88 @@ async def lead_flash_api(request: LeadFlashRequest):
         
         # Prepare data for API calls
         api_data = {
+            # Core Personal Information
             "firstName": request.firstName,
             "lastName": request.lastName,
             "gender": request.gender,
             "mobile": request.mobile,
-            "creditScore": request.creditScore,
+            "email": request.email,
+            "dateOfBirth": request.dateOfBirth,
             "pan": request.pan,
+            
+            # Application Information
+            "applicationId": request.applicationId,
+            "creditScore": request.creditScore,
             "loanType": request.loanType,
             "loanAmountReq": request.loanAmountReq,   
             "loanTenure": request.loanTenure,
-            "pincode": request.pincode, 
-            "email": request.email,
-            "dateOfBirth": request.dateOfBirth,
-            "applicationId": request.applicationId,
+            "pincode": request.pincode,
+            
+            # Location Information
+            "location": request.location,
+            
+            # Profession Information
             "professionId": request.professionId, 
-            "professionName": request.professionName, 
+            "professionName": request.professionName,
+            
+            # Financial Information
             "coBorrowerIncome": request.coBorrowerIncome,
+            "salaryCreditModeId": request.salaryCreditModeId, 
+            "salaryCreditModeName": request.salaryCreditModeName,
+            "selfCompanyTypeId": request.selfCompanyTypeId,
+            "companyName": request.companyName,
+            
+            # Property Information
             "propertyIdentified": request.propertyIdentified,
             "propertyName": request.propertyName,
             "propertyType": request.propertyType,
             "agreementType": request.agreementType,
-            "unitType": request.unitType,
-            "location": request.location,
-            "usageType": request.usageType,
-            "unitNumber": request.unitNumber,
-            "salaryCreditModeId": request.salaryCreditModeId, #
-            "salaryCreditModeName": request.salaryCreditModeName,
-            "selfCompanyTypeId": request.selfCompanyTypeId,
-            "companyName": request.companyName,
             "propertyTypeId": request.propertyTypeId,
             "propertyValue": request.propertyValue,
+            "propertyDistrict": request.propertyDistrict,
+            "propertyPincode": request.propertyPincode,
+            "propertyProjectName": request.propertyProjectName,
+            
+            # Property Details
+            "unitType": request.unitType,
+            "usageType": request.usageType,
+            "unitNumber": request.unitNumber,
+            "towerName": request.towerName,
+            "towerUnitType": request.towerUnitType,
+            "builderId": request.builderId,
+            "towerId": request.towerId,
+            "builderName": request.builderName,
+            
+            # Loan Configuration
             "loanUsageTypeId": request.loanUsageTypeId,
             "aggrementTypeId": request.aggrementTypeId,
-        }
+            
+            # Credit Information
+            "creditScoreTypeId": request.creditScoreTypeId,
+            "creditScoreTypeName": request.creditScoreTypeName,
+            "manualCreditScore": request.manualCreditScore,
+            
+            # Documents and Processing
+            "documents": request.documents,
+            "isVistedNextPage": request.isVistedNextPage,
+            
+            # **MISSING FIELDS ADDED - Required by Self-Fulfillment API:**
+            "annualIncome": request.annualIncome or 0,
+            "city": request.city or "",
+            "district": request.district or "",
+            "state": request.state or "",
+            "existingEmis": request.existingEmis or "",
+            "selfCompanyTypeName": request.selfCompanyTypeName or "",
+            "canCustomerUploadDocuments": request.canCustomerUploadDocuments or False,
+            "isOsvByConsultantAvailable": request.isOsvByConsultantAvailable or False,
+            "isLeadPrefilled": request.isLeadPrefilled or False,
+            "includeCreditScore": request.includeCreditScore or False,
+            "recentCreditReportExists": request.recentCreditReportExists or False,
+            "isPropertyIdentified": request.isPropertyIdentified or False,
+            "isReferralLead": request.isReferralLead or False,
+            "projectId": request.projectId or "",
+            "creditScoreStatus": request.creditScoreStatus or ""
+        }   
         print("API DATA:", api_data)
         # Call Basic Fulfillment API (optional step)
         try:

@@ -80,10 +80,6 @@ def validate_property_name(propertyName: str) -> bool:
     """Validate property name"""
     return propertyName.strip() != ""
 
-def validate_estimated_property_value(estimatedPropertyValue: str) -> bool:
-    """Validate estimated property value"""
-    return estimatedPropertyValue.strip() != ""
-
 def validate_property_type(propertyType: str) -> bool:
     """Validate property type"""
     return propertyType.strip() != ""

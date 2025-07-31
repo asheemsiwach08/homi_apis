@@ -160,7 +160,7 @@ class BasicApplicationService:
                 "coBorrowerIncome": lead_data.get("coBorrowerIncome", 0),
                 "dateOfBirth": lead_data.get("dateOfBirth", ""),
                 "district": lead_data.get("district", ""),
-                "documents": [],
+                "documents": lead_data.get("documents", []),
                 "email": lead_data.get("email", ""),
                 "existingEmis": lead_data.get("existingEmis", ""),
                 "firstName": lead_data.get("firstName", ""),
@@ -176,29 +176,29 @@ class BasicApplicationService:
                 "state": lead_data.get("state", ""),
                 "selfCompanyTypeName": lead_data.get("selfCompanyTypeName", ""), #
                 "pan": lead_data.get("pan", ""),
-                "canCustomerUploadDocuments": False,
-                "isOsvByConsultantAvailable": False,
+                "canCustomerUploadDocuments": lead_data.get("canCustomerUploadDocuments", False),
+                "isOsvByConsultantAvailable": lead_data.get("isOsvByConsultantAvailable", False),
                 "isLeadPrefilled": lead_data.get("isLeadPrefilled", False),
                 "includeCreditScore": lead_data.get("includeCreditScore", False),
-                "recentCreditReportExists": False,
+                "recentCreditReportExists": lead_data.get("recentCreditReportExists", False),
                 "salaryCreditModeId": lead_data.get("salaryCreditModeId", ""),
                 "loanTenure": lead_data.get("loanTenure", 0),
-                "isPropertyIdentified": False,
-                "isReferralLead": False,
-                "propertyDistrict": "",
-                "propertyPincode": "",
-                "builderId": "",
-                "projectId": "",
-                "towerId": "",
-                "builderName": "",
-                "propertyProjectName": "",
-                "towerName": "",
-                "creditScoreTypeId": "string",
-                "creditScoreTypeName": "",
-                "creditScore": lead_data.get("creditScore", 0), #
-                "creditScoreStatus": lead_data.get("creditScoreStatus", ""), #
-                "isVistedNextPage": False,
-                "manualCreditScore": 0,
+                "isPropertyIdentified": lead_data.get("isPropertyIdentified", False),
+                "isReferralLead": lead_data.get("isReferralLead", False),
+                "propertyDistrict": lead_data.get("propertyDistrict", ""),
+                "propertyPincode": lead_data.get("propertyPincode", ""),
+                "builderId": lead_data.get("builderId", ""),
+                "projectId": lead_data.get("projectId", ""),
+                "towerId": lead_data.get("towerId", ""),
+                "builderName": lead_data.get("builderName", ""),
+                "propertyProjectName": lead_data.get("propertyProjectName", ""),
+                "towerName": lead_data.get("towerName", ""),
+                "creditScoreTypeId": lead_data.get("creditScoreTypeId", ""),
+                "creditScoreTypeName": lead_data.get("creditScoreTypeName", ""),
+                "creditScore": lead_data.get("creditScore", 0), 
+                "creditScoreStatus": lead_data.get("creditScoreStatus", ""), 
+                "isVistedNextPage": lead_data.get("isVistedNextPage", False),
+                "manualCreditScore": lead_data.get("manualCreditScore", 0),
                 "salaryCreditModeName": lead_data.get("salaryCreditModeName", ""), #
                 "selfCompanyTypeId": lead_data.get("selfCompanyTypeId", ""), #
                 "companyName": lead_data.get("companyName", ""), #
@@ -206,7 +206,7 @@ class BasicApplicationService:
                 "propertyValue": lead_data.get("propertyValue", 0), #
                 "loanUsageTypeId": lead_data.get("loanUsageTypeId", ""), #
                 "aggrementTypeId": lead_data.get("aggrementTypeId", ""), #
-                "towerUnitType": ""
+                "towerUnitType": lead_data.get("towerUnitType", "")
             }
 
 # {"aggrementTypeId": "",
@@ -623,7 +623,6 @@ class BasicApplicationService:
         """
         try:
             api_payload = self._prepare_self_fullfilment_payload(lead_data)
-            logger.info(f"API Payload: SelfFullfilment {api_payload}")
             
             if not self.basic_api_url:
                 raise HTTPException(
@@ -734,6 +733,7 @@ class BasicApplicationService:
                      self.BASIC_APPLICATION_API_KEY)
                 
                 response = requests.get(api_url, headers=headers)
+                print("Response: ", response.text)
                     
                 if response.status_code == 200:
                     try:

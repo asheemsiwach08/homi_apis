@@ -2,7 +2,6 @@
 Processing service for bank application verification.
 Handles signature generation and API communication.
 """
-
 import hmac
 import json
 import uuid

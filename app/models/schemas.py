@@ -84,7 +84,35 @@ class LeadFlashRequest(BaseModel):
     companyName: Optional[str] = None
     unitNumber: Optional[str] = None
     usageType: Optional[str] = None
+    towerName: Optional[str] = None
     unitType: Optional[str] = None
+    documents: Optional[list] = None
+    propertyDistrict: Optional[str] = None
+    propertyPincode: Optional[str] = None
+    builderId: Optional[str] = None
+    towerId: Optional[str] = None
+    builderName: Optional[str] = None
+    creditScoreTypeId: Optional[str] = None
+    creditScoreTypeName: Optional[str] = None
+    isVistedNextPage: Optional[bool] = None
+    manualCreditScore: Optional[int] = None
+    towerUnitType: Optional[str] = None
+    propertyProjectName: Optional[str] = None
+    annualIncome: Optional[float] = None
+    city: Optional[str] = None
+    district: Optional[str] = None
+    state: Optional[str] = None
+    existingEmis: Optional[str] = None
+    selfCompanyTypeName: Optional[str] = None
+    canCustomerUploadDocuments: Optional[bool] = None
+    isOsvByConsultantAvailable: Optional[bool] = None
+    isLeadPrefilled: Optional[bool] = None
+    includeCreditScore: Optional[bool] = None
+    recentCreditReportExists: Optional[bool] = None
+    isPropertyIdentified: Optional[bool] = None
+    isReferralLead: Optional[bool] = None
+    projectId: Optional[str] = None
+    creditScoreStatus: Optional[str] = None
 
 class LeadFlashResponse(BaseModel):
     basic_application_id: str

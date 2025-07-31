@@ -167,9 +167,9 @@ async def create_lead_api(request: LeadCreateRequest):
         if application_comments and len(application_comments) > 0:
             reference_id = application_comments[0].get("refId", "")
             
-        if not reference_id:
-            logger.error("Failed to extract reference ID from FBB response")
-            raise HTTPException(status_code=400, detail="Failed to generate Reference ID")
+        # if not reference_id:
+        #     logger.error("Failed to extract reference ID from FBB response")
+        #     raise HTTPException(status_code=400, detail="Failed to generate Reference ID")
 
         basic_application_id = fbb_user_result.get("result", {}).get("basicAppId", "")
         if not basic_application_id:

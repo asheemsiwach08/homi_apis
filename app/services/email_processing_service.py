@@ -3,14 +3,14 @@ Email processing orchestration service that coordinates analysis and Google Shee
 """
 
 import logging
-from typing import List, Dict, Any
 from datetime import datetime
+from typing import List, Dict, Any
 
-from app.src.email_processor import ZohoMailClient
+from app.config.config import config
 from app.src.ai_analyzer import OpenAIAnalyzer
+from app.src.email_processor import ZohoMailClient
 from app.src.api_client import BasicApplicationService
 from app.src.sheets_integration import GoogleSheetsClient
-from app.config.config import config
 
 logger = logging.getLogger(__name__)
 

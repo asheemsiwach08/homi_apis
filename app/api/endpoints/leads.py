@@ -17,6 +17,10 @@ router = APIRouter(prefix="/api_v1", tags=['leads'])
 # Initialize services
 basic_app_service = BasicApplicationService()
 
+############################################################################################
+                                # Validate Lead Data
+############################################################################################
+
 def validate_lead_create_data(lead_data: LeadCreateRequest):
     """
     Validate lead data using comprehensive utility validators
@@ -73,6 +77,10 @@ def validate_lead_create_data(lead_data: LeadCreateRequest):
 
     return True
 
+
+############################################################################################
+                                # Create Lead API
+############################################################################################
 
 @router.post("/create_lead", response_model=LeadCreateResponse)
 async def create_lead_api(request: LeadCreateRequest):
@@ -217,6 +225,10 @@ async def create_lead_api(request: LeadCreateRequest):
         logger.error(f"Unexpected error in lead creation: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
 
+
+############################################################################################
+                                # Lead Flash API
+############################################################################################
 
 @router.post("/lead_flash", response_model=LeadFlashResponse)
 async def lead_flash_api(request: LeadFlashRequest):

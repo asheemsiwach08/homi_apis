@@ -54,6 +54,10 @@ def get_historical_sheets_client() -> Optional[GoogleSheetsClient]:
         return None
 
 
+############################################################################################
+                                # Historical Disbursements Start API
+############################################################################################
+
 @router.post("/historical_disbursements_start")
 async def start_historical_processing(
     request: HistoricalProcessRequest,
@@ -100,6 +104,10 @@ async def start_historical_processing(
         raise HTTPException(status_code=500, detail=str(e))
 
 
+############################################################################################
+                                # Historical Disbursements Cancel API
+############################################################################################
+
 @router.post("/historical_disbursements_cancel/{job_id}")
 async def cancel_job(job_id: str) -> Dict[str, Any]:
     """Cancel a running historical processing job."""
@@ -128,6 +136,10 @@ async def cancel_job(job_id: str) -> Dict[str, Any]:
         "job_id": job_id
     }
 
+
+############################################################################################
+                                # Historical Disbursements Status API
+############################################################################################
 
 @router.get("/historical_disbursements_status/{job_id}")
 async def get_job_status(job_id: str) -> Dict[str, Any]:

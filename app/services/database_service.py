@@ -1,11 +1,12 @@
-import os
 import time
 import logging
 from typing import Dict, Optional, List
-from datetime import datetime, timedelta, timezone
-from supabase import create_client, Client
+
 from fastapi import HTTPException
 from app.config.settings import settings
+from supabase import create_client, Client
+from datetime import datetime, timedelta, timezone
+
 
 logger = logging.getLogger(__name__)
 
@@ -164,7 +165,7 @@ class DatabaseService:
             return None
         
         try:
-            result = self.client.table("leads").select("*").eq("mobile_number", mobile_number).execute()
+            result = self.client.table("leads").select("*").eq("customer_mobile", mobile_number).execute()
             
             if result.data:
                 return result.data[0]

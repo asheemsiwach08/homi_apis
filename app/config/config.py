@@ -5,7 +5,7 @@ Handles environment variables from .env file.
 
 import os
 import logging
-from typing import Dict, Any, Optional
+from typing import Dict, Any
 from dotenv import load_dotenv
 
 # Configure basic logging

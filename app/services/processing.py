@@ -3,11 +3,11 @@ Processing service for bank application verification.
 Handles signature generation and API communication.
 """
 
-import hashlib
 import hmac
-import base64
 import json
 import uuid
+import base64
+import hashlib
 from datetime import datetime
 from typing import Dict, Any, Optional
 from urllib.parse import urlparse, parse_qsl, urlencode

@@ -11,6 +11,10 @@ logger = logging.getLogger(__name__)
 # Create API router with prefix
 router = APIRouter(prefix="/api_v1", tags=["OTP Operations"])
 
+############################################################################################
+                                # OTP Send API
+############################################################################################
+
 @router.post("/otp_send", response_model=OTPResponse)
 async def send_otp(request: SendOTPRequest):
     """Send OTP to the specified phone number"""
@@ -60,6 +64,10 @@ async def send_otp(request: SendOTPRequest):
             }
         )
 
+############################################################################################
+                                # OTP Resend API
+############################################################################################
+
 @router.post("/otp_resend", response_model=OTPResponse)
 async def resend_otp(request: ResendOTPRequest):
     """Resend OTP to the specified phone number"""
@@ -95,6 +103,10 @@ async def resend_otp(request: ResendOTPRequest):
                 "data": result.get("data", {"error": "Unknown error"})
             }
         )
+
+############################################################################################
+                                # OTP Verify API
+############################################################################################
 
 @router.post("/otp_verify", response_model=OTPResponse)
 async def verify_otp(request: VerifyOTPRequest):

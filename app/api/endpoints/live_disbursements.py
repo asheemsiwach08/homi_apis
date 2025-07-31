@@ -67,6 +67,10 @@ def get_live_sheets_client() -> Optional[GoogleSheetsClient]:
         return None
 
 
+############################################################################################
+                                # Live Disbursements Start API
+############################################################################################
+
 @router.post("/live_disbursements_start")
 async def start_live_monitoring(config: LiveMonitoringConfig) -> Dict[str, Any]:
     """Start live disbursement monitoring."""
@@ -128,6 +132,10 @@ async def start_live_monitoring(config: LiveMonitoringConfig) -> Dict[str, Any]:
         raise HTTPException(status_code=500, detail=str(e))
 
 
+############################################################################################
+                                # Live Disbursements Stop API
+############################################################################################
+
 @router.post("/live_disbursements_stop")
 async def stop_live_monitoring() -> Dict[str, Any]:
     """Stop live disbursement monitoring."""
@@ -162,6 +170,10 @@ async def stop_live_monitoring() -> Dict[str, Any]:
         logger.error(f"Failed to stop live monitoring: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
 
+
+############################################################################################
+                                # Live Disbursements Status API
+############################################################################################
 
 @router.get("/live_disbursements_status")
 async def get_monitoring_status() -> Dict[str, Any]:

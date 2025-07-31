@@ -7,7 +7,6 @@ from app.models.schemas import WhatsAppStatusResponse
 from app.services.basic_application_service import BasicApplicationService
 from app.services.whatsapp_service import whatsapp_service
 from app.services.database_service import database_service
-from app.utils.validators import validate_mobile_number
 from app.config.settings import settings
 
 logger = logging.getLogger(__name__)
@@ -17,9 +16,9 @@ router = APIRouter(prefix="/api_v1", tags=["whatsapp-webhook"])
 # Initialize services
 basic_app_service = BasicApplicationService()
 
-
-
-
+############################################################################################
+                                # WhatsApp Webhook Validation
+############################################################################################
 
 def is_status_check_request(message: str) -> bool:
     """Check if the message is requesting application status"""
@@ -39,6 +38,10 @@ def is_status_check_request(message: str) -> bool:
     
     message_lower = message.lower()
     return any(keyword in message_lower for keyword in status_keywords)
+
+############################################################################################
+                                # WhatsApp Webhook API
+############################################################################################
 
 @router.post("/whatsapp/webhook")
 async def whatsapp_webhook(request: Request):
@@ -223,6 +226,10 @@ async def whatsapp_webhook(request: Request):
             pass
         
         raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
+
+############################################################################################
+                                # WhatsApp Webhook Verification API
+############################################################################################
 
 @router.get("/whatsapp/webhook")
 async def verify_webhook(

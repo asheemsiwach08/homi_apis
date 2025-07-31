@@ -1,5 +1,5 @@
-import httpx
 import json
+import httpx
 import random
 from app.config.settings import settings
 

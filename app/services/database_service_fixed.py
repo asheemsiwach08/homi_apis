@@ -1,4 +1,4 @@
-import time
+﻿import time
 import logging
 from typing import Dict, Optional, List
 
@@ -1040,11 +1040,16 @@ class DatabaseService:
         """
         Save disbursement records to Supabase database.
         
+        Only saves records that meet quality criteria:
+        1. Must be disbursed (disbursement_stage = "Disbursed")
+        2. Must have loan_account_number OR bank_app_id
+        3. Must have valid disbursement_amount (not empty/zero)
+        
         Args:
             disbursement_records: List of disbursement dictionaries from AI analysis
             
         Returns:
-            Dict: Save operation statistics
+            Dict: Save operation statistics including filtered_out count
         """
         if not self.client:
             raise HTTPException(
@@ -1056,6 +1061,7 @@ class DatabaseService:
             'total_processed': 0,
             'new_records': 0,
             'duplicates_skipped': 0,
+            'filtered_out': 0,
             'errors': 0,
             'error_details': []
         }
@@ -1065,6 +1071,13 @@ class DatabaseService:
                 stats['total_processed'] += 1
                 
                 try:
+                    # Apply quality filters - only save relevant disbursed records
+                    if not self._is_valid_disbursement_record(record):
+                        stats['filtered_out'] += 1
+                        filter_reason = self._get_filter_reason(record)
+                        logger.info(f"Filtered out record: {filter_reason}")
+                        continue
+                    
                     # Check for duplicates based on loan_account_number and bank_app_id
                     is_duplicate = self._check_disbursement_duplicate(record)
                     
@@ -1093,7 +1106,7 @@ class DatabaseService:
                     logger.error(error_msg)
                     continue
             
-            logger.info(f"Disbursement save completed: {stats['new_records']} new, {stats['duplicates_skipped']} duplicates, {stats['errors']} errors")
+            logger.info(f"Disbursement save completed: {stats['new_records']} new, {stats.get('filtered_out', 0)} filtered out, {stats['duplicates_skipped']} duplicates, {stats['errors']} errors")
             return stats
             
         except Exception as e:
@@ -1177,32 +1190,123 @@ class DatabaseService:
             raise HTTPException(status_code=500, detail=f"Database error: {str(e)}")
 
     def _check_disbursement_duplicate(self, record: Dict) -> bool:
-        """Check if a disbursement record already exists."""
+        """
+        Check if a disbursement record already exists using composite key approach.
+        
+        A record is considered duplicate only if ALL these match:
+        1. Same application (loan_account_number OR bank_app_id)
+        2. Same disbursement amount
+        3. Same disbursement date OR same email (subject + date)
+        
+        This allows multiple disbursements for the same application with:
+        - Different amounts
+        - Different dates  
+        - Different email notifications
+        """
         try:
             loan_account = record.get('loanAccountNumber', '').strip()
             bank_app_id = record.get('bankAppId', '').strip()
+            disbursement_amount = record.get('disbursementAmount', '')
+            disbursed_on = record.get('disbursedOn', '').strip()
+            email_subject = record.get('emailSubject', '').strip()
+            email_date = record.get('emailDate', '').strip()
             
+            # Must have application identifier
             if not loan_account and not bank_app_id:
                 return False
             
-            query = self.client.table("disbursements").select("id")
+            # Must have amount for meaningful comparison
+            if not disbursement_amount:
+                return False
             
-            # Check by loan account number first
-            if loan_account and loan_account != 'Not found':
-                result = query.eq("loan_account_number", loan_account).execute()
-                if result.data:
-                    return True
+            # Normalize amount for comparison
+            try:
+                if isinstance(disbursement_amount, str):
+                    amount_float = float(disbursement_amount.replace(',', '').strip())
+                else:
+                    amount_float = float(disbursement_amount)
+            except (ValueError, TypeError):
+                logger.warning(f"Invalid disbursement amount for duplicate check: {disbursement_amount}")
+                return False
             
-            # Check by bank app ID if loan account not found
-            if bank_app_id and bank_app_id != 'Not found':
-                result = query.eq("bank_app_id", bank_app_id).execute()
-                if result.data:
+            # Build base query to get existing records with required fields
+            query = self.client.table("disbursements").select(
+                "id, loan_account_number, bank_app_id, disbursement_amount, disbursed_on, email_subject, email_date"
+            )
+            
+            # Filter by application identifier using OR condition
+            if loan_account and loan_account != 'Not found' and bank_app_id and bank_app_id != 'Not found':
+                # Both identifiers available - use OR
+                query = query.or_(f"loan_account_number.eq.{loan_account},bank_app_id.eq.{bank_app_id}")
+            elif loan_account and loan_account != 'Not found':
+                # Only loan account available
+                query = query.eq("loan_account_number", loan_account)
+            elif bank_app_id and bank_app_id != 'Not found':
+                # Only bank app id available
+                query = query.eq("bank_app_id", bank_app_id)
+            else:
+                return False
+            
+            result = query.execute()
+            
+            if not result.data:
+                return False
+            
+            # Check each existing record for exact match
+            for existing_record in result.data:
+                if self._is_exact_disbursement_match(existing_record, {
+                    'disbursement_amount': amount_float,
+                    'disbursed_on': disbursed_on,
+                    'email_subject': email_subject,
+                    'email_date': email_date
+                }):
+                    logger.info(f"Found exact duplicate: LAN={loan_account}, Amount={amount_float}, Date={disbursed_on}")
                     return True
             
             return False
             
         except Exception as e:
             logger.warning(f"Error checking disbursement duplicate: {str(e)}")
+            return False
+    
+    def _is_exact_disbursement_match(self, existing_record: Dict, new_record: Dict) -> bool:
+        """
+        Check if two disbursement records are exact matches based on:
+        1. Same disbursement amount (within 1 paisa tolerance)
+        2. Same disbursement date OR same email (subject + date)
+        """
+        try:
+            # Compare amounts (with tolerance for floating point precision)
+            existing_amount = float(existing_record.get('disbursement_amount', 0))
+            new_amount = float(new_record.get('disbursement_amount', 0))
+            
+            if abs(existing_amount - new_amount) > 0.01:  # Allow 1 paisa difference
+                return False
+            
+            # Compare disbursement dates if both are available
+            existing_date = existing_record.get('disbursed_on', '').strip() if existing_record.get('disbursed_on') else ''
+            new_date = new_record.get('disbursed_on', '').strip() if new_record.get('disbursed_on') else ''
+            
+            if existing_date and new_date and existing_date != 'Not found' and new_date != 'Not found':
+                if existing_date == new_date:
+                    return True
+            
+            # Compare email context (subject + date) as fallback
+            existing_email_subject = existing_record.get('email_subject', '').strip() if existing_record.get('email_subject') else ''
+            new_email_subject = new_record.get('email_subject', '').strip() if new_record.get('email_subject') else ''
+            existing_email_date = existing_record.get('email_date', '').strip() if existing_record.get('email_date') else ''
+            new_email_date = new_record.get('email_date', '').strip() if new_record.get('email_date') else ''
+            
+            if (existing_email_subject and new_email_subject and 
+                existing_email_date and new_email_date and
+                existing_email_subject == new_email_subject and
+                existing_email_date == new_email_date):
+                return True
+            
+            return False
+            
+        except Exception as e:
+            logger.warning(f"Error in exact disbursement match: {str(e)}")
             return False
 
     def _prepare_disbursement_record(self, record: Dict, is_duplicate: bool = False) -> Dict:
@@ -1339,6 +1443,87 @@ class DatabaseService:
             "last_updated": datetime.now().isoformat()
         }
 
+    def _is_valid_disbursement_record(self, record: Dict) -> bool:
+        """
+        Check if a disbursement record meets the quality criteria for saving.
+        
+        Criteria:
+        1. Must be a disbursed record (disbursement_stage = "Disbursed")
+        2. Must have loan_account_number OR bank_app_id
+        3. Must have a valid disbursement_amount (not empty/zero)
+        
+        Args:
+            record: Raw disbursement record from AI extraction
+            
+        Returns:
+            bool: True if record should be saved, False if filtered out
+        """
+        # Check 1: Must be disbursed
+        disbursement_stage = record.get('disbursementStage', '').strip().lower()
+        if disbursement_stage not in ['disbursed', 'disbursement', 'disbursement completed', 'completed']:
+            return False
+        
+        # Check 2: Must have loan account number OR bank app id
+        loan_account = record.get('loanAccountNumber', '').strip()
+        bank_app_id = record.get('bankAppId', '').strip()
+        
+        # Skip invalid identifiers
+        invalid_values = ['not found', 'na', 'n/a', '', 'none', 'null']
+        loan_account_valid = loan_account and loan_account.lower() not in invalid_values
+        bank_app_id_valid = bank_app_id and bank_app_id.lower() not in invalid_values
+        
+        if not (loan_account_valid or bank_app_id_valid):
+            return False
+        
+        # Check 3: Must have valid disbursement amount
+        disbursement_amount = record.get('disbursementAmount')
+        if not disbursement_amount:
+            return False
+        
+        # Handle string amounts
+        if isinstance(disbursement_amount, str):
+            disbursement_amount = disbursement_amount.strip().lower()
+            if disbursement_amount in invalid_values or disbursement_amount == '0':
+                return False
+            try:
+                amount_float = float(disbursement_amount.replace(',', ''))
+                if amount_float <= 0:
+                    return False
+            except (ValueError, TypeError):
+                return False
+        elif isinstance(disbursement_amount, (int, float)):
+            if disbursement_amount <= 0:
+                return False
+        else:
+            return False
+        
+        return True
+    
+    def _get_filter_reason(self, record: Dict) -> str:
+        """Get the reason why a record was filtered out."""
+        disbursement_stage = record.get('disbursementStage', '').strip()
+        loan_account = record.get('loanAccountNumber', '').strip()
+        bank_app_id = record.get('bankAppId', '').strip()
+        disbursement_amount = record.get('disbursementAmount', '')
+        
+        # Check disbursement stage
+        if disbursement_stage.lower() not in ['disbursed', 'disbursement', 'disbursement completed', 'completed']:
+            return f"Not disbursed (stage: {disbursement_stage})"
+        
+        # Check identifiers
+        invalid_values = ['not found', 'na', 'n/a', '', 'none', 'null']
+        loan_account_valid = loan_account and loan_account.lower() not in invalid_values
+        bank_app_id_valid = bank_app_id and bank_app_id.lower() not in invalid_values
+        
+        if not (loan_account_valid or bank_app_id_valid):
+            return f"Missing identifiers (LAN: {loan_account}, Bank ID: {bank_app_id})"
+        
+        # Check amount
+        if not disbursement_amount:
+            return "Missing disbursement amount"
+        
+        return f"Invalid amount: {disbursement_amount}"
+
 
 ## OTP Storage in Supabase
 class SupabaseOTPStorage:
@@ -1473,11 +1658,16 @@ class SupabaseOTPStorage:
         """
         Save disbursement records to Supabase database.
         
+        Only saves records that meet quality criteria:
+        1. Must be disbursed (disbursement_stage = "Disbursed")
+        2. Must have loan_account_number OR bank_app_id
+        3. Must have valid disbursement_amount (not empty/zero)
+        
         Args:
             disbursement_records: List of disbursement dictionaries from AI analysis
             
         Returns:
-            Dict: Save operation statistics
+            Dict: Save operation statistics including filtered_out count
         """
         if not self.client:
             raise HTTPException(
@@ -1489,6 +1679,7 @@ class SupabaseOTPStorage:
             'total_processed': 0,
             'new_records': 0,
             'duplicates_skipped': 0,
+            'filtered_out': 0,
             'errors': 0,
             'error_details': []
         }
@@ -1498,6 +1689,13 @@ class SupabaseOTPStorage:
                 stats['total_processed'] += 1
                 
                 try:
+                    # Apply quality filters - only save relevant disbursed records
+                    if not self._is_valid_disbursement_record(record):
+                        stats['filtered_out'] += 1
+                        filter_reason = self._get_filter_reason(record)
+                        logger.info(f"Filtered out record: {filter_reason}")
+                        continue
+                    
                     # Check for duplicates based on loan_account_number and bank_app_id
                     is_duplicate = self._check_disbursement_duplicate(record)
                     
@@ -1526,7 +1724,7 @@ class SupabaseOTPStorage:
                     logger.error(error_msg)
                     continue
             
-            logger.info(f"Disbursement save completed: {stats['new_records']} new, {stats['duplicates_skipped']} duplicates, {stats['errors']} errors")
+            logger.info(f"Disbursement save completed: {stats['new_records']} new, {stats.get('filtered_out', 0)} filtered out, {stats['duplicates_skipped']} duplicates, {stats['errors']} errors")
             return stats
             
         except Exception as e:
@@ -1610,32 +1808,123 @@ class SupabaseOTPStorage:
             raise HTTPException(status_code=500, detail=f"Database error: {str(e)}")
 
     def _check_disbursement_duplicate(self, record: Dict) -> bool:
-        """Check if a disbursement record already exists."""
+        """
+        Check if a disbursement record already exists using composite key approach.
+        
+        A record is considered duplicate only if ALL these match:
+        1. Same application (loan_account_number OR bank_app_id)
+        2. Same disbursement amount
+        3. Same disbursement date OR same email (subject + date)
+        
+        This allows multiple disbursements for the same application with:
+        - Different amounts
+        - Different dates  
+        - Different email notifications
+        """
         try:
             loan_account = record.get('loanAccountNumber', '').strip()
             bank_app_id = record.get('bankAppId', '').strip()
+            disbursement_amount = record.get('disbursementAmount', '')
+            disbursed_on = record.get('disbursedOn', '').strip()
+            email_subject = record.get('emailSubject', '').strip()
+            email_date = record.get('emailDate', '').strip()
             
+            # Must have application identifier
             if not loan_account and not bank_app_id:
                 return False
             
-            query = self.client.table("disbursements").select("id")
+            # Must have amount for meaningful comparison
+            if not disbursement_amount:
+                return False
             
-            # Check by loan account number first
-            if loan_account and loan_account != 'Not found':
-                result = query.eq("loan_account_number", loan_account).execute()
-                if result.data:
-                    return True
+            # Normalize amount for comparison
+            try:
+                if isinstance(disbursement_amount, str):
+                    amount_float = float(disbursement_amount.replace(',', '').strip())
+                else:
+                    amount_float = float(disbursement_amount)
+            except (ValueError, TypeError):
+                logger.warning(f"Invalid disbursement amount for duplicate check: {disbursement_amount}")
+                return False
             
-            # Check by bank app ID if loan account not found
-            if bank_app_id and bank_app_id != 'Not found':
-                result = query.eq("bank_app_id", bank_app_id).execute()
-                if result.data:
+            # Build base query to get existing records with required fields
+            query = self.client.table("disbursements").select(
+                "id, loan_account_number, bank_app_id, disbursement_amount, disbursed_on, email_subject, email_date"
+            )
+            
+            # Filter by application identifier using OR condition
+            if loan_account and loan_account != 'Not found' and bank_app_id and bank_app_id != 'Not found':
+                # Both identifiers available - use OR
+                query = query.or_(f"loan_account_number.eq.{loan_account},bank_app_id.eq.{bank_app_id}")
+            elif loan_account and loan_account != 'Not found':
+                # Only loan account available
+                query = query.eq("loan_account_number", loan_account)
+            elif bank_app_id and bank_app_id != 'Not found':
+                # Only bank app id available
+                query = query.eq("bank_app_id", bank_app_id)
+            else:
+                return False
+            
+            result = query.execute()
+            
+            if not result.data:
+                return False
+            
+            # Check each existing record for exact match
+            for existing_record in result.data:
+                if self._is_exact_disbursement_match(existing_record, {
+                    'disbursement_amount': amount_float,
+                    'disbursed_on': disbursed_on,
+                    'email_subject': email_subject,
+                    'email_date': email_date
+                }):
+                    logger.info(f"Found exact duplicate: LAN={loan_account}, Amount={amount_float}, Date={disbursed_on}")
                     return True
             
             return False
             
         except Exception as e:
             logger.warning(f"Error checking disbursement duplicate: {str(e)}")
+            return False
+    
+    def _is_exact_disbursement_match(self, existing_record: Dict, new_record: Dict) -> bool:
+        """
+        Check if two disbursement records are exact matches based on:
+        1. Same disbursement amount (within 1 paisa tolerance)
+        2. Same disbursement date OR same email (subject + date)
+        """
+        try:
+            # Compare amounts (with tolerance for floating point precision)
+            existing_amount = float(existing_record.get('disbursement_amount', 0))
+            new_amount = float(new_record.get('disbursement_amount', 0))
+            
+            if abs(existing_amount - new_amount) > 0.01:  # Allow 1 paisa difference
+                return False
+            
+            # Compare disbursement dates if both are available
+            existing_date = existing_record.get('disbursed_on', '').strip() if existing_record.get('disbursed_on') else ''
+            new_date = new_record.get('disbursed_on', '').strip() if new_record.get('disbursed_on') else ''
+            
+            if existing_date and new_date and existing_date != 'Not found' and new_date != 'Not found':
+                if existing_date == new_date:
+                    return True
+            
+            # Compare email context (subject + date) as fallback
+            existing_email_subject = existing_record.get('email_subject', '').strip() if existing_record.get('email_subject') else ''
+            new_email_subject = new_record.get('email_subject', '').strip() if new_record.get('email_subject') else ''
+            existing_email_date = existing_record.get('email_date', '').strip() if existing_record.get('email_date') else ''
+            new_email_date = new_record.get('email_date', '').strip() if new_record.get('email_date') else ''
+            
+            if (existing_email_subject and new_email_subject and 
+                existing_email_date and new_email_date and
+                existing_email_subject == new_email_subject and
+                existing_email_date == new_email_date):
+                return True
+            
+            return False
+            
+        except Exception as e:
+            logger.warning(f"Error in exact disbursement match: {str(e)}")
             return False
 
     def _prepare_disbursement_record(self, record: Dict, is_duplicate: bool = False) -> Dict:
@@ -1820,391 +2109,12 @@ class LocalOTPStorage:
 
 
 # Global instances
-        """
-        Save disbursement records to Supabase database.
-        
-        Args:
-            disbursement_records: List of disbursement dictionaries from AI analysis
-            
-        Returns:
-            Dict: Save operation statistics
-        """
-        if not self.client:
-            raise HTTPException(
-                status_code=500,
-                detail="Supabase client not initialized. Check database configuration."
-            )
-        
-        stats = {
-            'total_processed': 0,
-            'new_records': 0,
-            'duplicates_skipped': 0,
-            'errors': 0,
-            'error_details': []
-        }
-        
-        try:
-            for record in disbursement_records:
-                stats['total_processed'] += 1
-                
-                try:
-                    # Check for duplicates based on loan_account_number and bank_app_id
-                    is_duplicate = self._check_disbursement_duplicate(record)
-                    
-                    # Prepare record for database insertion
-                    db_record = self._prepare_disbursement_record(record, is_duplicate)
-                    
-                    if is_duplicate and not record.get('force_save', False):
-                        logger.info(f"Skipping duplicate disbursement: {record.get('loanAccountNumber', 'N/A')}")
-                        stats['duplicates_skipped'] += 1
-                        continue
-                    
-                    # Insert into database
-                    result = self.client.table("disbursements").insert(db_record).execute()
-                    
-                    if result.data:
-                        stats['new_records'] += 1
-                        logger.info(f"Saved disbursement record: {db_record.get('loan_account_number', 'N/A')}")
-                    else:
-                        stats['errors'] += 1
-                        stats['error_details'].append(f"No data returned for record: {record.get('loanAccountNumber', 'N/A')}")
-                        
-                except Exception as e:
-                    stats['errors'] += 1
-                    error_msg = f"Error saving disbursement record: {str(e)}"
-                    stats['error_details'].append(error_msg)
-                    logger.error(error_msg)
-                    continue
-            
-            logger.info(f"Disbursement save completed: {stats['new_records']} new, {stats['duplicates_skipped']} duplicates, {stats['errors']} errors")
-            return stats
-            
-        except Exception as e:
-            logger.error(f"Error in save_disbursement_data: {str(e)}")
-            raise HTTPException(status_code=500, detail=f"Database error: {str(e)}")
-    
-    def get_disbursements(self, filters: Dict = None, limit: int = 100, offset: int = 0) -> Dict:
-        """
-        Get disbursement records with filtering and pagination.
-        
-        Args:
-            filters: Dictionary of filter criteria
-            limit: Maximum number of records to return
-            offset: Number of records to skip
-            
-        Returns:
-            Dict: Paginated disbursement data
-        """
-        if not self.client:
-            raise HTTPException(
-                status_code=500,
-                detail="Supabase client not initialized. Check database configuration."
-            )
-        
-        try:
-            # Start with base query on the frontend view
-            query = self.client.table("disbursements_frontend").select("*")
-            
-            # Apply filters if provided
-            if filters:
-                query = self._apply_disbursement_filters(query, filters)
-            
-            # Get total count for pagination (before limit/offset)
-            count_result = query.execute()
-            total_count = len(count_result.data) if count_result.data else 0
-            
-            # Apply pagination
-            query = query.range(offset, offset + limit - 1).order('processed_at', desc=True)
-            
-            # Execute query
-            result = query.execute()
-            
-            return {
-                'success': True,
-                'data': result.data or [],
-                'total_count': total_count,
-                'limit': limit,
-                'offset': offset,
-                'has_more': offset + limit < total_count
-            }
-            
-        except Exception as e:
-            logger.error(f"Error getting disbursements: {str(e)}")
-            raise HTTPException(status_code=500, detail=f"Database error: {str(e)}")
-    
-    def get_disbursement_stats(self) -> Dict:
-        """
-        Get disbursement statistics for dashboard.
-        
-        Returns:
-            Dict: Statistics about disbursements
-        """
-        if not self.client:
-            raise HTTPException(
-                status_code=500,
-                detail="Supabase client not initialized. Check database configuration."
-            )
-        
-        try:
-            # Get all disbursement records for stats calculation
-            result = self.client.table("disbursements_frontend").select("*").execute()
-            records = result.data or []
-            
-            if not records:
-                return self._get_empty_disbursement_stats()
-            
-            return self._calculate_disbursement_stats(records)
-            
-        except Exception as e:
-            logger.error(f"Error getting disbursement stats: {str(e)}")
-            raise HTTPException(status_code=500, detail=f"Database error: {str(e)}")
-    
-    def update_disbursement_review_status(self, disbursement_id: int, review_data: Dict) -> Dict:
-        """
-        Update manual review status for a disbursement record.
-        
-        Args:
-            disbursement_id: ID of the disbursement record
-            review_data: Review information (notes, status, etc.)
-            
-        Returns:
-            Dict: Update result
-        """
-        if not self.client:
-            raise HTTPException(
-                status_code=500,
-                detail="Supabase client not initialized. Check database configuration."
-            )
-        
-        try:
-            update_data = {
-                'manual_review_required': review_data.get('manual_review_required', False),
-                'manual_review_notes': review_data.get('manual_review_notes', ''),
-                'updated_by': review_data.get('updated_by', 'system'),
-                'updated_at': datetime.now(timezone.utc).isoformat()
-            }
-            
-            result = self.client.table("disbursements").update(update_data).eq("id", disbursement_id).execute()
-            
-            if result.data:
-                logger.info(f"Updated disbursement review status: ID {disbursement_id}")
-                return {'success': True, 'updated_record': result.data[0]}
-            else:
-                return {'success': False, 'error': 'No record found or updated'}
-                
-        except Exception as e:
-            logger.error(f"Error updating disbursement review status: {str(e)}")
-            raise HTTPException(status_code=500, detail=f"Database error: {str(e)}")
-    
-    def _check_disbursement_duplicate(self, record: Dict) -> bool:
-        """Check if a disbursement record already exists."""
-        try:
-            loan_account = record.get('loanAccountNumber', '').strip()
-            bank_app_id = record.get('bankAppId', '').strip()
-            
-            if not loan_account and not bank_app_id:
-                return False
-            
-            query = self.client.table("disbursements").select("id")
-            
-            # Check by loan account number first
-            if loan_account and loan_account != 'Not found':
-                result = query.eq("loan_account_number", loan_account).execute()
-                if result.data:
-                    return True
-            
-            # Check by bank app ID if loan account not found
-            if bank_app_id and bank_app_id != 'Not found':
-                result = query.eq("bank_app_id", bank_app_id).execute()
-                if result.data:
-                    return True
-            
-            return False
-            
-        except Exception as e:
-            logger.warning(f"Error checking disbursement duplicate: {str(e)}")
-            return False
-    
-    def _prepare_disbursement_record(self, record: Dict, is_duplicate: bool = False) -> Dict:
-        """Prepare disbursement record for database insertion."""
-        
-        def safe_decimal(value):
-            """Safely convert to decimal."""
-            if value is None or value == "" or value == "Not found":
-                return None
-            try:
-                return float(value)
-            except (ValueError, TypeError):
-                return None
-        
-        def safe_date(value):
-            """Safely convert to date."""
-            if not value or value == "Not found":
-                return None
-            try:
-                # Handle various date formats
-                if isinstance(value, str):
-                    # Remove any extra characters and take first 10 chars for YYYY-MM-DD
-                    date_str = value.strip()[:10]
-                    return datetime.strptime(date_str, "%Y-%m-%d").date()
-                return value
-            except (ValueError, TypeError):
-                return None
-        
-        return {
-            # Email context
-            'banker_email': record.get('bankerEmail', ''),
-            'email_subject': record.get('emailSubject', ''),
-            'email_date': safe_date(record.get('emailDate')),
-            'source_email_id': record.get('sourceEmailId', ''),
-            
-            # Customer information
-            'first_name': record.get('firstName', ''),
-            'last_name': record.get('lastName', ''),
-            'primary_borrower_mobile': record.get('primaryborrowerMobile', ''),
-            
-            # Loan account information
-            'loan_account_number': record.get('loanAccountNumber', ''),
-            'bank_app_id': record.get('bankAppId', ''),
-            'basic_app_id': record.get('basicAppId', ''),
-            'basic_disb_id': record.get('basicDisbId', ''),
-            
-            # Bank information
-            'app_bank_name': record.get('appBankName', ''),
-            
-            # Disbursement details
-            'disbursement_amount': safe_decimal(record.get('disbursementAmount')),
-            'loan_sanction_amount': safe_decimal(record.get('loanSanctionAmount')),
-            'disbursed_on': safe_date(record.get('disbursedOn')),
-            'disbursed_created_on': safe_date(record.get('disbursedCreatedOn')),
-            'sanction_date': safe_date(record.get('sanctionDate')),
-            
-            # Status information
-            'disbursement_stage': record.get('disbursementStage', ''),
-            'disbursement_status': record.get('disbursementStatus', 'VerifiedByAI'),
-            
-            # Additional fields
-            'pdd': record.get('pdd', ''),
-            'otc': record.get('otc', ''),
-            'sourcing_channel': record.get('sourcingChannel', ''),
-            'sourcing_code': record.get('sourcingcode', ''),
-            'application_product_type': record.get('applicationProductType', ''),
-            
-            # Data quality
-            'data_found': record.get('dataFound', False),
-            'confidence_score': safe_decimal(record.get('confidenceScore', 0.8)),
-            'extraction_method': 'AI',
-            
-            # Internal fields
-            'is_duplicate': is_duplicate,
-            'manual_review_required': record.get('manualReviewRequired', False),
-            
-            # Audit fields
-            'created_by': 'live_monitoring'
-        }
-    
-    def _apply_disbursement_filters(self, query, filters: Dict):
-        """Apply filters to disbursement query."""
-        
-        if filters.get('bank_name'):
-            query = query.ilike('app_bank_name', f"%{filters['bank_name']}%")
-        
-        if filters.get('disbursement_stage'):
-            query = query.ilike('disbursement_stage', f"%{filters['disbursement_stage']}%")
-        
-        if filters.get('date_from'):
-            query = query.gte('disbursed_on', filters['date_from'])
-        
-        if filters.get('date_to'):
-            query = query.lte('disbursed_on', filters['date_to'])
-        
-        if filters.get('amount_min'):
-            query = query.gte('disbursement_amount', filters['amount_min'])
-        
-        if filters.get('amount_max'):
-            query = query.lte('disbursement_amount', filters['amount_max'])
-        
-        if filters.get('customer_name'):
-            name_filter = f"%{filters['customer_name']}%"
-            # Use OR condition for first_name OR last_name
-            query = query.or_(f"first_name.ilike.{name_filter},last_name.ilike.{name_filter}")
-        
-        return query
-    
-    def _calculate_disbursement_stats(self, records: List[Dict]) -> Dict:
-        """Calculate comprehensive statistics from disbursement data."""
-        from collections import defaultdict
-        
-        total_count = len(records)
-        total_amount = 0
-        bank_stats = defaultdict(lambda: {"count": 0, "amount": 0})
-        stage_stats = defaultdict(int)
-        recent_stats = {"today": 0, "week": 0, "month": 0}
-        
-        today = datetime.now().date()
-        week_ago = today - timedelta(days=7)
-        month_ago = today - timedelta(days=30)
-        
-        for record in records:
-            # Total amount calculation
-            amount = record.get("disbursement_amount", 0)
-            if amount:
-                total_amount += amount
-                
-                # Bank-wise stats
-                bank_name = record.get("app_bank_name", "Unknown")
-                bank_stats[bank_name]["count"] += 1
-                bank_stats[bank_name]["amount"] += amount
-            
-            # Stage stats
-            stage = record.get("disbursement_stage", "Unknown")
-            stage_stats[stage] += 1
-            
-            # Recent activity stats
-            disbursed_date = record.get("disbursed_on")
-            if disbursed_date:
-                try:
-                    if isinstance(disbursed_date, str):
-                        parsed_date = datetime.strptime(disbursed_date[:10], "%Y-%m-%d").date()
-                    else:
-                        parsed_date = disbursed_date
-                    
-                    if parsed_date == today:
-                        recent_stats["today"] += 1
-                    if parsed_date >= week_ago:
-                        recent_stats["week"] += 1
-                    if parsed_date >= month_ago:
-                        recent_stats["month"] += 1
-                        
-                except Exception:
-                    pass
-        
-        return {
-            "overview": {
-                "total_disbursements": total_count,
-                "total_amount": total_amount,
-                "average_amount": total_amount / total_count if total_count > 0 else 0
-            },
-            "by_bank": dict(bank_stats),
-            "by_stage": dict(stage_stats),
-            "recent_activity": recent_stats,
-            "last_updated": datetime.now().isoformat()
-        }
-    
-    def _get_empty_disbursement_stats(self) -> Dict:
-        """Return empty statistics structure."""
-        return {
-            "overview": {
-                "total_disbursements": 0,
-                "total_amount": 0,
-                "average_amount": 0
-            },
-            "by_bank": {},
-            "by_stage": {},
-            "recent_activity": {"today": 0, "week": 0, "month": 0},
-            "last_updated": datetime.now().isoformat()
-        }
-    
-# Global instances
-otp_storage = LocalOTPStorage()
-database_service = DatabaseService() 
+try:
+    otp_storage = SupabaseOTPStorage()
+    database_service = DatabaseService()
+    logger.info("âœ… Supabase services initialized successfully")
+except Exception as e:
+    logger.warning(f"âš ï¸ Supabase initialization failed: {str(e)}")
+    logger.info("ðŸ”„ Falling back to local storage")
+    otp_storage = LocalOTPStorage()
+    database_service = None

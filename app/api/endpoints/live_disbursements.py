@@ -15,7 +15,6 @@ import os
 from pydantic import BaseModel, Field
 from app.src.email_processor.zoho_mail_client import ZohoMailClient
 from app.src.ai_analyzer.openai_analyzer import OpenAIAnalyzer
-from app.src.sheets_integration.google_sheets_client import GoogleSheetsClient
 from app.services.database_service import database_service
 from app.models.schemas import DisbursementFilters, DisbursementResponse, DisbursementStatsResponse, DisbursementRecord
 
@@ -50,26 +49,7 @@ class LiveMonitoringConfig(BaseModel):
     check_period_minutes: int = Field(default=5, ge=1, le=60, description="Check emails from last N minutes")
 
 
-def get_live_sheets_client() -> Optional[GoogleSheetsClient]:
-    """Get Google Sheets client configured for live data."""
-    try:
-        sheets_client = GoogleSheetsClient()
-        
-        # Override configuration for live sheet
-        live_spreadsheet_id = os.getenv('GOOGLE_LIVE_SPREADSHEET_ID') or os.getenv('GOOGLE_SPREADSHEET_ID')
-        live_worksheet_name = os.getenv('GOOGLE_LIVE_WORKSHEET_NAME', 'Live_Disbursements')
-        
-        if live_spreadsheet_id:
-            sheets_client.spreadsheet_id = live_spreadsheet_id
-            sheets_client.range_name = live_worksheet_name
-            return sheets_client
-        else:
-            logger.warning("No live spreadsheet ID configured")
-            return None
-            
-    except Exception as e:
-        logger.error(f"Failed to configure live sheets client: {str(e)}")
-        return None
+# Google Sheets integration removed - now using Supabase database only
 
 
 ############################################################################################
@@ -90,12 +70,9 @@ async def start_live_monitoring(config: LiveMonitoringConfig) -> Dict[str, Any]:
             raise HTTPException(status_code=500, detail="Failed to connect to Zoho Mail")
         zoho_client.disconnect()
         
-        # Test live sheets connection
-        sheets_client = get_live_sheets_client()
-        if not sheets_client:
-            logger.warning("Live sheets not configured, continuing without sheets update")
-        elif not sheets_client.authenticate():
-            logger.warning("Failed to authenticate with Live Google Sheets, continuing without sheets update")
+        # Test Supabase database connection
+        if not database_service.client:
+            logger.warning("Supabase database not connected, continuing with limited functionality")
         
         # Update monitoring state
         monitoring_state.update({
@@ -217,16 +194,10 @@ async def perform_email_check(config: LiveMonitoringConfig) -> Dict[str, Any]:
         # Initialize services
         zoho_client = ZohoMailClient()
         ai_analyzer = OpenAIAnalyzer()
-        sheets_client = get_live_sheets_client()
         
         # Connect to Zoho Mail
         if not zoho_client.connect():
             raise Exception("Failed to connect to Zoho Mail")
-        
-        # Authenticate with Live Google Sheets if needed
-        if sheets_client and not sheets_client.authenticate():
-            logger.warning("Failed to authenticate with Live Google Sheets")
-            sheets_client = None
         
         # Calculate time range for new emails
         check_start = datetime.now()
@@ -379,28 +350,7 @@ async def perform_email_check(config: LiveMonitoringConfig) -> Dict[str, Any]:
                 })
                 logger.error(error_msg)
         
-        # Update Live Google Sheets if enabled
-        sheets_updated = 0
-        if sheets_client and new_disbursements:
-            try:
-                logger.info(f"Updating Live Google Sheets with {len(new_disbursements)} disbursements")
-                
-                # Use the correct method to append bank application data
-                stats = sheets_client.append_bank_application_data(new_disbursements)
-                sheets_updated = stats.get('new_records', 0)
-                sheets_updated_count = stats.get('updated_records', 0)
-                sheets_filtered_count = stats.get('filtered_out', 0)
-                
-                logger.info(f"Live Google Sheets update: {sheets_updated} new, {sheets_updated_count} updated, {sheets_filtered_count} filtered out (non-disbursed)")
-                logger.info(f"Sheets update stats: {stats}")
-                        
-            except Exception as e:
-                error_msg = f"Error updating Live Google Sheets: {str(e)}"
-                monitoring_state["errors"].append({
-                    "timestamp": datetime.now().isoformat(),
-                    "error": error_msg
-                })
-                logger.error(error_msg)
+        # Google Sheets integration removed - all data now saved to Supabase database
         
         # Update monitoring state with new disbursements
         monitoring_state["last_check"] = check_start
@@ -423,9 +373,7 @@ async def perform_email_check(config: LiveMonitoringConfig) -> Dict[str, Any]:
             "new_disbursements": new_disbursements,
             "supabase_saved": supabase_saved if 'supabase_saved' in locals() else 0,
             "supabase_duplicates": supabase_duplicates if 'supabase_duplicates' in locals() else 0,
-            "sheets_updated": sheets_updated,
-            "sheets_records_updated": sheets_updated_count if 'sheets_updated_count' in locals() else 0,
-            "sheets_filtered_out": sheets_filtered_count if 'sheets_filtered_count' in locals() else 0,
+            "supabase_errors": supabase_errors if 'supabase_errors' in locals() else 0,
             "check_duration": (datetime.now() - check_start).total_seconds(),
             "total_processed_emails": len(monitoring_state["processed_email_ids"])
         }
@@ -443,7 +391,8 @@ async def perform_email_check(config: LiveMonitoringConfig) -> Dict[str, Any]:
         return {
             "emails_checked": 0,
             "disbursements_found": 0,
-            "sheets_updated": 0,
+            "supabase_saved": 0,
+            "supabase_errors": 1,
             "error": error_msg
         }
 

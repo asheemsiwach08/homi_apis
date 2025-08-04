@@ -4,7 +4,7 @@ Live Disbursements API
 Simple endpoints for real-time monitoring and processing of disbursement emails.
 """
 
-from fastapi import APIRouter, HTTPException, Query
+from fastapi import APIRouter, HTTPException
 from datetime import datetime, timedelta
 from typing import Dict, Any, List, Optional
 import threading
@@ -15,7 +15,6 @@ import os
 from pydantic import BaseModel, Field
 from app.src.email_processor.zoho_mail_client import ZohoMailClient
 from app.src.ai_analyzer.openai_analyzer import OpenAIAnalyzer
-from app.src.sheets_integration.google_sheets_client import GoogleSheetsClient
 from app.services.database_service import database_service
 from app.models.schemas import DisbursementFilters, DisbursementResponse, DisbursementStatsResponse, DisbursementRecord
 
@@ -34,10 +33,7 @@ monitoring_state = {
     "config": {},
     "thread": None,
     "stop_event": threading.Event(),
-    "processed_email_ids": set(),  # Track processed email message IDs
-    "latest_disbursements": [],  # Store latest extracted disbursements
-    "last_disbursement_check": None,  # Track when disbursements were last extracted
-    "session_disbursements": []  # All disbursements in current monitoring session
+    "processed_email_ids": set()  # Track processed email message IDs
 }
 
 
@@ -48,29 +44,6 @@ class LiveMonitoringConfig(BaseModel):
     subject_filter: Optional[str] = Field(default=None, description="Filter emails by subject")
     sender_filter: Optional[str] = Field(default=None, description="Filter emails by sender")
     check_period_minutes: int = Field(default=5, ge=1, le=60, description="Check emails from last N minutes")
-
-
-def get_live_sheets_client() -> Optional[GoogleSheetsClient]:
-    """Get Google Sheets client configured for live data."""
-    try:
-        sheets_client = GoogleSheetsClient()
-        
-        # Override configuration for live sheet
-        live_spreadsheet_id = os.getenv('GOOGLE_LIVE_SPREADSHEET_ID') or os.getenv('GOOGLE_SPREADSHEET_ID')
-        live_worksheet_name = os.getenv('GOOGLE_LIVE_WORKSHEET_NAME', 'Live_Disbursements')
-        
-        if live_spreadsheet_id:
-            sheets_client.spreadsheet_id = live_spreadsheet_id
-            sheets_client.range_name = live_worksheet_name
-            return sheets_client
-        else:
-            logger.warning("No live spreadsheet ID configured")
-            return None
-            
-    except Exception as e:
-        logger.error(f"Failed to configure live sheets client: {str(e)}")
-        return None
-
 
 ############################################################################################
                                 # Live Disbursements Start API
@@ -90,13 +63,6 @@ async def start_live_monitoring(config: LiveMonitoringConfig) -> Dict[str, Any]:
             raise HTTPException(status_code=500, detail="Failed to connect to Zoho Mail")
         zoho_client.disconnect()
         
-        # Test live sheets connection
-        sheets_client = get_live_sheets_client()
-        if not sheets_client:
-            logger.warning("Live sheets not configured, continuing without sheets update")
-        elif not sheets_client.authenticate():
-            logger.warning("Failed to authenticate with Live Google Sheets, continuing without sheets update")
-        
         # Update monitoring state
         monitoring_state.update({
             "is_running": True,
@@ -106,10 +72,7 @@ async def start_live_monitoring(config: LiveMonitoringConfig) -> Dict[str, Any]:
             "disbursements_found": 0,
             "errors": [],
             "config": config.dict(),
-            "processed_email_ids": set(),  # Reset processed emails tracking
-            "latest_disbursements": [],  # Reset latest disbursements
-            "last_disbursement_check": None,
-            "session_disbursements": []  # Reset session disbursements
+            "processed_email_ids": set()  # Reset processed emails tracking
         })
         
         # Reset stop event
@@ -121,6 +84,7 @@ async def start_live_monitoring(config: LiveMonitoringConfig) -> Dict[str, Any]:
             args=(config,),
             daemon=True
         )
+        print("<<<------------- Monitoring thread started", monitoring_thread,"-------------->>>")
         monitoring_thread.start()
         monitoring_state["thread"] = monitoring_thread
         
@@ -217,17 +181,12 @@ async def perform_email_check(config: LiveMonitoringConfig) -> Dict[str, Any]:
         # Initialize services
         zoho_client = ZohoMailClient()
         ai_analyzer = OpenAIAnalyzer()
-        sheets_client = get_live_sheets_client()
         
         # Connect to Zoho Mail
         if not zoho_client.connect():
             raise Exception("Failed to connect to Zoho Mail")
         
-        # Authenticate with Live Google Sheets if needed
-        if sheets_client and not sheets_client.authenticate():
-            logger.warning("Failed to authenticate with Live Google Sheets")
-            sheets_client = None
-        
+       
         # Calculate time range for new emails
         check_start = datetime.now()
         since_time = check_start - timedelta(minutes=config.check_period_minutes)
@@ -351,67 +310,23 @@ async def perform_email_check(config: LiveMonitoringConfig) -> Dict[str, Any]:
         
         logger.info(f"Total disbursements extracted: {len(new_disbursements)}")
         
-        # Save to Supabase database
-        supabase_saved = 0
-        if new_disbursements and database_service.client:
+        # Update Supabase database
+        if new_disbursements:
             try:
-                logger.info(f"Saving {len(new_disbursements)} disbursements to Supabase database")
-                
-                # Save disbursements to database
-                save_stats = database_service.save_disbursement_data(new_disbursements)
-                supabase_saved = save_stats.get('new_records', 0)
-                supabase_duplicates = save_stats.get('duplicates_skipped', 0)
-                supabase_errors = save_stats.get('errors', 0)
-                
-                logger.info(f"Supabase save: {supabase_saved} new, {supabase_duplicates} duplicates, {supabase_errors} errors")
-                
-                if save_stats.get('error_details'):
-                    monitoring_state["errors"].extend([
-                        {"timestamp": datetime.now().isoformat(), "error": error} 
-                        for error in save_stats['error_details'][:5]  # Limit to 5 errors
-                    ])
-                        
+                logger.info(f"Updating Supabase database with {len(new_disbursements)} disbursements")
+                database_service.save_disbursement_data(new_disbursements)
             except Exception as e:
-                error_msg = f"Error saving to Supabase database: {str(e)}"
+                error_msg = f"Error updating Supabase database: {str(e)}"
                 monitoring_state["errors"].append({
                     "timestamp": datetime.now().isoformat(),
                     "error": error_msg
                 })
                 logger.error(error_msg)
         
-        # Update Live Google Sheets if enabled
-        sheets_updated = 0
-        if sheets_client and new_disbursements:
-            try:
-                logger.info(f"Updating Live Google Sheets with {len(new_disbursements)} disbursements")
-                
-                # Use the correct method to append bank application data
-                stats = sheets_client.append_bank_application_data(new_disbursements)
-                sheets_updated = stats.get('new_records', 0)
-                sheets_updated_count = stats.get('updated_records', 0)
-                sheets_filtered_count = stats.get('filtered_out', 0)
-                
-                logger.info(f"Live Google Sheets update: {sheets_updated} new, {sheets_updated_count} updated, {sheets_filtered_count} filtered out (non-disbursed)")
-                logger.info(f"Sheets update stats: {stats}")
-                        
-            except Exception as e:
-                error_msg = f"Error updating Live Google Sheets: {str(e)}"
-                monitoring_state["errors"].append({
-                    "timestamp": datetime.now().isoformat(),
-                    "error": error_msg
-                })
-                logger.error(error_msg)
-        
-        # Update monitoring state with new disbursements
+        # Update monitoring state
         monitoring_state["last_check"] = check_start
         monitoring_state["emails_processed"] += len(unprocessed_emails)  # Only count newly processed emails
         monitoring_state["disbursements_found"] += len(new_disbursements)
-        
-        # Store latest disbursements and update session disbursements
-        if new_disbursements:
-            monitoring_state["latest_disbursements"] = new_disbursements
-            monitoring_state["last_disbursement_check"] = check_start
-            monitoring_state["session_disbursements"].extend(new_disbursements)
         
         # Clean up
         zoho_client.disconnect()
@@ -420,12 +335,6 @@ async def perform_email_check(config: LiveMonitoringConfig) -> Dict[str, Any]:
             "emails_checked": len(all_emails),
             "new_emails_processed": len(unprocessed_emails),
             "disbursements_found": len(new_disbursements),
-            "new_disbursements": new_disbursements,
-            "supabase_saved": supabase_saved if 'supabase_saved' in locals() else 0,
-            "supabase_duplicates": supabase_duplicates if 'supabase_duplicates' in locals() else 0,
-            "sheets_updated": sheets_updated,
-            "sheets_records_updated": sheets_updated_count if 'sheets_updated_count' in locals() else 0,
-            "sheets_filtered_out": sheets_filtered_count if 'sheets_filtered_count' in locals() else 0,
             "check_duration": (datetime.now() - check_start).total_seconds(),
             "total_processed_emails": len(monitoring_state["processed_email_ids"])
         }
@@ -443,7 +352,6 @@ async def perform_email_check(config: LiveMonitoringConfig) -> Dict[str, Any]:
         return {
             "emails_checked": 0,
             "disbursements_found": 0,
-            "sheets_updated": 0,
             "error": error_msg
         }
 
@@ -484,256 +392,4 @@ def live_monitoring_loop(config: LiveMonitoringConfig):
             # Wait a bit before retrying
             time.sleep(30)
     
-    logger.info("Live monitoring loop stopped")
-
-
-############################################################################################
-                        # New Disbursement Data Endpoints
-############################################################################################
-
-@router.get("/disbursements/latest")
-async def get_latest_disbursements():
-    """
-    Get the latest disbursements extracted from the most recent email check.
-    
-    Returns:
-        Dict containing the latest disbursements found in the last monitoring cycle
-    """
-    try:
-        latest_disbursements = monitoring_state.get("latest_disbursements", [])
-        last_check = monitoring_state.get("last_disbursement_check")
-        
-        return {
-            "success": True,
-            "message": f"Retrieved {len(latest_disbursements)} latest disbursements",
-            "data": {
-                "disbursements": latest_disbursements,
-                "count": len(latest_disbursements),
-                "last_extracted_at": last_check.isoformat() if last_check else None,
-                "monitoring_active": monitoring_state.get("is_running", False),
-                "total_session_disbursements": len(monitoring_state.get("session_disbursements", []))
-            }
-        }
-        
-    except Exception as e:
-        logger.error(f"Error getting latest disbursements: {str(e)}")
-        raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
-
-
-@router.get("/disbursements/session")
-async def get_session_disbursements():
-    """
-    Get all disbursements found in the current monitoring session.
-    
-    Returns:
-        Dict containing all disbursements extracted since monitoring started
-    """
-    try:
-        session_disbursements = monitoring_state.get("session_disbursements", [])
-        started_at = monitoring_state.get("started_at")
-        
-        return {
-            "success": True,
-            "message": f"Retrieved {len(session_disbursements)} session disbursements",
-            "data": {
-                "disbursements": session_disbursements,
-                "count": len(session_disbursements),
-                "session_started_at": started_at.isoformat() if started_at else None,
-                "monitoring_active": monitoring_state.get("is_running", False),
-                "emails_processed": monitoring_state.get("emails_processed", 0),
-                "last_check": monitoring_state.get("last_check").isoformat() if monitoring_state.get("last_check") else None
-            }
-        }
-        
-    except Exception as e:
-        logger.error(f"Error getting session disbursements: {str(e)}")
-        raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
-
-
-@router.get("/disbursements", response_model=DisbursementResponse)
-async def get_disbursements_from_db(
-    bank_name: Optional[str] = Query(None, description="Filter by bank name"),
-    disbursement_stage: Optional[str] = Query(None, description="Filter by disbursement stage"),
-    date_from: Optional[str] = Query(None, description="Filter from date (YYYY-MM-DD)"),
-    date_to: Optional[str] = Query(None, description="Filter to date (YYYY-MM-DD)"),
-    amount_min: Optional[float] = Query(None, description="Minimum disbursement amount"),
-    amount_max: Optional[float] = Query(None, description="Maximum disbursement amount"),
-    customer_name: Optional[str] = Query(None, description="Filter by customer name"),
-    limit: int = Query(100, ge=1, le=1000, description="Maximum records to return"),
-    offset: int = Query(0, ge=0, description="Records to skip for pagination")
-):
-    """
-    Get disbursement data from Supabase database with filtering and pagination support.
-    
-    This endpoint retrieves disbursement data from Supabase database and provides
-    comprehensive filtering capabilities for frontend consumption.
-    """
-    try:
-        # Prepare filters dictionary
-        filters = {}
-        if bank_name:
-            filters['bank_name'] = bank_name
-        if disbursement_stage:
-            filters['disbursement_stage'] = disbursement_stage
-        if date_from:
-            filters['date_from'] = date_from
-        if date_to:
-            filters['date_to'] = date_to
-        if amount_min is not None:
-            filters['amount_min'] = amount_min
-        if amount_max is not None:
-            filters['amount_max'] = amount_max
-        if customer_name:
-            filters['customer_name'] = customer_name
-        
-        # Get data from database service
-        result = database_service.get_disbursements(
-            filters=filters,
-            limit=limit,
-            offset=offset
-        )
-        
-        if not result['success']:
-            raise HTTPException(status_code=500, detail="Failed to retrieve disbursement data")
-        
-        # Convert database records to DisbursementRecord objects
-        disbursement_records = []
-        for record in result['data']:
-            try:
-                disbursement_record = DisbursementRecord(
-                    banker_email=record.get("banker_email"),
-                    first_name=record.get("first_name"),
-                    last_name=record.get("last_name"),
-                    loan_account_number=record.get("loan_account_number"),
-                    disbursed_on=record.get("disbursed_on"),
-                    disbursed_created_on=record.get("disbursed_created_on"),
-                    sanction_date=record.get("sanction_date"),
-                    disbursement_amount=record.get("disbursement_amount"),
-                    loan_sanction_amount=record.get("loan_sanction_amount"),
-                    bank_app_id=record.get("bank_app_id"),
-                    basic_app_id=record.get("basic_app_id"),
-                    basic_disb_id=record.get("basic_disb_id"),
-                    app_bank_name=record.get("app_bank_name"),
-                    disbursement_stage=record.get("disbursement_stage"),
-                    disbursement_status=record.get("disbursement_status"),
-                    primary_borrower_mobile=record.get("primary_borrower_mobile"),
-                    pdd=record.get("pdd"),
-                    otc=record.get("otc"),
-                    sourcing_channel=record.get("sourcing_channel"),
-                    sourcing_code=record.get("sourcing_code"),
-                    application_product_type=record.get("application_product_type"),
-                    data_found=record.get("data_found"),
-                    processed_at=record.get("processed_at"),
-                    email_date=record.get("email_date")
-                )
-                disbursement_records.append(disbursement_record)
-            except Exception as e:
-                logger.warning(f"Error converting database record to DisbursementRecord: {str(e)}")
-                continue
-        
-        # Prepare page info
-        has_more = result.get('has_more', False)
-        filtered_count = result.get('total_count', len(disbursement_records))
-        
-        page_info = {
-            "limit": limit,
-            "offset": offset,
-            "has_more": has_more,
-            "current_page": (offset // limit) + 1,
-            "total_pages": (filtered_count + limit - 1) // limit
-        }
-        
-        return DisbursementResponse(
-            success=True,
-            message=f"Retrieved {len(disbursement_records)} disbursement records from Supabase",
-            data=disbursement_records,
-            total_count=filtered_count,
-            filtered_count=filtered_count,
-            page_info=page_info
-        )
-        
-    except HTTPException:
-        raise
-    except Exception as e:
-        logger.error(f"Error in get_disbursements_from_db: {str(e)}")
-        raise HTTPException(
-            status_code=500,
-            detail=f"Internal server error: {str(e)}"
-        )
-
-
-@router.get("/disbursements/stats", response_model=DisbursementStatsResponse)
-async def get_disbursement_stats():
-    """
-    Get disbursement statistics from Supabase for dashboard display.
-    """
-    try:
-        # Get statistics from database service
-        stats = database_service.get_disbursement_stats()
-        
-        # Add live monitoring status to stats
-        stats['data_freshness'] = {
-            "live_monitoring_active": monitoring_state["is_running"],
-            "last_check": monitoring_state["last_check"].isoformat() if monitoring_state["last_check"] else None,
-            "emails_processed": monitoring_state["emails_processed"],
-            "disbursements_found": monitoring_state["disbursements_found"],
-            "session_disbursements": len(monitoring_state.get("session_disbursements", []))
-        }
-        
-        return DisbursementStatsResponse(
-            success=True,
-            message="Disbursement statistics calculated successfully from Supabase",
-            stats=stats
-        )
-        
-    except Exception as e:
-        logger.error(f"Error in get_disbursement_stats: {str(e)}")
-        raise HTTPException(
-            status_code=500,
-            detail=f"Internal server error: {str(e)}"
-        )
-
-
-@router.post("/disbursements/manual-check")
-async def manual_disbursement_check():
-    """
-    Manually trigger a disbursement check cycle and return results immediately.
-    
-    This endpoint allows you to manually trigger an email check and get the 
-    disbursement results without waiting for the monitoring cycle.
-    """
-    try:
-        if not monitoring_state["is_running"]:
-            raise HTTPException(
-                status_code=400, 
-                detail="Live monitoring is not running. Start monitoring first."
-            )
-        
-        # Get current config
-        config_dict = monitoring_state.get("config", {})
-        config = LiveMonitoringConfig(**config_dict)
-        
-        # Perform email check
-        check_result = await perform_email_check(config)
-        
-        return {
-            "success": True,
-            "message": "Manual disbursement check completed",
-            "data": {
-                "check_result": check_result,
-                "new_disbursements": check_result.get("new_disbursements", []),
-                "disbursements_count": check_result.get("disbursements_found", 0),
-                "emails_processed": check_result.get("new_emails_processed", 0),
-                "supabase_saved": check_result.get("supabase_saved", 0),
-                "check_duration": check_result.get("check_duration", 0)
-            }
-        }
-        
-    except HTTPException:
-        raise
-    except Exception as e:
-        logger.error(f"Error in manual_disbursement_check: {str(e)}")
-        raise HTTPException(
-            status_code=500,
-            detail=f"Internal server error: {str(e)}"
-        ) 
+    logger.info("Live monitoring loop stopped") 

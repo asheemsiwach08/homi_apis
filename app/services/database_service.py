@@ -29,184 +29,7 @@ class DatabaseService:
                 logger.error(f"Error initializing Supabase client: {e}")
                 self.client = None
     
-    def save_lead_data(self, lead_data: Dict, basic_api_response: Dict) -> Dict:
-        """
-        Save lead data to Supabase database
-        
-        Args:
-            lead_data: Original lead data from request
-            basic_api_response: Response from Basic Application API
-            
-        Returns:
-            Dict: Database operation result
-        """
-        if not self.client:
-            raise HTTPException(
-                status_code=500,
-                detail="Supabase client not initialized. Check database configuration."
-            )
-        
-        try:            
-            # Extract basic application ID from Basic API response
-            basic_application_id = (
-                basic_api_response.get("result", {})
-                .get("basicAppId")
-            )
-            
-            if not basic_application_id:
-                raise HTTPException(
-                    status_code=400,
-                    detail="Basic Application ID not found in Basic API response"
-                )
-            
-            # Format date for database (convert DD/MM/YYYY to YYYY-MM-DD)
-            dob = lead_data.get("dob", "")
-            if dob:
-                try:
-                    if '/' in dob:
-                        # Convert DD/MM/YYYY to YYYY-MM-DD
-                        day, month, year = dob.split('/')
-                        dob = f"{year}-{month.zfill(2)}-{day.zfill(2)}"
-                    elif 'T' in dob:
-                        # If it's already in ISO format, extract just the date part
-                        dob = dob.split('T')[0]
-                except Exception as e:
-                    dob = None
-            
-            # Prepare data for database with proper type handling
-            relation_id = basic_api_response.get("result", {}).get("id")
-            customer_id = basic_api_response.get("result", {}).get("primaryBorrower", {}).get("customerId")
-            
-            # Ensure string values for VARCHAR fields
-            if relation_id is not None:
-                relation_id = str(relation_id)
-            if customer_id is not None:
-                customer_id = str(customer_id)
-            
-            db_data = {
-                "basic_application_id": str(basic_application_id),
-                "customer_id": customer_id,
-                "relation_id": relation_id,
-                "first_name": str(lead_data.get("first_name", "")),
-                "last_name": str(lead_data.get("last_name", "")),
-                "mobile_number": str(lead_data.get("mobile_number", "")),
-                "email": str(lead_data.get("email", "")),
-                "pan_number": str(lead_data.get("pan_number", "")),
-                "loan_type": str(lead_data.get("loan_type", "")),
-                "loan_amount": float(lead_data.get("loan_amount", 0)),
-                "loan_tenure": int(lead_data.get("loan_tenure", 0)),
-                "gender": str(lead_data.get("gender", "")),
-                "dob": str(dob) if dob else None,
-                "pin_code": str(lead_data.get("pin_code", "")),
-                "basic_api_response": basic_api_response,  # Store full response for reference
-                "status": "created",
-                "created_at": "now()"
-            }
-            
-            
-            # Insert data into leads table
-            result = self.client.table("leads").insert(db_data).execute()
-            
-            if result.data:
-                return {
-                    "success": True,
-                    "database_id": result.data[0].get("id"),
-                    "basic_application_id": basic_application_id,
-                    "message": "Lead data saved to database"
-                }
-            else:
-                raise HTTPException(
-                    status_code=500,
-                    detail="Failed to save lead data to database"
-                )
-                
-        except HTTPException:
-            raise
-        except Exception as e:
-            raise HTTPException(
-                status_code=500,
-                detail=f"Database error: {str(e)}"
-            )
-    
-    def get_lead_by_application_id(self, basic_application_id: str) -> Optional[Dict]:
-        """
-        Get lead data by basic application ID
-        
-        Args:
-            basic_application_id: Basicpplication ID from Basic API
-            
-        Returns:
-            Optional[Dict]: Lead data or None if not found
-        """
-        if not self.client:
-            return None
-        
-        try:
-            result = self.client.table("leads").select("*").eq("basic_application_id", basic_application_id).execute()
-            
-            if result.data:
-                return result.data[0]
-            return None
-            
-        except Exception as e:
-            return None
-    
-    def get_lead_by_mobile(self, mobile_number: str) -> Optional[Dict]:
-        """
-        Get lead data by mobile number
-        
-        Args:
-            mobile_number: Mobile number
-            
-        Returns:
-            Optional[Dict]: Lead data or None if not found
-        """
-        if not self.client:
-            return None
-        
-        try:
-            result = self.client.table("leads").select("*").eq("customer_mobile", mobile_number).execute()
-            
-            if result.data:
-                return result.data[0]
-            return None
-            
-        except Exception as e:
-            return None
-    
-    
-    def update_lead_status(self, basic_application_id: str, status: str) -> bool:
-        """
-        Update lead status
-        
-        Args:
-            basic_application_id: Basic Application ID
-            status: New status
-            
-        Returns:
-            bool: Success status
-        """
-        if not self.client:
-            return False
-        
-        try:
-            # Update the status in leads table
-            result = self.client.table("leads").update({
-                "leadStatus": status,
-                "updated_at": "now()"
-            }).eq("basic_application_id", basic_application_id).execute()
-            
-            return bool(result.data)
-            
-        except Exception as e:
-            return False
-    
 
-    
-
-    
-
-    
     def save_whatsapp_message(self, message_data: Dict) -> Dict:
         """
         Save WhatsApp message to database (simplified)
@@ -231,17 +54,17 @@ class DatabaseService:
             mobile = message_data.get("mobile")
             if not mobile or mobile is None or str(mobile).strip() == "":
                 raise HTTPException(
-                    status_code=400,
-                    detail="Cannot save message: mobile number is required"
-                )
-            
+                        status_code=400,
+                        detail="Cannot save message: mobile number is required"
+                    )
+                
             # Prepare data for database (simplified)
             db_data = {
-                "mobile": str(mobile),
-                "message": str(message_data.get("message", "")),
-                "payload": message_data.get("payload")
-            }
-            
+                    "mobile": str(mobile),
+                    "message": str(message_data.get("message", "")),
+                    "payload": message_data.get("payload")
+                }
+
             # Insert data into whatsapp_messages table
             result = self.client.table("whatsapp_messages").insert(db_data).execute()
             
@@ -521,21 +344,13 @@ class DatabaseService:
             # API is successful if isError is explicitly False or not present
             is_error = self_fullfilment_response.get("isError", False)
             is_success = not is_error
-            # logger.info(f"[{request_id}] API response status - isError: {is_error}, Success: {is_success}")
-            # logger.info(f"[{request_id}] API response keys: {list(self_fullfilment_response.keys()) if self_fullfilment_response else 'No response'}")
-            
+
             if is_success:
                 logger.info(f"[{request_id}] Processing successful API response")
                 # Extract data from successful API response
                 result = self_fullfilment_response.get("result", {})
                 primary_borrower = result.get("primaryBorrower", {})
                 credit_report = result.get("primaryBorrowerCreditReportDetails", {})
-                
-                # Log key information about the API response
-                # logger.info(f"[{request_id}] Extracted API ID: {result.get('id')}")
-                # logger.info(f"[{request_id}] Extracted Basic App ID: {result.get('basicAppId')}")
-                # logger.info(f"[{request_id}] Status field values - applicationStatus: {result.get('applicationStatus')}, latestStatus: {result.get('latestStatus')}, status: {result.get('status')}")
-                # logger.info(f"[{request_id}] Available result keys: {list(result.keys()) if result else 'No result object'}")
                 
                 # Parse dates
                 application_date = None
@@ -912,53 +727,91 @@ class DatabaseService:
             logger.error(f"Error updating lead status: {e}")
             return False
 
-    def get_leads_statistics(self) -> Dict:
-        """
-        Get leads statistics
+    ################################# Appointment Methods ##############################################
+    # def get_appointments_by_reference_id(self, reference_id: str) -> List[Dict]:
+    #     """
+    #     Get appointments by reference ID
         
-        Returns:
-            Dict: Leads statistics
-        """
-        if not self.client:
-            return {
-                "total_leads": 0,
-                "completed_leads": 0,
-                "failed_leads": 0,
-                "leads_last_24h": 0,
-                "avg_loan_amount": 0
-            }
+    #     Args:
+    #         reference_id: Reference ID to search for
+            
+    #     Returns:
+    #         List[Dict]: List of appointments
+    #     """
+    #     if not self.client:
+    #         raise HTTPException(
+    #             status_code=500,
+    #             detail="Supabase client not initialized. Check database configuration."
+    #         )
         
-        try:
-            result = self.client.table("leads_statistics").select("*").execute()
-            if result.data and len(result.data) > 0:
-                return result.data[0]
-            else:
-                return {
-                    "total_leads": 0,
-                    "completed_leads": 0,
-                    "failed_leads": 0,
-                    "leads_last_24h": 0,
-                    "avg_loan_amount": 0
-                }
-        except Exception as e:
-            logger.error(f"Error retrieving leads statistics: {e}")
-            return {
-                "total_leads": 0,
-                "completed_leads": 0,
-                "failed_leads": 0,
-                "leads_last_24h": 0,
-                "avg_loan_amount": 0
-            }
+    #     try:
+    #         result = self.client.table("appointments").select("*").eq("reference_id", reference_id).order("created_at", desc=True).execute()
+    #         return result.data if result.data else []
+    #     except Exception as e:
+    #         logger.error(f"Error retrieving appointments by reference ID: {str(e)}")
+    #         return []
 
-    def get_appointments_by_reference_id(self, reference_id: str) -> List[Dict]:
+    # def get_appointments_by_basic_app_id(self, basic_app_id: str) -> List[Dict]:
+    #     """
+    #     Get appointments by Basic Application ID
+        
+    #     Args:
+    #         basic_app_id: Basic Application ID to search for
+            
+    #     Returns:
+    #         List[Dict]: List of appointments
+    #     """
+    #     if not self.client:
+    #         raise HTTPException(
+    #             status_code=500,
+    #             detail="Supabase client not initialized. Check database configuration."
+    #         )
+        
+    #     try:
+    #         result = self.client.table("appointments").select("*").eq("basic_app_id", basic_app_id).order("created_at", desc=True).execute()
+    #         return result.data if result.data else []
+    #     except Exception as e:
+    #         logger.error(f"Error retrieving appointments by Basic App ID: {str(e)}")
+    #         return []
+
+    # def get_appointment_statistics(self) -> Dict:
+    #     """
+    #     Get appointment statistics
+        
+    #     Returns:
+    #         Dict: Appointment statistics
+    #     """
+    #     appointment_statistics = {
+    #             "total_appointments": 0,
+    #             "successful_appointments": 0,
+    #             "failed_appointments": 0,
+    #             "open_appointments": 0,
+    #             "upcoming_appointments": 0
+    #         }
+    #     if not self.client:
+    #         return appointment_statistics
+        
+    #     try:
+    #         result = self.client.table("appointment_statistics").select("*").execute()
+    #         if result.data and len(result.data) > 0:
+    #             return result.data[0]
+    #         else:
+    #             return appointment_statistics
+    #     except Exception as e:
+    #         logger.error(f"Error retrieving appointment statistics: {str(e)}")
+    #         return appointment_statistics
+
+    ################################# Disbursement Methods ##############################################
+    
+    def save_disbursement_data(self, disbursement_records: List[Dict]) -> Dict:
         """
-        Get appointments by reference ID
+        Save disbursement records to Supabase database.
         
         Args:
-            reference_id: Reference ID to search for
+            disbursement_records: List of disbursement dictionaries from AI analysis
             
         Returns:
-            List[Dict]: List of appointments
+            Dict: Save operation statistics
         """
         if not self.client:
             raise HTTPException(
@@ -966,73 +819,313 @@ class DatabaseService:
                 detail="Supabase client not initialized. Check database configuration."
             )
         
+        stats = {
+            'total_processed': 0,
+            'new_records': 0,
+            'duplicates_skipped': 0,
+            'validation_failed': 0,
+            'errors': 0,
+            'error_details': [],
+            'validation_failures': [],
+            'new_disbursements': []
+        }
+        
         try:
-            result = self.client.table("appointments").select("*").eq("reference_id", reference_id).order("created_at", desc=True).execute()
-            return result.data if result.data else []
+            for record in disbursement_records:
+                stats['total_processed'] += 1
+                
+                try:
+                    # Validate essential data before processing
+                    validation_result = self._validate_disbursement_record(record)
+                    if not validation_result['is_valid']:
+                        stats['validation_failed'] += 1
+                        validation_msg = f"Validation failed: {validation_result['reason']} for record: {record.get('loanAccountNumber') or record.get('bankAppId', 'N/A')}"
+                        stats['validation_failures'].append(validation_msg)
+                        logger.warning(validation_msg)
+                        continue
+                    else:
+                        # Check for duplicates based on loan_account_number and bank_app_id
+                        is_duplicate = self._check_disbursement_duplicate(record)
+                        
+                        # Prepare record for database insertion
+                        db_record = self._prepare_disbursement_record(record, is_duplicate)
+                        
+                        if is_duplicate and not record.get('force_save', False):
+                            logger.info(f"Skipping duplicate disbursement: {record.get('loanAccountNumber', 'N/A')}")
+                            stats['duplicates_skipped'] += 1
+                            continue
+                        
+                        # Insert into database
+                        result = self.client.table("disbursements").insert(db_record).execute()
+                        
+                        if result.data:
+                            stats['new_records'] += 1
+                            stats['new_disbursements'].append(db_record)
+                            logger.info(f"Saved disbursement record: {db_record.get('loan_account_number', 'N/A')}")
+                        else:
+                            stats['errors'] += 1
+                            stats['error_details'].append(f"No data returned for record: {record.get('loanAccountNumber', 'N/A')}")
+                            
+                except Exception as e:
+                    stats['errors'] += 1
+                    error_msg = f"Error saving disbursement record: {str(e)}"
+                    stats['error_details'].append(error_msg)
+                    logger.error(error_msg)
+                    continue
+            
+            logger.info(f"Disbursement save completed: {stats['new_records']} new, {stats['duplicates_skipped']} duplicates, {stats['validation_failed']} validation failures, {stats['errors']} errors")
+            return stats
+            
         except Exception as e:
-            logger.error(f"Error retrieving appointments by reference ID: {str(e)}")
-            return []
-
-    def get_appointments_by_basic_app_id(self, basic_app_id: str) -> List[Dict]:
+            logger.error(f"Error in save_disbursement_data: {str(e)}")
+            raise HTTPException(status_code=500, detail=f"Database error: {str(e)}")
+    
+    # def get_disbursements(self, filters: Dict = None, limit: int = 100, offset: int = 0) -> Dict:
+    #     """
+    #     Get disbursement records with filtering and pagination.
+        
+    #     Args:
+    #         filters: Dictionary of filter criteria
+    #         limit: Maximum number of records to return
+    #         offset: Number of records to skip
+            
+    #     Returns:
+    #         Dict: Paginated disbursement data
+    #     """
+    #     if not self.client:
+    #         raise HTTPException(
+    #             status_code=500,
+    #             detail="Supabase client not initialized. Check database configuration."
+    #         )
+        
+    #     try:
+    #         # Start with base query on the frontend view
+    #         query = self.client.table("disbursements_frontend").select("*")
+            
+    #         # Apply filters if provided
+    #         if filters:
+    #             query = self._apply_disbursement_filters(query, filters)
+            
+    #         # Get total count for pagination (before limit/offset)
+    #         count_result = query.execute()
+    #         total_count = len(count_result.data) if count_result.data else 0
+            
+    #         # Apply pagination
+    #         query = query.range(offset, offset + limit - 1).order('processed_at', desc=True)
+            
+    #         # Execute query
+    #         result = query.execute()
+            
+    #         return {
+    #             'success': True,
+    #             'data': result.data or [],
+    #             'total_count': total_count,
+    #             'limit': limit,
+    #             'offset': offset,
+    #             'has_more': offset + limit < total_count
+    #         }
+            
+    #     except Exception as e:
+    #         logger.error(f"Error getting disbursements: {str(e)}")
+    #         raise HTTPException(status_code=500, detail=f"Database error: {str(e)}")
+    
+    
+    def _validate_disbursement_record(self, record: Dict) -> Dict:
         """
-        Get appointments by Basic Application ID
+        Validate disbursement record before saving to database.
+        
+        Validation Rules:
+        1. Either loanAccountNumber OR bankAppId must be present
+        2. disbursementAmount must be present and not 0
         
         Args:
-            basic_app_id: Basic Application ID to search for
+            record: Raw disbursement record from AI analysis
             
         Returns:
-            List[Dict]: List of appointments
+            Dict: Validation result with is_valid and reason
         """
-        if not self.client:
-            raise HTTPException(
-                status_code=500,
-                detail="Supabase client not initialized. Check database configuration."
-            )
+        # Check condition 1: Either loanAccountNumber OR bankAppId must be present
+        loan_account_number = record.get('loanAccountNumber', '').strip()
+        bank_app_id = record.get('bankAppId', '').strip()
         
-        try:
-            result = self.client.table("appointments").select("*").eq("basic_app_id", basic_app_id).order("created_at", desc=True).execute()
-            return result.data if result.data else []
-        except Exception as e:
-            logger.error(f"Error retrieving appointments by Basic App ID: {str(e)}")
-            return []
-
-    def get_appointment_statistics(self) -> Dict:
-        """
-        Get appointment statistics
-        
-        Returns:
-            Dict: Appointment statistics
-        """
-        if not self.client:
+        if not loan_account_number and not bank_app_id:
             return {
-                "total_appointments": 0,
-                "successful_appointments": 0,
-                "failed_appointments": 0,
-                "open_appointments": 0,
-                "upcoming_appointments": 0
+                'is_valid': False,
+                'reason': 'Neither loanAccountNumber nor bankAppId is present'
             }
         
+        # Check condition 2: disbursementAmount must be present and not 0
+        disbursement_amount = record.get('disbursementAmount')
+        
+        # Handle different data types for disbursement amount
+        if disbursement_amount is None:
+            return {
+                'is_valid': False,
+                'reason': 'disbursementAmount is missing'
+            }
+        
+        # Convert to float for validation if it's a string
         try:
-            result = self.client.table("appointment_statistics").select("*").execute()
-            if result.data and len(result.data) > 0:
-                return result.data[0]
+            if isinstance(disbursement_amount, str):
+                # Remove any currency symbols, commas, and whitespace
+                cleaned_amount = disbursement_amount.replace(',', '').replace('₹', '').replace('$', '').strip()
+                if not cleaned_amount:
+                    return {
+                        'is_valid': False,
+                        'reason': 'disbursementAmount is empty'
+                    }
+                disbursement_amount = float(cleaned_amount)
             else:
-                return {
-                    "total_appointments": 0,
-                    "successful_appointments": 0,
-                    "failed_appointments": 0,
-                    "open_appointments": 0,
-                    "upcoming_appointments": 0
-                }
-        except Exception as e:
-            logger.error(f"Error retrieving appointment statistics: {str(e)}")
+                disbursement_amount = float(disbursement_amount)
+        except (ValueError, TypeError):
             return {
-                "total_appointments": 0,
-                "successful_appointments": 0,
-                "failed_appointments": 0,
-                "open_appointments": 0,
-                "upcoming_appointments": 0
+                'is_valid': False,
+                'reason': 'disbursementAmount is not a valid number'
             }
+        
+        # Check if amount is greater than 0
+        if disbursement_amount <= 0:
+            return {
+                'is_valid': False,
+                'reason': f'disbursementAmount must be greater than 0, got: {disbursement_amount}'
+            }
+        
+        return {
+            'is_valid': True,
+            'reason': 'All validation checks passed'
+        }
+
+    def _check_disbursement_duplicate(self, record: Dict) -> bool:
+        """Check if a disbursement record already exists."""
+        try:
+            loan_account = record.get('loanAccountNumber', '').strip()
+            bank_app_id = record.get('bankAppId', '').strip()
+            
+            if not loan_account and not bank_app_id:
+                return False
+            
+            query = self.client.table("disbursements").select("id")
+            
+            # Check by loan account number first
+            if loan_account and loan_account != 'Not found':
+                result = query.eq("loan_account_number", loan_account).execute()
+                if result.data:
+                    return True
+            
+            # Check by bank app ID if loan account not found
+            if bank_app_id and bank_app_id != 'Not found':
+                result = query.eq("bank_app_id", bank_app_id).execute()
+                if result.data:
+                    return True
+            
+            return False
+            
+        except Exception as e:
+            logger.warning(f"Error checking disbursement duplicate: {str(e)}")
+            return False
+
+    def _prepare_disbursement_record(self, record: Dict, is_duplicate: bool = False) -> Dict:
+        """Prepare disbursement record for database insertion."""
+        from datetime import datetime
+        import re
+        
+        def parse_date_safely(date_str):
+            """Parse date string safely to PostgreSQL-compatible format."""
+            if not date_str or date_str.strip() == "":
+                return None
+            
+            date_str = str(date_str).strip()
+            
+            try:
+                # Handle various date formats
+                # DD-MM-YYYY or DD/MM/YYYY
+                if re.match(r'\d{1,2}[-/]\d{1,2}[-/]\d{4}', date_str):
+                    # Parse DD-MM-YYYY or DD/MM/YYYY
+                    date_str = date_str.replace('/', '-')
+                    day, month, year = date_str.split('-')
+                    parsed_date = datetime(int(year), int(month), int(day))
+                    return parsed_date.strftime('%Y-%m-%d')
+                
+                # YYYY-MM-DD (already correct format)
+                elif re.match(r'\d{4}-\d{1,2}-\d{1,2}', date_str):
+                    # Validate and reformat for consistency
+                    parsed_date = datetime.strptime(date_str, '%Y-%m-%d')
+                    return parsed_date.strftime('%Y-%m-%d')
+                
+                # MM/DD/YYYY
+                elif re.match(r'\d{1,2}/\d{1,2}/\d{4}', date_str):
+                    parsed_date = datetime.strptime(date_str, '%m/%d/%Y')
+                    return parsed_date.strftime('%Y-%m-%d')
+                
+                # Try ISO format parsing as fallback
+                else:
+                    parsed_date = datetime.fromisoformat(date_str.replace('Z', '+00:00'))
+                    return parsed_date.strftime('%Y-%m-%d')
+                    
+            except (ValueError, AttributeError) as e:
+                logger.warning(f"Could not parse date '{date_str}': {e}. Setting to None.")
+                return None
+        
+        return {
+            "banker_email": record.get("bankerEmail", "").strip() or None,
+            "first_name": record.get("firstName", "").strip() or None,
+            "last_name": record.get("lastName", "").strip() or None,
+            "loan_account_number": record.get("loanAccountNumber", "").strip() or None,
+            "disbursed_on": parse_date_safely(record.get("disbursedOn")),
+            "disbursed_created_on": parse_date_safely(record.get("disbursedCreatedOn")),
+            "sanction_date": parse_date_safely(record.get("sanctionDate")),
+            "disbursement_amount": record.get("disbursementAmount") or None,
+            "loan_sanction_amount": record.get("loanSanctionAmount") or None,
+            "bank_app_id": record.get("bankAppId", "").strip() or None,
+            "basic_app_id": record.get("basicAppId", "").strip() or None,
+            "basic_disb_id": record.get("basicDisbId", "").strip() or None,
+            "app_bank_name": record.get("appBankName", "").strip() or None,
+            "disbursement_stage": record.get("disbursementStage", "").strip() or None,
+            "disbursement_status": record.get("disbursementStatus", "").strip() or "VerifiedByAI",
+            "primary_borrower_mobile": record.get("primaryBorrowerMobile", "").strip() or None,
+            "pdd": record.get("pdd", "").strip() or None,
+            "otc": record.get("otc", "").strip() or None,
+            "sourcing_channel": record.get("sourcingChannel", "").strip() or None,
+            "sourcing_code": record.get("sourcingCode", "").strip() or None,
+            "application_product_type": record.get("applicationProductType", "").strip() or None,
+            "data_found": record.get("dataFound", True),
+            "confidence_score": record.get("confidenceScore", 0.0),
+            "extraction_method": record.get("extractionMethod", "AI"),
+            "email_subject": record.get("emailSubject", "").strip() or None,
+            "email_date": parse_date_safely(record.get("emailDate")),
+            "source_email_id": record.get("sourceEmailId", "").strip() or None,
+            "is_duplicate": is_duplicate,
+            "manual_review_required": True,
+            "processed_at": datetime.now().isoformat(),
+            "created_by": "system"
+        }
+
+    # def _apply_disbursement_filters(self, query, filters: Dict):
+    #     """Apply filters to disbursement query."""
+    #     if filters.get('bank_name'):
+    #         query = query.ilike('app_bank_name', f"%{filters['bank_name']}%")
+        
+    #     if filters.get('disbursement_stage'):
+    #         query = query.eq('disbursement_stage', filters['disbursement_stage'])
+        
+    #     if filters.get('date_from'):
+    #         query = query.gte('disbursed_on', filters['date_from'])
+        
+    #     if filters.get('date_to'):
+    #         query = query.lte('disbursed_on', filters['date_to'])
+        
+    #     if filters.get('amount_min') is not None:
+    #         query = query.gte('disbursement_amount', filters['amount_min'])
+        
+    #     if filters.get('amount_max') is not None:
+    #         query = query.lte('disbursement_amount', filters['amount_max'])
+        
+    #     if filters.get('customer_name'):
+    #         customer_filter = f"%{filters['customer_name']}%"
+    #         query = query.or_(f"first_name.ilike.{customer_filter},last_name.ilike.{customer_filter}")
+        
+    #     return query
+
 
 
 ## OTP Storage in Supabase
@@ -1161,60 +1254,58 @@ class SupabaseOTPStorage:
             ).eq("phone_number", phone_number).execute()
         except Exception as e:
             logger.error(f"Error marking OTP as used: {e}")
+
+
+
+
+# Local storage fallback implementation
+import time
+from threading import Lock
+from typing import Dict, Tuple, Optional
+
+class LocalOTPStorage:
+    def __init__(self):
+        self._storage: Dict[str, Tuple[str, float]] = {}
+        self._used_otps: Dict[str, Tuple[str, float]] = {}  # Track used OTPs
+        self._lock = Lock()
     
-
+    def set_otp(self, phone_number: str, otp: str, expiry_seconds: int):
+        with self._lock:
+            expiry_time = time.time() + expiry_seconds
+            self._storage[phone_number] = (otp, expiry_time)
     
-
+    def get_otp(self, phone_number: str) -> Optional[str]:
+        with self._lock:
+            if phone_number not in self._storage:
+                return None
+            
+            otp, expiry_time = self._storage[phone_number]
+            
+            if time.time() > expiry_time:
+                del self._storage[phone_number]
+                return None
+            
+            return otp
     
+    def mark_otp_as_used(self, phone_number: str):
+        """Mark OTP as used after successful verification"""
+        with self._lock:
+            if phone_number in self._storage:
+                otp, expiry_time = self._storage[phone_number]
+                self._used_otps[phone_number] = (otp, expiry_time)
+                del self._storage[phone_number]
 
 
-# Global instance
+# Global instance with fallback mechanism - OTP Storage
 try:
     otp_storage = SupabaseOTPStorage()
+    logger.info("Successfully initialized Supabase OTP storage")
 except Exception as e:
     logger.error(f"Warning: Could not initialize Supabase storage: {e}")
-    logger.error("Error type:", type(e).__name__)
+    logger.error(f"Error type: {type(e).__name__}")
     logger.error("Falling back to local storage...")
-    
-    # Fallback to local storage
-    import time
-    from threading import Lock
-    from typing import Dict, Tuple, Optional
-    
-    class LocalOTPStorage:
-        def __init__(self):
-            self._storage: Dict[str, Tuple[str, float]] = {}
-            self._used_otps: Dict[str, Tuple[str, float]] = {}  # Track used OTPs
-            self._lock = Lock()
-        
-        def set_otp(self, phone_number: str, otp: str, expiry_seconds: int):
-            with self._lock:
-                expiry_time = time.time() + expiry_seconds
-                self._storage[phone_number] = (otp, expiry_time)
-        
-        def get_otp(self, phone_number: str) -> Optional[str]:
-            with self._lock:
-                if phone_number not in self._storage:
-                    return None
-                
-                otp, expiry_time = self._storage[phone_number]
-                
-                if time.time() > expiry_time:
-                    del self._storage[phone_number]
-                    return None
-                
-                return otp
-        
-        def mark_otp_as_used(self, phone_number: str):
-            """Mark OTP as used after successful verification"""
-            with self._lock:
-                if phone_number in self._storage:
-                    otp, expiry_time = self._storage[phone_number]
-                    self._used_otps[phone_number] = (otp, expiry_time)
-                    del self._storage[phone_number]
-        
+    otp_storage = LocalOTPStorage()
+    logger.info("Successfully initialized Local OTP storage as fallback")
 
-    otp_storage = LocalOTPStorage() 
-    
-# Global database service instance
+# Other database services
 database_service = DatabaseService() 

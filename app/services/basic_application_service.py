@@ -113,7 +113,7 @@ class BasicApplicationService:
             dob = self._format_date(dob)
         
         return {"annualIncome":lead_data.get("annualIncome", 0),
-                "applicationAssignedToRm": lead_data.get("applicationAssignedToRm", "b3981dc9-02b3-44be-be96-5a09a5547d51"),
+                "applicationAssignedToRm": lead_data.get("applicationAssignedToRm", "ecd6e69c-1aac-4966-8e44-1428b0231aec"),
                 "city": lead_data.get("city", ""),
                 "createdFromPemId": lead_data.get("createdFromPemId", ""), 
                 "creditScore": lead_data.get("creditScore", 0),
@@ -133,7 +133,7 @@ class BasicApplicationService:
                 "loanType": lead_data.get("loanType", "HL"),
                 "mobile": lead_data.get("mobile", ""),
                 "pan": lead_data.get("pan", ""),
-                "pincode": lead_data.get("pincode", "126102"),
+                "pincode": lead_data.get("pincode", ""),
                 "qrShortCode": lead_data.get("qrShortCode", "BAE000247"),
                 "remarks": lead_data.get("remarks", "good"), 
                 "state": lead_data.get("state", "")}
@@ -208,59 +208,6 @@ class BasicApplicationService:
                 "aggrementTypeId": lead_data.get("aggrementTypeId", ""), #
                 "towerUnitType": lead_data.get("towerUnitType", "")
             }
-
-# {"aggrementTypeId": "",
-#                 "annualIncome":lead_data.get("annual_income", 0),
-#                 "applicationAssignedToRm": lead_data.get("applicationAssignedToRm", ""), 
-#                 "builderId": "", 
-#                 "builderName": "", 
-#                 "city": lead_data.get("city", ""),
-#                 "coBorrowerIncome": "", 
-#                 "companyId": "",
-#                 "companyName": "", 
-#                 "createdFromPemId": "",
-#                 "creditScore": lead_data.get("credit_score", 0),
-#                 "creditScoreTypeId": "",
-#                 "customerId": lead_data.get("customerId", ""),
-#                 "dateOfBirth": lead_data.get("date_of_birth", ""),
-#                 "district": lead_data.get("district", ""),
-#                 "email": lead_data.get("email", ""),
-#                 "existingEmis": lead_data.get("existingEmis", ""),
-#                 "firstName": lead_data.get("first_name", ""),
-#                 "gender": lead_data.get("gender", ""),
-#                 "id": lead_data.get("id", "6a645ede-de6f-4bf4-8e05-0830b7dafaaf"), 
-#                 "includeCreditScore": True,
-#                 "isLeadPrefilled": lead_data.get("isLeadPrefilled", False), 
-#                 "isPropertyIdentified": "",
-#                 "lastName": lead_data.get("last_name", ""),
-#                 "loanAmountReq": lead_data.get("loan_amount_req", 0),
-#                 "loanTenure": lead_data.get("loan_tenure", 0),
-#                 "loanType": lead_data.get("loan_type", "HL"),
-#                 "loanUsageTypeId": "",
-#                 "mobile": lead_data.get("mobile", ""),
-#                 "pan": lead_data.get("pan", ""),
-#                 "pincode": lead_data.get("pincode", "126102"),
-#                 "professionId": "714624ae-b86f-4ffc-a710-389d6905ddd9",  ## TODO: Get it from YD Poonia
-#                 "professionName": "Private", ## TODO: Get it from YD Poonia
-#                 "projectId": "",
-#                 "propertyAddress": "",
-#                 "propertyCity": "",
-#                 "propertyDistrict": "",
-#                 "propertyPincode": "",
-#                 "propertyProjectName": "",
-#                 "propertyState": "",
-#                 "propertyTypeId": "",
-#                 "propertyValue": "",
-#                 "qrShortCode": "BAE000247",
-#                 "remarks":"",
-#                 "salaryCreditModeId": "",
-#                 "selfCompanyTypeId": "",
-#                 "selfCompanyTypeName": "",
-#                 "state": lead_data.get("state", ""),
-#                 "towerId": "",
-#                 "towerName": "",
-#                 "towerUnitType": "",
-#                 }
 
     # Book Appointment Creation API Payload - CreateTaskOrComment
     def _prepare_book_appointment_payload(self, lead_data: Dict) -> Dict:

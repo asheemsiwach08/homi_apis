@@ -522,9 +522,12 @@ curl -X GET "http://localhost:5000/api_v1/historical/status/{job_id}"
 
 ## OTP Storage & Lifecycle
 
-### Storage Solutions
-- **Primary**: Supabase PostgreSQL for persistent OTP storage
-- **Fallback**: Local in-memory storage if Supabase is unavailable
+### Enhanced Storage Architecture
+- **Primary**: Dedicated `SupabaseOTPStorage` service for persistent cloud storage
+- **Fallback**: Thread-safe `LocalOTPStorage` with in-memory operations
+- **Intelligent Failover**: Automatic fallback during service initialization if Supabase unavailable
+- **Service Separation**: Independent OTP storage (`otp_storage`) and general database operations (`database_service`)
+- **Smart Initialization**: Comprehensive logging and error handling for storage selection
 - **Automatic expiry**: OTPs expire after 3 minutes (configurable)
 
 ### OTP Lifecycle
@@ -616,7 +619,9 @@ docker run -d \
 - OTPs expire in 180 seconds (3 minutes).
 - Use the `/health` endpoint to confirm service is live before integration testing.
 - The API automatically handles phone number normalization for WhatsApp services.
-- All database operations use Supabase with automatic fallback to local storage.
+- **Enhanced Storage**: Intelligent dual-layer storage with automatic Supabase → Local fallback.
+- **Service Architecture**: Separated OTP storage and database services for optimal reliability.
+- **Improved Error Handling**: Better variable scope management and comprehensive error logging.
 - WhatsApp notifications are sent for lead creation and status updates.
 
 ## Google Sheets Integration

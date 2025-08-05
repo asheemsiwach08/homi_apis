@@ -330,10 +330,11 @@ async def perform_email_check(config: LiveMonitoringConfig) -> Dict[str, Any]:
                 
                 # Save disbursements to database
                 save_stats = database_service.save_disbursement_data(new_disbursements)
+                supabase_new_disbursements = save_stats.get('new_disbursements', [])
                 supabase_saved = save_stats.get('new_records', 0)
                 supabase_duplicates = save_stats.get('duplicates_skipped', 0)
                 supabase_errors = save_stats.get('errors', 0)
-                
+
                 logger.info(f"Supabase save: {supabase_saved} new, {supabase_duplicates} duplicates, {supabase_errors} errors")
                 
                 if save_stats.get('error_details'):
@@ -358,10 +359,10 @@ async def perform_email_check(config: LiveMonitoringConfig) -> Dict[str, Any]:
         monitoring_state["disbursements_found"] += len(new_disbursements)
         
         # Store latest disbursements and update session disbursements
-        if new_disbursements:
-            monitoring_state["latest_disbursements"] = new_disbursements
+        if supabase_new_disbursements:
+            monitoring_state["latest_disbursements"] = supabase_new_disbursements
             monitoring_state["last_disbursement_check"] = check_start
-            monitoring_state["session_disbursements"].extend(new_disbursements)
+            monitoring_state["session_disbursements"].extend(supabase_new_disbursements)
         
         # Clean up
         zoho_client.disconnect()
@@ -369,8 +370,8 @@ async def perform_email_check(config: LiveMonitoringConfig) -> Dict[str, Any]:
         result = {
             "emails_checked": len(all_emails),
             "new_emails_processed": len(unprocessed_emails),
-            "disbursements_found": len(new_disbursements),
-            "new_disbursements": new_disbursements,
+            "disbursements_found": len(supabase_new_disbursements),
+            "new_disbursements": supabase_new_disbursements if 'supabase_new_disbursements' in locals() else [],
             "supabase_saved": supabase_saved if 'supabase_saved' in locals() else 0,
             "supabase_duplicates": supabase_duplicates if 'supabase_duplicates' in locals() else 0,
             "supabase_errors": supabase_errors if 'supabase_errors' in locals() else 0,
@@ -497,192 +498,3 @@ async def get_session_disbursements():
     except Exception as e:
         logger.error(f"Error getting session disbursements: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
-
-
-@router.get("/disbursements", response_model=DisbursementResponse)
-async def get_disbursements_from_db(
-    bank_name: Optional[str] = Query(None, description="Filter by bank name"),
-    disbursement_stage: Optional[str] = Query(None, description="Filter by disbursement stage"),
-    date_from: Optional[str] = Query(None, description="Filter from date (YYYY-MM-DD)"),
-    date_to: Optional[str] = Query(None, description="Filter to date (YYYY-MM-DD)"),
-    amount_min: Optional[float] = Query(None, description="Minimum disbursement amount"),
-    amount_max: Optional[float] = Query(None, description="Maximum disbursement amount"),
-    customer_name: Optional[str] = Query(None, description="Filter by customer name"),
-    limit: int = Query(100, ge=1, le=1000, description="Maximum records to return"),
-    offset: int = Query(0, ge=0, description="Records to skip for pagination")
-):
-    """
-    Get disbursement data from Supabase database with filtering and pagination support.
-    
-    This endpoint retrieves disbursement data from Supabase database and provides
-    comprehensive filtering capabilities for frontend consumption.
-    """
-    try:
-        # Prepare filters dictionary
-        filters = {}
-        if bank_name:
-            filters['bank_name'] = bank_name
-        if disbursement_stage:
-            filters['disbursement_stage'] = disbursement_stage
-        if date_from:
-            filters['date_from'] = date_from
-        if date_to:
-            filters['date_to'] = date_to
-        if amount_min is not None:
-            filters['amount_min'] = amount_min
-        if amount_max is not None:
-            filters['amount_max'] = amount_max
-        if customer_name:
-            filters['customer_name'] = customer_name
-        
-        # Get data from database service
-        result = database_service.get_disbursements(
-            filters=filters,
-            limit=limit,
-            offset=offset
-        )
-        
-        if not result['success']:
-            raise HTTPException(status_code=500, detail="Failed to retrieve disbursement data")
-        
-        # Convert database records to DisbursementRecord objects
-        disbursement_records = []
-        for record in result['data']:
-            try:
-                disbursement_record = DisbursementRecord(
-                    banker_email=record.get("banker_email"),
-                    first_name=record.get("first_name"),
-                    last_name=record.get("last_name"),
-                    loan_account_number=record.get("loan_account_number"),
-                    disbursed_on=record.get("disbursed_on"),
-                    disbursed_created_on=record.get("disbursed_created_on"),
-                    sanction_date=record.get("sanction_date"),
-                    disbursement_amount=record.get("disbursement_amount"),
-                    loan_sanction_amount=record.get("loan_sanction_amount"),
-                    bank_app_id=record.get("bank_app_id"),
-                    basic_app_id=record.get("basic_app_id"),
-                    basic_disb_id=record.get("basic_disb_id"),
-                    app_bank_name=record.get("app_bank_name"),
-                    disbursement_stage=record.get("disbursement_stage"),
-                    disbursement_status=record.get("disbursement_status"),
-                    primary_borrower_mobile=record.get("primary_borrower_mobile"),
-                    pdd=record.get("pdd"),
-                    otc=record.get("otc"),
-                    sourcing_channel=record.get("sourcing_channel"),
-                    sourcing_code=record.get("sourcing_code"),
-                    application_product_type=record.get("application_product_type"),
-                    data_found=record.get("data_found"),
-                    processed_at=record.get("processed_at"),
-                    email_date=record.get("email_date")
-                )
-                disbursement_records.append(disbursement_record)
-            except Exception as e:
-                logger.warning(f"Error converting database record to DisbursementRecord: {str(e)}")
-                continue
-        
-        # Prepare page info
-        has_more = result.get('has_more', False)
-        filtered_count = result.get('total_count', len(disbursement_records))
-        
-        page_info = {
-            "limit": limit,
-            "offset": offset,
-            "has_more": has_more,
-            "current_page": (offset // limit) + 1,
-            "total_pages": (filtered_count + limit - 1) // limit
-        }
-        
-        return DisbursementResponse(
-            success=True,
-            message=f"Retrieved {len(disbursement_records)} disbursement records from Supabase",
-            data=disbursement_records,
-            total_count=filtered_count,
-            filtered_count=filtered_count,
-            page_info=page_info
-        )
-        
-    except HTTPException:
-        raise
-    except Exception as e:
-        logger.error(f"Error in get_disbursements_from_db: {str(e)}")
-        raise HTTPException(
-            status_code=500,
-            detail=f"Internal server error: {str(e)}"
-        )
-
-
-@router.get("/disbursements/stats", response_model=DisbursementStatsResponse)
-async def get_disbursement_stats():
-    """
-    Get disbursement statistics from Supabase for dashboard display.
-    """
-    try:
-        # Get statistics from database service
-        stats = database_service.get_disbursement_stats()
-        
-        # Add live monitoring status to stats
-        stats['data_freshness'] = {
-            "live_monitoring_active": monitoring_state["is_running"],
-            "last_check": monitoring_state["last_check"].isoformat() if monitoring_state["last_check"] else None,
-            "emails_processed": monitoring_state["emails_processed"],
-            "disbursements_found": monitoring_state["disbursements_found"],
-            "session_disbursements": len(monitoring_state.get("session_disbursements", []))
-        }
-        
-        return DisbursementStatsResponse(
-            success=True,
-            message="Disbursement statistics calculated successfully from Supabase",
-            stats=stats
-        )
-        
-    except Exception as e:
-        logger.error(f"Error in get_disbursement_stats: {str(e)}")
-        raise HTTPException(
-            status_code=500,
-            detail=f"Internal server error: {str(e)}"
-        )
-
-
-@router.post("/disbursements/manual-check")
-async def manual_disbursement_check():
-    """
-    Manually trigger a disbursement check cycle and return results immediately.
-    
-    This endpoint allows you to manually trigger an email check and get the 
-    disbursement results without waiting for the monitoring cycle.
-    """
-    try:
-        if not monitoring_state["is_running"]:
-            raise HTTPException(
-                status_code=400, 
-                detail="Live monitoring is not running. Start monitoring first."
-            )
-        
-        # Get current config
-        config_dict = monitoring_state.get("config", {})
-        config = LiveMonitoringConfig(**config_dict)
-        
-        # Perform email check
-        check_result = await perform_email_check(config)
-        
-        return {
-            "success": True,
-            "message": "Manual disbursement check completed",
-            "data": {
-                "check_result": check_result,
-                "new_disbursements": check_result.get("new_disbursements", []),
-                "disbursements_count": check_result.get("disbursements_found", 0),
-                "emails_processed": check_result.get("new_emails_processed", 0),
-                "supabase_saved": check_result.get("supabase_saved", 0),
-                "check_duration": check_result.get("check_duration", 0)
-            }
-        }
-        
-    except HTTPException:
-        raise
-    except Exception as e:
-        logger.error(f"Error in manual_disbursement_check: {str(e)}")
-        raise HTTPException(
-            status_code=500,
-            detail=f"Internal server error: {str(e)}"
-        ) 

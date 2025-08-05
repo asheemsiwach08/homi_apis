@@ -1,6 +1,6 @@
 # HOM-i WhatsApp OTP, Lead Creation & Status API
 
-A comprehensive FastAPI-based REST API for WhatsApp OTP verification, lead creation, status tracking, and email-based disbursement processing using Gupshup API with Supabase PostgreSQL storage and Google Sheets integration.
+A comprehensive FastAPI-based REST API for WhatsApp OTP verification, lead creation, status tracking, and email-based disbursement processing using Gupshup API with intelligent Supabase PostgreSQL storage and automatic local storage fallback.
 
 ## Features
 
@@ -29,10 +29,11 @@ A comprehensive FastAPI-based REST API for WhatsApp OTP verification, lead creat
   - Automatic webhook processing for real-time message handling
   - Multiple template support for different use cases
 - ✅ **Storage & Infrastructure**
-  - Supabase PostgreSQL for persistent storage
-  - Automatic fallback to local storage
+  - **Intelligent Storage Fallback**: Primary Supabase PostgreSQL with automatic local storage fallback
+  - **Separated OTP Storage**: Dedicated OTP storage service with independent failover
+  - **Database Service Architecture**: Modular database services for different operations
   - Google Sheets integration with secure credential management
-  - Thread-safe operations and audit trails
+  - Thread-safe operations and comprehensive audit trails
 - ✅ **API Features**
   - RESTful API design with proper HTTP status codes
   - Background job processing for email analysis
@@ -273,11 +274,14 @@ The API automatically normalizes phone numbers to include the country code **91*
 
 ## OTP Storage & Lifecycle
 
-The API uses a sophisticated storage system with the following behavior:
+The API uses a sophisticated dual-layer storage system with intelligent fallback mechanisms:
 
-### Storage Solutions
-- **Primary**: Supabase PostgreSQL for persistent OTP storage
-- **Fallback**: Local in-memory storage if Supabase is unavailable
+### Storage Architecture
+- **Primary**: Dedicated `SupabaseOTPStorage` for persistent cloud storage
+- **Fallback**: Thread-safe `LocalOTPStorage` with in-memory operations
+- **Automatic Failover**: Seamless fallback if Supabase is unavailable during initialization
+- **Service Separation**: Independent OTP storage service (`otp_storage`) separate from general database operations (`database_service`)
+- **Smart Initialization**: Tries Supabase first, falls back to local storage with comprehensive logging
 - **Automatic expiry**: OTPs expire after 3 minutes (configurable)
 
 ### OTP Lifecycle
@@ -293,38 +297,40 @@ The API uses a sophisticated storage system with the following behavior:
 - **Compliance**: Meet regulatory requirements for data retention
 - **Debugging**: Easier troubleshooting of OTP-related issues
 
-### Database Schema
-```sql
-CREATE TABLE otp_storage (
-    id SERIAL PRIMARY KEY,
-    phone_number VARCHAR(20) NOT NULL,
-    otp VARCHAR(10) NOT NULL,
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-    expires_at TIMESTAMP WITH TIME ZONE NOT NULL,
-    is_used BOOLEAN DEFAULT FALSE
-);
+## Database Service Architecture
 
-CREATE TABLE leads (
-    id SERIAL PRIMARY KEY,
-    basic_application_id VARCHAR(255) NOT NULL,
-    customer_id VARCHAR(255),
-    relation_id VARCHAR(255),
-    first_name VARCHAR(255) NOT NULL,
-    last_name VARCHAR(255) NOT NULL,
-    mobile_number VARCHAR(20) NOT NULL,
-    email VARCHAR(255) NOT NULL,
-    pan_number VARCHAR(10) NOT NULL,
-    loan_type VARCHAR(50) NOT NULL,
-    loan_amount DECIMAL(15,2) NOT NULL,
-    loan_tenure INTEGER NOT NULL,
-    gender VARCHAR(10),
-    dob DATE,
-    pin_code VARCHAR(6) NOT NULL,
-    basic_api_response JSONB,
-    status VARCHAR(50) DEFAULT 'created',
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
-);
+The application uses a modular database service architecture for optimal performance and reliability:
+
+### Service Separation
+- **`otp_storage`**: Dedicated service for OTP operations with automatic fallback
+  - Used in: OTP endpoints (`app/api/endpoints/otp.py`)
+  - Import: `from app.services.database_service import otp_storage`
+  - Methods: `set_otp()`, `get_otp()`, `mark_otp_as_used()`
+
+- **`database_service`**: General database operations for leads, disbursements, etc.
+  - Used in: Lead management, disbursements, WhatsApp messages, appointments
+  - Import: `from app.services.database_service import database_service`
+  - Methods: Lead CRUD, disbursement tracking, message storage, etc.
+
+### Intelligent Initialization
+```python
+# Global instance with fallback mechanism
+try:
+    otp_storage = SupabaseOTPStorage()
+    logger.info("Successfully initialized Supabase OTP storage")
+except Exception as e:
+    logger.error(f"Warning: Could not initialize Supabase storage: {e}")
+    logger.error("Falling back to local storage...")
+    otp_storage = LocalOTPStorage()
+    logger.info("Successfully initialized Local OTP storage as fallback")
 ```
+
+### Architecture Benefits
+- **Reliability**: OTP service never fails due to Supabase issues
+- **Performance**: Local fallback ensures fast OTP operations
+- **Separation of Concerns**: Different data types use appropriate storage strategies
+- **Maintainability**: Clear service boundaries and responsibilities
+
 
 ## API Endpoints
 
@@ -381,17 +387,28 @@ POST /api_v1/lead_create
 Content-Type: application/json
 
 {
-    "loan_type": "home_loan",
-    "loan_amount": 5000000,
-    "loan_tenure": 20,
-    "pan_number": "ABCDE1234F",
-    "first_name": "John",
-    "last_name": "Doe",
-    "gender": "Male",
-    "mobile_number": "788888888",
-    "email": "john.doe@example.com",
-    "dob": "15/06/1990",
-    "pin_code": "400001"
+  "firstName": "Ram",
+  "lastName": "Singh",
+  "gender": "male",
+  "mobile": "7988888888",
+  "creditScore": 500,
+  "pan": "ABCDE1234F",
+  "loanType": "HL",
+  "loanAmountReq": 100,
+  "loanTenure": 2,
+  "pincode": "126112",
+  "email": "user@example.com",
+  "dateOfBirth": "12/08/2002",
+  "annualIncome": 0,
+  "applicationAssignedToRm": "string",
+  "createdFromPemId": "string",
+  "creditScoreTypeId": "string",
+  "customerId": "string",
+  "includeCreditScore": true,
+  "isLeadPrefilled": true,
+  "qrShortCode": "BAE0001JC",
+  "remarks": "good",
+  "state": "string"
 }
 ```
 
@@ -409,22 +426,38 @@ POST /api_v1/create_lead
 Content-Type: application/json
 
 {
-    "firstName": "John",
-    "lastName": "Doe",
-    "mobile": "7999999999",
-    "email": "john.doe@example.com",
-    "pan": "ABCDE1234F",
-    "loanType": "HL",
-    "loanAmountReq": 100000,
-    "loanTenure": 24,
-    "creditScore": 750,
-    "pincode": "126102",
-    "dateOfBirth": "1996-12-08",
-    "gender": "Male",
-    "annualIncome": 1200000,
-    "applicationAssignedToRm": "b3981dc9-02b3-44be-be96-5a09a5547d51",
-    "remarks": "Priority lead",
-    "state": "HARYANA"
+  "firstName": "Ram",
+  "lastName": "Singh",
+  "gender": "male",
+  "mobile": "7988888888",
+  "creditScore": 500,
+  "pan": "ABCDE1234F",
+  "loanType": "HL",
+  "loanAmountReq": 100,
+  "loanTenure": 2,
+  "pincode": "126112",
+  "email": "user@example.com",
+  "dateOfBirth": "12/08/2002",
+  "applicationId": "b427d560-43f7-43e7-8fe3-43b86ab89c66",
+  "professionId": "34e544e6-1e22-49f4-a56a-44c14a32b484",
+  "professionName": "Salaried",
+  "propertyIdentified": "string",
+  "propertyName": "string",
+  "propertyType": "string",
+  "agreementType": "string",
+  "coBorrowerIncome": 0,
+  "unitType": "string",
+  "location": "string",
+  "usageType": "string",
+  "unitNumber": "string",
+  "salaryCreditModeId": "string",
+  "salaryCreditModeName": "string",
+  "selfCompanyTypeId": "string",
+  "companyName": "string",
+  "propertyTypeId": "string",
+  "propertyValue": 0,
+  "loanUsageTypeId": "string",
+  "aggrementTypeId": "string"
 }
 ```
 

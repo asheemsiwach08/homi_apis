@@ -157,7 +157,7 @@ async def whatsapp_webhook(request: Request):
         api_status = await basic_app_service.get_lead_status(
             mobile_number=str(phone_number),
         )
-        logger.info(f"API status: {api_status}")
+
         if api_status:
             # Extract status from API response
             status = api_status.get("result", {}).get("latestStatus", "Not found")

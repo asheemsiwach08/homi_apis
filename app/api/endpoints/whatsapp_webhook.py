@@ -164,7 +164,7 @@ async def whatsapp_webhook(request: Request):
             response_message = f"Your application status is: {status}"
             
             # Get lead data from database for WhatsApp response
-            lead_data = database_service.get_leads_by_mobile(phone_number)
+            lead_data = database_service.get_leads_by_mobile(phone_number)[0]  # Get the first record
             
             # Save status to Supabase database
             try:

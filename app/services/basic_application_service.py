@@ -647,7 +647,7 @@ class BasicApplicationService:
                 
             # Scenario 2: Only mobile number is provided, fetch basic_application_id from database
             elif mobile_number and not basic_application_id:
-                lead_data = database_service.get_leads_by_mobile(mobile_number)[0]
+                lead_data = database_service.get_leads_by_mobile(mobile_number)[0]  # Get the first record
                 if lead_data and lead_data.get("basic_app_id"):
                     final_mobile_number = mobile_number
                     final_basic_application_id = lead_data.get("basic_app_id")
@@ -656,7 +656,7 @@ class BasicApplicationService:
                     
             # Scenario 3: Only basic_application_id is provided, fetch mobile number from database
             elif basic_application_id and not mobile_number:
-                lead_data = database_service.get_leads_by_basic_app_id(basic_application_id)[0]
+                lead_data = database_service.get_leads_by_basic_app_id(basic_application_id)[0]  # Get the first record
                 if lead_data and lead_data.get("customer_mobile"):
                     final_mobile_number = lead_data.get("customer_mobile")
                     final_basic_application_id = basic_application_id

@@ -74,7 +74,7 @@ otpVerification/
 │   │       ├── leads.py        # Lead management endpoints
 │   │       ├── whatsapp.py     # WhatsApp message processing
 │   │       ├── whatsapp_webhook.py # WhatsApp webhook (automatic)
-│   │       └── health.py       # Health check endpoint
+<!-- │   │       └── health.py       # Health check endpoint -->
 │   ├── config/
 │   │   ├── __init__.py
 │   │   └── settings.py         # Application configuration
@@ -749,7 +749,7 @@ Content-Type: application/json
 
 ### Health Check
 
-#### Health Status
+<!-- #### Health Status
 ```http
 GET /api_v1/health
 ```
@@ -760,7 +760,7 @@ GET /api_v1/health
     "status": "healthy",
     "timestamp": "2024-01-15T10:30:00Z"
 }
-```
+``` -->
 
 ## Loan Type Mapping
 
@@ -850,7 +850,7 @@ This creates:
 
 ### Debug Endpoints
 
-- **Health Check**: `GET /api_v1/health`
+<!-- - **Health Check**: `GET /api_v1/health` -->
 - **WhatsApp Service**: Check logs for WhatsApp service initialization
 - **Database Service**: Check logs for database connection status
 

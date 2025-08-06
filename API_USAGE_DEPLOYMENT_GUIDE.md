@@ -6,7 +6,7 @@ This guide details the API usage, endpoints, payloads, responses, error handling
 **Base URL:** `http://localhost:5000/api_v1`
 
 ## API Endpoints
-
+<!-- 
 ### 1. Health Check
 - **Method:** GET
 - **Path:** `/health`
@@ -19,7 +19,7 @@ This guide details the API usage, endpoints, payloads, responses, error handling
   "status": "healthy",
   "service": "HOM-i API"
 }
-```
+``` -->
 
 ### 2. Send OTP
 - **Method:** POST
@@ -458,10 +458,10 @@ curl -X POST "http://localhost:5000/api_v1/book_appointment" \
   }'
 ```
 
-### Health Check
+<!-- ### Health Check
 ```bash
 curl -X GET "http://localhost:5000/api_v1/health"
-```
+``` -->
 
 ### Start Historical Disbursements Processing
 ```bash
@@ -617,7 +617,7 @@ docker run -d \
 
 - Always ensure phone numbers are passed in a format that can be normalized.
 - OTPs expire in 180 seconds (3 minutes).
-- Use the `/health` endpoint to confirm service is live before integration testing.
+<!-- - Use the `/health` endpoint to confirm service is live before integration testing. -->
 - The API automatically handles phone number normalization for WhatsApp services.
 - **Enhanced Storage**: Intelligent dual-layer storage with automatic Supabase → Local fallback.
 - **Service Architecture**: Separated OTP storage and database services for optimal reliability.
@@ -648,7 +648,7 @@ For disbursement tracking, the API integrates with Google Sheets:
 
 - For technical assistance, contact the development team or system administrator.
 - Refer to inline code documentation and `/docs` endpoint for API documentation.
-- Check the `/health` endpoint for service status and configuration validation.
+<!-- - Check the `/health` endpoint for service status and configuration validation. -->
 
 ---
 

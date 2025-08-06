@@ -1,6 +1,6 @@
 from fastapi import APIRouter
 from app.api.endpoints import (
-    track_leads, health, otp, whatsapp_webhook, 
+    track_leads, otp, whatsapp_webhook, 
     historical_disbursements, live_disbursements,
     leads
 )

@@ -123,7 +123,7 @@ This is a comprehensive FastAPI-based REST API for WhatsApp OTP verification, le
 - `PORT`: Server port (default: 5000)
 
 ## Debug Endpoints
-- `/api_v1/health`: Health check endpoint
+<!-- - `/api_v1/health`: Health check endpoint -->
 - Check logs for service initialization status
 - Monitor WhatsApp service configuration
 - Monitor database connection status

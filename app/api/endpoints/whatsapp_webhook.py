@@ -168,8 +168,8 @@ async def whatsapp_webhook(request: Request):
             
             # Save status to Supabase database
             try:
-                if lead_data and lead_data.get("basic_application_id"):
-                    basic_app_id = lead_data.get("basic_application_id")
+                if lead_data and lead_data.get("basic_app_id"):
+                    basic_app_id = lead_data.get("basic_app_id")
                     if basic_app_id:
                         database_service.update_lead_status(str(basic_app_id), str(status))
                         logger.info(f"Status updated in database for mobile: {phone_number}")

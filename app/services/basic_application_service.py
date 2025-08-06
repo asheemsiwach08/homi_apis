@@ -649,9 +649,9 @@ class BasicApplicationService:
             elif mobile_number and not basic_application_id:
                 lead_data = database_service.get_leads_by_mobile(mobile_number)
                 logger.info(f"lead_data by mobile number: {lead_data}")
-                if lead_data and lead_data.get("basic_application_id"):
+                if lead_data and lead_data.get("basic_app_id"):
                     final_mobile_number = mobile_number
-                    final_basic_application_id = lead_data.get("basic_application_id")
+                    final_basic_application_id = lead_data.get("basic_app_id")
                 else:
                     return None
                     

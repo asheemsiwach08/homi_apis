@@ -359,7 +359,7 @@ async def perform_email_check(config: LiveMonitoringConfig) -> Dict[str, Any]:
         monitoring_state["disbursements_found"] += len(new_disbursements)
         
         # Store latest disbursements and update session disbursements
-        if supabase_new_disbursements:
+        if 'supabase_new_disbursements' in locals() and supabase_new_disbursements:
             monitoring_state["latest_disbursements"] = supabase_new_disbursements
             monitoring_state["last_disbursement_check"] = check_start
             monitoring_state["session_disbursements"].extend(supabase_new_disbursements)
@@ -370,7 +370,7 @@ async def perform_email_check(config: LiveMonitoringConfig) -> Dict[str, Any]:
         result = {
             "emails_checked": len(all_emails),
             "new_emails_processed": len(unprocessed_emails),
-            "disbursements_found": len(supabase_new_disbursements),
+            "disbursements_found": len(supabase_new_disbursements) if 'supabase_new_disbursements' in locals() else 0,
             "new_disbursements": supabase_new_disbursements if 'supabase_new_disbursements' in locals() else [],
             "supabase_saved": supabase_saved if 'supabase_saved' in locals() else 0,
             "supabase_duplicates": supabase_duplicates if 'supabase_duplicates' in locals() else 0,

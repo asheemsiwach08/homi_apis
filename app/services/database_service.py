@@ -856,15 +856,32 @@ class DatabaseService:
                             continue
                         
                         # Insert into database
-                        result = self.client.table("disbursements").insert(db_record).execute()
-                        
-                        if result.data:
-                            stats['new_records'] += 1
-                            stats['new_disbursements'].append(db_record)
-                            logger.info(f"Saved disbursement record: {db_record.get('loan_account_number', 'N/A')}")
-                        else:
+                        try:
+                            # Debug: Log the record being inserted
+                            logger.debug(f"Inserting disbursement record: {db_record}")
+                            
+                            # Validate record structure before insertion
+                            clean_record = self._clean_record_for_supabase(db_record)
+                            
+                            result = self.client.table("disbursements").insert(clean_record).execute()
+                            
+                            if result.data:
+                                stats['new_records'] += 1
+                                stats['new_disbursements'].append(clean_record)
+                                logger.info(f"Saved disbursement record: {clean_record.get('loan_account_number', 'N/A')}")
+                            else:
+                                stats['errors'] += 1
+                                error_msg = f"No data returned for record: {record.get('loanAccountNumber', 'N/A')}"
+                                stats['error_details'].append(error_msg)
+                                logger.warning(error_msg)
+                                
+                        except Exception as insert_error:
                             stats['errors'] += 1
-                            stats['error_details'].append(f"No data returned for record: {record.get('loanAccountNumber', 'N/A')}")
+                            error_msg = f"Database insertion failed for record {record.get('loanAccountNumber', 'N/A')}: {str(insert_error)}"
+                            stats['error_details'].append(error_msg)
+                            logger.error(error_msg)
+                            # Log the problematic record for debugging
+                            logger.error(f"Problematic record data: {db_record}")
                             
                 except Exception as e:
                     stats['errors'] += 1
@@ -1056,6 +1073,11 @@ class DatabaseService:
                 elif re.match(r'\d{1,2}/\d{1,2}/\d{4}', date_str):
                     parsed_date = datetime.strptime(date_str, '%m/%d/%Y')
                     return parsed_date.strftime('%Y-%m-%d')
+
+                # DD/MM/YYYY
+                elif re.match(r'\d{1,2}/\d{1,2}/\d{4}', date_str):
+                    parsed_date = datetime.strptime(date_str, '%d/%m/%Y')
+                    return parsed_date.strftime('%Y-%m-%d')
                 
                 # Try ISO format parsing as fallback
                 else:
@@ -1066,6 +1088,23 @@ class DatabaseService:
                 logger.warning(f"Could not parse date '{date_str}': {e}. Setting to None.")
                 return None
         
+        def safe_numeric_conversion(value, default=None):
+            """Safely convert numeric values to proper types."""
+            if value is None or value == "":
+                return default
+            
+            try:
+                if isinstance(value, str):
+                    # Remove currency symbols and commas
+                    cleaned_value = value.replace(',', '').replace('₹', '').replace('$', '').strip()
+                    if not cleaned_value:
+                        return default
+                    return float(cleaned_value)
+                return float(value)
+            except (ValueError, TypeError):
+                logger.warning(f"Could not convert '{value}' to number. Using {default}")
+                return default
+
         return {
             "banker_email": record.get("bankerEmail", "").strip() or None,
             "first_name": record.get("firstName", "").strip() or None,
@@ -1074,8 +1113,8 @@ class DatabaseService:
             "disbursed_on": parse_date_safely(record.get("disbursedOn")),
             "disbursed_created_on": parse_date_safely(record.get("disbursedCreatedOn")),
             "sanction_date": parse_date_safely(record.get("sanctionDate")),
-            "disbursement_amount": record.get("disbursementAmount") or None,
-            "loan_sanction_amount": record.get("loanSanctionAmount") or None,
+            "disbursement_amount": safe_numeric_conversion(record.get("disbursementAmount")),
+            "loan_sanction_amount": safe_numeric_conversion(record.get("loanSanctionAmount")),
             "bank_app_id": record.get("bankAppId", "").strip() or None,
             "basic_app_id": record.get("basicAppId", "").strip() or None,
             "basic_disb_id": record.get("basicDisbId", "").strip() or None,
@@ -1089,7 +1128,7 @@ class DatabaseService:
             "sourcing_code": record.get("sourcingCode", "").strip() or None,
             "application_product_type": record.get("applicationProductType", "").strip() or None,
             "data_found": record.get("dataFound", True),
-            "confidence_score": record.get("confidenceScore", 0.0),
+            "confidence_score": safe_numeric_conversion(record.get("confidenceScore"), 0.0),
             "extraction_method": record.get("extractionMethod", "AI"),
             "email_subject": record.get("emailSubject", "").strip() or None,
             "email_date": parse_date_safely(record.get("emailDate")),
@@ -1099,6 +1138,57 @@ class DatabaseService:
             "processed_at": datetime.now().isoformat(),
             "created_by": "system"
         }
+
+    def _clean_record_for_supabase(self, record: Dict) -> Dict:
+        """
+        Clean and validate record data types for Supabase insertion.
+        
+        Args:
+            record: Prepared disbursement record
+            
+        Returns:
+            Dict: Cleaned record safe for Supabase insertion
+        """
+        cleaned_record = {}
+        
+        for key, value in record.items():
+            # Handle None values
+            if value is None:
+                cleaned_record[key] = None
+                continue
+            
+            # Handle boolean values
+            if isinstance(value, bool):
+                cleaned_record[key] = value
+                continue
+            
+            # Handle numeric values
+            if key in ['disbursement_amount', 'loan_sanction_amount', 'confidence_score']:
+                if isinstance(value, (int, float)):
+                    cleaned_record[key] = value
+                elif isinstance(value, str) and value.strip():
+                    try:
+                        cleaned_record[key] = float(value.replace(',', '').replace('₹', '').replace('$', '').strip())
+                    except ValueError:
+                        logger.warning(f"Could not convert {key} '{value}' to float. Setting to None.")
+                        cleaned_record[key] = None
+                else:
+                    cleaned_record[key] = None
+                continue
+            
+            # Handle string values - ensure they're not empty strings
+            if isinstance(value, str):
+                cleaned_value = value.strip()
+                cleaned_record[key] = cleaned_value if cleaned_value else None
+            else:
+                # Convert other types to string
+                cleaned_record[key] = str(value)
+        
+        # Remove any completely empty records
+        if all(v is None or v == "" for v in cleaned_record.values()):
+            raise ValueError("Record contains no valid data")
+        
+        return cleaned_record
 
     # def _apply_disbursement_filters(self, query, filters: Dict):
     #     """Apply filters to disbursement query."""

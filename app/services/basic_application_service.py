@@ -648,7 +648,7 @@ class BasicApplicationService:
             # Scenario 2: Only mobile number is provided, fetch basic_application_id from database
             elif mobile_number and not basic_application_id:
                 lead_data = database_service.get_leads_by_mobile(mobile_number)
-                
+                logger.info(f"lead_data by mobile number: {lead_data}")
                 if lead_data and lead_data.get("basic_application_id"):
                     final_mobile_number = mobile_number
                     final_basic_application_id = lead_data.get("basic_application_id")
@@ -658,6 +658,7 @@ class BasicApplicationService:
             # Scenario 3: Only basic_application_id is provided, fetch mobile number from database
             elif basic_application_id and not mobile_number:
                 lead_data = database_service.get_leads_by_basic_app_id(basic_application_id)
+                logger.info(f"lead_data by application id: {lead_data}")
                 
                 if lead_data and lead_data.get("mobile_number"):
                     final_mobile_number = lead_data.get("mobile_number")
@@ -670,6 +671,8 @@ class BasicApplicationService:
                 return None
             
             # Now we have both mobile number and basic_application_id, call the GetActivity API
+            logger.info(f"final_mobile_number: {final_mobile_number}")
+            logger.info(f"final_basic_application_id: {final_basic_application_id}")
             if final_mobile_number and final_basic_application_id:
                 api_url = f"{self.basic_api_url}/api/v1/Application/Activity/GetActivity/{final_basic_application_id}/{final_mobile_number}"
                 headers = self.generate_signature_headers(

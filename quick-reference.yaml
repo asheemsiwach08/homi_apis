@@ -62,7 +62,7 @@ quick_reference:
       status_by_mobile: "GET /lead-status/mobile/{mobile_number}"
     
     utility:
-      health: "GET /health"
+      # health: "GET /health"
       docs: "GET /docs"
   
   # Phone Number Formats
@@ -90,7 +90,7 @@ quick_reference:
   # Testing Commands
   testing:
     manual: "python test_api.py"
-    health_check: "curl http://localhost:5000/api_v1/health"
+    # health_check: "curl http://localhost:5000/api_v1/health"
     api_docs: "http://localhost:5000/docs"
   
   # Common Issues & Solutions
@@ -114,7 +114,7 @@ quick_reference:
   # Monitoring & Logs
   monitoring:
     logs_location: "/app/logs/app.log"
-    health_endpoint: "GET /api_v1/health"
+    # health_endpoint: "GET /api_v1/health"
     docker_logs: "docker-compose logs -f"
     container_status: "docker ps"
   
@@ -136,7 +136,7 @@ quick_reference:
       - "Check database permissions"
     
     post_deployment:
-      - "Verify health endpoint"
+      # - "Verify health endpoint"
       - "Test OTP flow"
       - "Test lead creation"
       - "Monitor logs for errors"
@@ -147,7 +147,7 @@ quick_reference:
     check_services:
       - "docker ps -a"
       - "docker-compose ps"
-      - "curl http://localhost:5000/api_v1/health"
+      # - "curl http://localhost:5000/api_v1/health"
     
     view_logs:
       - "docker-compose logs -f"

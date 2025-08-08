@@ -1,24 +1,128 @@
-from typing import Optional, List, Dict, Any
+from typing import Optional, List, Dict, Any, Literal
 from pydantic import BaseModel, EmailStr, Field
 
-####################################### OTP Schemas #####################################
 
-class SendOTPRequest(BaseModel):
-    phone_number: str = Field(..., description="Phone number to send OTP to")
+############################### Basic Verify Approval Schemas ##################################
 
-class ResendOTPRequest(BaseModel):
-    phone_number: str = Field(..., description="Phone number to resend OTP to")
-
-class VerifyOTPRequest(BaseModel):
-    phone_number: str = Field(..., description="Phone number to verify OTP for")
-    otp: str = Field(..., description="OTP to verify")
-
-class OTPResponse(BaseModel):
+class BasicVerifyApprovalRequest(BaseModel):
+    basicVerifyData: Dict[str, Any] = Field(..., description="Basic verification data as dictionary")
+    basicVerifyStatus: Literal["VerifiedByBasic", "RejectedByBasic"] = Field(default="VerifiedByBasic", description="Verification status - either 'VerifiedByBasic' or 'RejectedByBasic'")
+    rejectionComments: Optional[str] = Field(default=None, description="Comments for verification (stored in comments field in database)")
+    
+    
+class BasicVerifyApprovalResponse(BaseModel):
     success: bool
     message: str
-    data: Optional[dict] = None 
+    data: Optional[dict] = None
 
-################################# Lead Create Schemas ##############################################
+
+################################# Book Appointment Schemas #####################################
+
+class BookAppointmentRequest(BaseModel):
+    date: str
+    time: str
+    reference_id: str
+
+class BookAppointmentResponse(BaseModel):
+    basic_application_id: str
+    message: str
+
+################################# Disbursement Schemas #####################################
+
+class DisbursementRecord(BaseModel):
+    """Individual disbursement record."""
+    # Primary Key
+    ai_disbursement_id: Optional[str] = Field(None, description="Unique UUID identifier for AI-generated disbursement records")
+    
+    # Email Context
+    banker_email: Optional[str] = None
+    email_subject: Optional[str] = None
+    email_date: Optional[str] = None
+    processed_at: Optional[str] = None
+    
+    # Customer Information
+    first_name: Optional[str] = None
+    last_name: Optional[str] = None
+    primary_borrower_mobile: Optional[str] = None
+    
+    # Loan Account Information
+    loan_account_number: Optional[str] = None
+    bank_app_id: Optional[str] = None
+    basic_app_id: Optional[str] = None
+    basic_disb_id: Optional[str] = None
+    
+    # Bank Information
+    app_bank_name: Optional[str] = None
+    
+    # Disbursement Details
+    disbursement_amount: Optional[float] = None
+    loan_sanction_amount: Optional[float] = None
+    disbursed_on: Optional[str] = None
+    disbursed_created_on: Optional[str] = None
+    sanction_date: Optional[str] = None
+    
+    # Status Information
+    disbursement_stage: Optional[str] = None
+    disbursement_status: Optional[str] = None
+    
+    # Additional Fields
+    pdd: Optional[str] = None
+    otc: Optional[str] = None
+    sourcing_channel: Optional[str] = None
+    sourcing_code: Optional[str] = None
+    application_product_type: Optional[str] = None
+    
+    # Comments and Notes
+    comments: Optional[str] = None
+    
+    # Data Quality
+    data_found: Optional[bool] = None
+    confidence_score: Optional[float] = None
+    extraction_method: Optional[str] = None
+    
+    # Source Information
+    source_email_id: Optional[str] = None
+    source_thread_id: Optional[str] = None
+    attachment_count: Optional[int] = None
+    
+    # Internal Fields
+    is_duplicate: Optional[bool] = None
+    duplicate_of_id: Optional[int] = None
+    manual_review_required: Optional[bool] = None
+    manual_review_notes: Optional[str] = None
+
+
+class DisbursementFilters(BaseModel):
+    """Filters for disbursement queries."""
+    bank_name: Optional[str] = None
+    disbursement_stage: Optional[str] = None
+    date_from: Optional[str] = Field(None, description="Filter from date (YYYY-MM-DD)")
+    date_to: Optional[str] = Field(None, description="Filter to date (YYYY-MM-DD)")
+    amount_min: Optional[float] = None
+    amount_max: Optional[float] = None
+    customer_name: Optional[str] = None
+    data_found: Optional[bool] = None
+    manual_review_required: Optional[bool] = None
+
+
+class DisbursementResponse(BaseModel):
+    """Response model for disbursement queries."""
+    success: bool
+    message: str
+    data: List[DisbursementRecord]
+    total_count: int
+    filtered_count: int
+    page_info: Optional[Dict[str, Any]] = None
+
+
+class DisbursementStatsResponse(BaseModel):
+    """Response model for disbursement statistics."""
+    success: bool
+    message: str
+    stats: Dict[str, Any]
+    
+
+################################# Lead Create Schemas #####################################
 
 class LeadCreateRequest(BaseModel):
     firstName: str
@@ -119,18 +223,8 @@ class LeadFlashResponse(BaseModel):
     reference_id: str
     message: str
 
-################################# Book Appointment Schemas ##############################################
-
-class BookAppointmentRequest(BaseModel):
-    date: str
-    time: str
-    reference_id: str
-
-class BookAppointmentResponse(BaseModel):
-    basic_application_id: str
-    message: str
     
-################################# Lead Status Schemas ##############################################
+################################# Lead Status Schemas #####################################
 
 class LeadStatusRequest(BaseModel):
     mobile_number: Optional[str] = None
@@ -140,7 +234,25 @@ class LeadStatusResponse(BaseModel):
     status: str
     message: str
 
-################################# WhatsApp Webhook Schemas ##############################################
+
+################################# OTP Schemas #######################################
+
+class SendOTPRequest(BaseModel):
+    phone_number: str = Field(..., description="Phone number to send OTP to")
+
+class ResendOTPRequest(BaseModel):
+    phone_number: str = Field(..., description="Phone number to resend OTP to")
+
+class VerifyOTPRequest(BaseModel):
+    phone_number: str = Field(..., description="Phone number to verify OTP for")
+    otp: str = Field(..., description="OTP to verify")
+
+class OTPResponse(BaseModel):
+    success: bool
+    message: str
+    data: Optional[dict] = None 
+
+################################# WhatsApp Webhook Schemas #######################################
 
 class WhatsAppMessageRequest(BaseModel):
     message: str = Field(..., description="WhatsApp message content")
@@ -151,90 +263,3 @@ class WhatsAppStatusResponse(BaseModel):
     message: str
     status: Optional[str] = None
 
-################################# Disbursement Schemas ##############################################
-
-class DisbursementRecord(BaseModel):
-    """Individual disbursement record."""
-    # Email Context
-    banker_email: Optional[str] = None
-    email_subject: Optional[str] = None
-    email_date: Optional[str] = None
-    processed_at: Optional[str] = None
-    
-    # Customer Information
-    first_name: Optional[str] = None
-    last_name: Optional[str] = None
-    primary_borrower_mobile: Optional[str] = None
-    
-    # Loan Account Information
-    loan_account_number: Optional[str] = None
-    bank_app_id: Optional[str] = None
-    basic_app_id: Optional[str] = None
-    basic_disb_id: Optional[str] = None
-    
-    # Bank Information
-    app_bank_name: Optional[str] = None
-    
-    # Disbursement Details
-    disbursement_amount: Optional[float] = None
-    loan_sanction_amount: Optional[float] = None
-    disbursed_on: Optional[str] = None
-    disbursed_created_on: Optional[str] = None
-    sanction_date: Optional[str] = None
-    
-    # Status Information
-    disbursement_stage: Optional[str] = None
-    disbursement_status: Optional[str] = None
-    
-    # Additional Fields
-    pdd: Optional[str] = None
-    otc: Optional[str] = None
-    sourcing_channel: Optional[str] = None
-    sourcing_code: Optional[str] = None
-    application_product_type: Optional[str] = None
-    
-    # Data Quality
-    data_found: Optional[bool] = None
-    confidence_score: Optional[float] = None
-    extraction_method: Optional[str] = None
-    
-    # Source Information
-    source_email_id: Optional[str] = None
-    source_thread_id: Optional[str] = None
-    attachment_count: Optional[int] = None
-    
-    # Internal Fields
-    is_duplicate: Optional[bool] = None
-    duplicate_of_id: Optional[int] = None
-    manual_review_required: Optional[bool] = None
-    manual_review_notes: Optional[str] = None
-
-
-class DisbursementFilters(BaseModel):
-    """Filters for disbursement queries."""
-    bank_name: Optional[str] = None
-    disbursement_stage: Optional[str] = None
-    date_from: Optional[str] = Field(None, description="Filter from date (YYYY-MM-DD)")
-    date_to: Optional[str] = Field(None, description="Filter to date (YYYY-MM-DD)")
-    amount_min: Optional[float] = None
-    amount_max: Optional[float] = None
-    customer_name: Optional[str] = None
-    data_found: Optional[bool] = None
-    manual_review_required: Optional[bool] = None
-
-
-class DisbursementResponse(BaseModel):
-    """Response model for disbursement queries."""
-    success: bool
-    message: str
-    data: List[DisbursementRecord]
-    total_count: int
-    filtered_count: int
-    page_info: Optional[Dict[str, Any]] = None
-
-
-class DisbursementStatsResponse(BaseModel):
-    """Response model for disbursement statistics."""
-    success: bool
-    message: str
-    stats: Dict[str, Any]

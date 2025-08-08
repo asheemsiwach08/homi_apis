@@ -727,6 +727,44 @@ class DatabaseService:
             logger.error(f"Error updating lead status: {e}")
             return False
 
+
+    def update_basic_verify_status(self, verification_id: str, verification_status: str, comments: str) -> bool:
+        """
+        Update the application status for a lead record
+        
+        Args:
+            verification_id: Verification ID to update
+            verification_status: Verification status to set
+            comments: Comments to set
+            
+        Returns:
+            bool: True if update was successful, False otherwise
+        """
+        if not self.client:
+            logger.error("Supabase client not initialized for lead status update")
+            return False
+        
+        try:
+            # Update the application_status and updated_at timestamp
+            update_data = {
+                "disbursement_status": verification_status,
+                "comments": comments,
+                "updated_at": "now()"
+            }
+            
+            result = self.client.table("leads").update(update_data).eq("verification_id", verification_id).execute()
+            
+            if result.data:
+                logger.info(f"Successfully updated lead status for Verification ID: {verification_id} to: {verification_status}")
+                return True
+            else:
+                logger.warning(f"No lead found with Verification ID: {verification_id}")
+                return False
+                
+        except Exception as e:
+            logger.error(f"Error updating lead status: {e}")
+            return False
+
     ################################# Appointment Methods ##############################################
     # def get_appointments_by_reference_id(self, reference_id: str) -> List[Dict]:
     #     """
@@ -1041,6 +1079,11 @@ class DatabaseService:
             logger.warning(f"Error checking disbursement duplicate: {str(e)}")
             return False
 
+    def _generate_ai_disbursement_id(self) -> str:
+        """Generate a unique AI disbursement ID using UUID."""
+        import uuid
+        return str(uuid.uuid4())
+
     def _prepare_disbursement_record(self, record: Dict, is_duplicate: bool = False) -> Dict:
         """Prepare disbursement record for database insertion."""
         from datetime import datetime
@@ -1106,6 +1149,7 @@ class DatabaseService:
                 return default
 
         return {
+            "ai_disbursement_id": self._generate_ai_disbursement_id(),
             "banker_email": record.get("bankerEmail", "").strip() or None,
             "first_name": record.get("firstName", "").strip() or None,
             "last_name": record.get("lastName", "").strip() or None,
@@ -1127,6 +1171,7 @@ class DatabaseService:
             "sourcing_channel": record.get("sourcingChannel", "").strip() or None,
             "sourcing_code": record.get("sourcingCode", "").strip() or None,
             "application_product_type": record.get("applicationProductType", "").strip() or None,
+            "comments": record.get("comments", "").strip() or None,
             "data_found": record.get("dataFound", True),
             "confidence_score": safe_numeric_conversion(record.get("confidenceScore"), 0.0),
             "extraction_method": record.get("extractionMethod", "AI"),
@@ -1189,6 +1234,40 @@ class DatabaseService:
             raise ValueError("Record contains no valid data")
         
         return cleaned_record
+
+    def update_basic_verify_status(self, verification_id: str, verification_status: str, comments: str = None) -> bool:
+        """Update the verification status of a disbursement record."""
+        try:
+            if not verification_id:
+                logger.error("Verification ID is required")
+                return False
+            
+            # Prepare the update data
+            update_data = {
+                "disbursement_status": verification_status,
+                "updated_at": datetime.now().isoformat()
+            }
+            
+            if comments:
+                update_data["comments"] = comments
+            
+            # Update in Supabase
+            if self.client:
+                result = self.client.table("disbursements").update(update_data).eq("ai_disbursement_id", verification_id).execute()
+                
+                if result.data:
+                    logger.info(f"Successfully updated disbursement status to {verification_status} for ai_disbursement_id: {verification_id}")
+                    return True
+                else:
+                    logger.error(f"No record found with ai_disbursement_id: {verification_id}")
+                    return False
+            else:
+                logger.error("Supabase client not initialized")
+                return False
+                
+        except Exception as e:
+            logger.error(f"Error updating disbursement status: {str(e)}")
+            return False
 
     # def _apply_disbursement_filters(self, query, filters: Dict):
     #     """Apply filters to disbursement query."""

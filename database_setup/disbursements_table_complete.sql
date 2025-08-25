@@ -1,10 +1,16 @@
--- Disbursements Table Setup for Supabase
--- This table stores all disbursement records processed from emails
+-- Disbursements Table Complete Setup for Supabase
+-- This table stores all disbursement records processed from emails with AI processing
+-- Includes ai_disbursement_id (UUID) and comments column
 -- Run this in your Supabase SQL Editor
 
--- Create the disbursements table
+-- Drop table if exists (for fresh setup)
+-- DROP TABLE IF EXISTS disbursements CASCADE;
+
+-- Create the disbursements table with all latest features
 CREATE TABLE IF NOT EXISTS disbursements (
+    -- Primary Keys
     id BIGSERIAL PRIMARY KEY,
+    ai_disbursement_id UUID UNIQUE DEFAULT gen_random_uuid(), -- Unique UUID for AI-generated records
     
     -- Email Context
     banker_email VARCHAR(255), -- Email of the banker/sender
@@ -35,7 +41,10 @@ CREATE TABLE IF NOT EXISTS disbursements (
     
     -- Status Information
     disbursement_stage VARCHAR(50), -- Disbursed, Pending, No Status
-    disbursement_status VARCHAR(50), -- VerifiedByAI, Manual, etc.
+    disbursement_status VARCHAR(50), -- VerifiedByAI, VerifiedByBasic, RejectedByBasic, Manual, etc.
+    
+    -- Comments and Notes
+    comments TEXT, -- General comments about the disbursement
     
     -- Additional Fields
     pdd VARCHAR(50), -- PDD status
@@ -68,12 +77,14 @@ CREATE TABLE IF NOT EXISTS disbursements (
 );
 
 -- Create indexes for better performance
+CREATE INDEX IF NOT EXISTS idx_disbursements_ai_disbursement_id ON disbursements(ai_disbursement_id);
 CREATE INDEX IF NOT EXISTS idx_disbursements_loan_account_number ON disbursements(loan_account_number);
 CREATE INDEX IF NOT EXISTS idx_disbursements_bank_app_id ON disbursements(bank_app_id);
 CREATE INDEX IF NOT EXISTS idx_disbursements_basic_app_id ON disbursements(basic_app_id);
 CREATE INDEX IF NOT EXISTS idx_disbursements_banker_email ON disbursements(banker_email);
 CREATE INDEX IF NOT EXISTS idx_disbursements_disbursed_on ON disbursements(disbursed_on);
 CREATE INDEX IF NOT EXISTS idx_disbursements_disbursement_stage ON disbursements(disbursement_stage);
+CREATE INDEX IF NOT EXISTS idx_disbursements_disbursement_status ON disbursements(disbursement_status);
 CREATE INDEX IF NOT EXISTS idx_disbursements_app_bank_name ON disbursements(app_bank_name);
 CREATE INDEX IF NOT EXISTS idx_disbursements_processed_at ON disbursements(processed_at);
 CREATE INDEX IF NOT EXISTS idx_disbursements_email_date ON disbursements(email_date);
@@ -85,6 +96,7 @@ CREATE INDEX IF NOT EXISTS idx_disbursements_manual_review_required ON disbursem
 CREATE INDEX IF NOT EXISTS idx_disbursements_customer_name ON disbursements(first_name, last_name);
 CREATE INDEX IF NOT EXISTS idx_disbursements_date_range ON disbursements(disbursed_on, processed_at);
 CREATE INDEX IF NOT EXISTS idx_disbursements_bank_stage ON disbursements(app_bank_name, disbursement_stage);
+
 
 -- Create updated_at trigger
 CREATE OR REPLACE FUNCTION update_disbursements_updated_at_column()
@@ -101,20 +113,56 @@ CREATE TRIGGER update_disbursements_updated_at
     FOR EACH ROW 
     EXECUTE FUNCTION update_disbursements_updated_at_column();
 
--- Add comments for documentation
-COMMENT ON TABLE disbursements IS 'Stores all disbursement records extracted from banker emails';
+-- Helper function to generate AI disbursement ID (optional, since we have DEFAULT)
+CREATE OR REPLACE FUNCTION generate_ai_disbursement_id()
+RETURNS UUID AS $$
+BEGIN
+    RETURN gen_random_uuid();
+END;
+$$ LANGUAGE plpgsql;
+
+-- Function to update verification status
+CREATE OR REPLACE FUNCTION update_verification_status(
+    p_ai_disbursement_id UUID,
+    p_status VARCHAR(50),
+    p_comments TEXT DEFAULT NULL,
+    p_verified_by VARCHAR(100) DEFAULT 'system'
+)
+RETURNS BOOLEAN AS $$
+BEGIN
+    UPDATE disbursements 
+    SET 
+        disbursement_status = p_status,
+        comments = CASE 
+            WHEN p_comments IS NOT NULL THEN p_comments
+            ELSE comments
+        END,
+        updated_by = p_verified_by
+    WHERE ai_disbursement_id = p_ai_disbursement_id;
+    
+    RETURN FOUND;
+END;
+$$ LANGUAGE plpgsql;
+
+-- Add comprehensive comments for documentation
+COMMENT ON TABLE disbursements IS 'Stores all disbursement records extracted from banker emails with AI processing';
+COMMENT ON COLUMN disbursements.id IS 'Primary key - sequential ID';
+COMMENT ON COLUMN disbursements.ai_disbursement_id IS 'Unique UUID identifier for AI-generated disbursement records';
 COMMENT ON COLUMN disbursements.loan_account_number IS 'Loan Account Number (LAN) or Account Number';
 COMMENT ON COLUMN disbursements.bank_app_id IS 'Bank Application ID from the lending bank';
 COMMENT ON COLUMN disbursements.disbursement_stage IS 'Status: Disbursed, Pending, or No Status';
+COMMENT ON COLUMN disbursements.disbursement_status IS 'Processing status: VerifiedByAI, VerifiedByBasic, RejectedByBasic, Manual';
 COMMENT ON COLUMN disbursements.data_found IS 'True if valid disbursement data was extracted';
 COMMENT ON COLUMN disbursements.confidence_score IS 'AI extraction confidence (0.00-1.00)';
 COMMENT ON COLUMN disbursements.is_duplicate IS 'True if this record is identified as duplicate';
 COMMENT ON COLUMN disbursements.manual_review_required IS 'True if record needs manual verification';
+COMMENT ON COLUMN disbursements.comments IS 'General comments about the disbursement (used for both verification and rejection)';
 
--- Create a view for frontend consumption (only non-duplicate, valid records)
+-- Create a comprehensive view for frontend consumption
 CREATE OR REPLACE VIEW disbursements_frontend AS
 SELECT 
     id,
+    ai_disbursement_id,
     banker_email,
     first_name,
     last_name,
@@ -136,40 +184,76 @@ SELECT
     sourcing_channel,
     sourcing_code,
     application_product_type,
+    comments,
     data_found,
     confidence_score,
     processed_at,
     email_date,
-    created_at
+    created_at,
+    updated_at
 FROM disbursements 
 WHERE 
     is_duplicate = false 
     AND data_found = true
 ORDER BY processed_at DESC;
 
+-- Create a view for verification queue
+CREATE OR REPLACE VIEW disbursements_verification_queue AS
+SELECT 
+    id,
+    ai_disbursement_id,
+    banker_email,
+    first_name,
+    last_name,
+    loan_account_number,
+    disbursement_amount,
+    loan_sanction_amount,
+    bank_app_id,
+    app_bank_name,
+    disbursement_stage,
+    disbursement_status,
+    confidence_score,
+    comments,
+    processed_at,
+    created_at
+FROM disbursements 
+WHERE 
+    is_duplicate = false 
+    AND data_found = true
+    AND manual_review_required = true
+    AND disbursement_status NOT IN ('VerifiedByBasic', 'RejectedByBasic')
+ORDER BY confidence_score DESC, processed_at ASC;
+
 COMMENT ON VIEW disbursements_frontend IS 'Clean view of disbursement records for frontend display';
+COMMENT ON VIEW disbursements_verification_queue IS 'Records pending verification by Basic system';
 
 -- Sample data for testing (optional - remove in production)
 /*
 INSERT INTO disbursements (
-    banker_email, first_name, last_name, loan_account_number, 
+    ai_disbursement_id, banker_email, first_name, last_name, loan_account_number, 
     disbursed_on, disbursement_amount, loan_sanction_amount,
     bank_app_id, app_bank_name, disbursement_stage,
     disbursement_status, primary_borrower_mobile, 
-    application_product_type, data_found, confidence_score
+    application_product_type, data_found, confidence_score,
+    comments
 ) VALUES 
 (
-    'banker@hdfcbank.com', 'John', 'Doe', 'LAN123456789',
+    gen_random_uuid(), 'banker@hdfcbank.com', 'John', 'Doe', 'LAN123456789',
     '2024-01-15', 2500000, 2500000,
     'HDFC2024001', 'HDFC Bank', 'Disbursed',
     'VerifiedByAI', '+919876543210',
-    'HL', true, 0.95
+    'HL', true, 0.95,
+    'Standard home loan disbursement'
 ),
 (
-    'banker@icicibank.com', 'Jane', 'Smith', 'ICICI987654321', 
+    gen_random_uuid(), 'banker@icicibank.com', 'Jane', 'Smith', 'ICICI987654321', 
     '2024-01-16', 1800000, 2000000,
     'ICICI2024002', 'ICICI Bank', 'Disbursed',
     'VerifiedByAI', '+919876543211',
-    'HL', true, 0.92
+    'HL', true, 0.92,
+    'Partial disbursement - construction stage'
 );
 */
+
+-- Performance and maintenance
+ANALYZE disbursements;

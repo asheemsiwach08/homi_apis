@@ -42,6 +42,9 @@ def validate_lead_create_data(lead_data: LeadCreateRequest):
         HTTPException: If any validation fails with specific error message
             - 422: For field-specific validation errors (format, range, etc.)
     """
+    if not lead_data.environment:
+        raise HTTPException(status_code=422, detail="Environment is required")
+    
     if not validate_loan_type(lead_data.loanType):
         raise HTTPException(status_code=422, detail="Invalid loan type")
     
@@ -194,9 +197,10 @@ async def create_lead_api(request: LeadCreateRequest):
             api_data["source_endpoint"] = "create_lead"
             
             db_result = database_service.save_lead_data(
-                api_data, 
-                fbb_user_result, 
-                fbb_user_result  # Using FBB response for both since this endpoint only calls FBB
+                request_data=api_data, 
+                fbb_response=fbb_user_result, 
+                self_fullfilment_response=fbb_user_result,
+                environment=request.environment
             )
             
             if db_result.get("success"):
@@ -409,9 +413,10 @@ async def lead_flash_api(request: LeadFlashRequest):
             api_data["source_endpoint"] = "lead_flash"
             
             db_result = database_service.save_lead_data(
-                api_data, 
-                self_fullfilment_result, 
-                self_fullfilment_result
+                request_data=api_data, 
+                fbb_response=self_fullfilment_result, 
+                self_fullfilment_response=self_fullfilment_result,
+                environment=request.environment
             )
             
             if db_result.get("success"):

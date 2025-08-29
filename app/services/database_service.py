@@ -1,5 +1,7 @@
 import time
 import logging
+from threading import Lock
+from typing import Dict, Tuple, Optional
 from typing import Dict, Optional, List
 
 from fastapi import HTTPException
@@ -12,25 +14,154 @@ logger = logging.getLogger(__name__)
 
 
 class DatabaseService:
-    """Service for handling Supabase database operations"""
+    """Service for handling Supabase database operations with multi-environment support"""
     
     def __init__(self):
-        self.supabase_url = settings.SUPABASE_URL
-        self.supabase_service_role_key = settings.SUPABASE_SERVICE_ROLE_KEY 
+        # Environment configurations
+        self.supabase_orbit_url = settings.SUPABASE_ORBIT_URL
+        self.supabase_orbit_service_role_key = settings.SUPABASE_ORBIT_SERVICE_ROLE_KEY 
         
-        if not self.supabase_url or not self.supabase_service_role_key:
-            logger.error("WARNING: Supabase credentials not configured.")
-            logger.error("Please set SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY environment variables.")
-            self.client = None
-        else:
+        self.supabase_homi_url = settings.SUPABASE_HOMI_URL
+        self.supabase_homi_service_role_key = settings.SUPABASE_HOMI_SERVICE_ROLE_KEY 
+        
+        # Initialize clients
+        self.client_orbit = None
+        self.client_homi = None
+        self.client = None  # Default client for backward compatibility
+        
+        # Environment determination flag
+        self.environment = self._determine_environment()
+        
+        # Initialize Orbit client
+        if self.supabase_orbit_url and self.supabase_orbit_service_role_key:
             try:
-                self.client = create_client(self.supabase_url, self.supabase_service_role_key)
+                self.client_orbit = create_client(self.supabase_orbit_url, self.supabase_orbit_service_role_key)
+                logger.info("Successfully initialized Orbit Supabase client")
             except Exception as e:
-                logger.error(f"Error initializing Supabase client: {e}")
-                self.client = None
+                logger.error(f"Error initializing Orbit Supabase client: {e}")
+                self.client_orbit = None
+        else:
+            logger.warning("Orbit Supabase credentials not configured")
+        
+        # Initialize Homi client
+        if self.supabase_homi_url and self.supabase_homi_service_role_key:
+            try:
+                self.client_homi = create_client(self.supabase_homi_url, self.supabase_homi_service_role_key)
+                logger.info("Successfully initialized Homi Supabase client")
+            except Exception as e:
+                logger.error(f"Error initializing Homi Supabase client: {e}")
+                self.client_homi = None
+        else:
+            logger.warning("Homi Supabase credentials not configured")
+        
+        # Set default client for backward compatibility
+        self.client = self._get_default_client()
+        
+        # Validate at least one client is available
+        if not self.client_orbit and not self.client_homi:
+            logger.error("WARNING: No Supabase clients initialized successfully.")
+            logger.error("Please check your environment variables and network connectivity.")
     
+    def _determine_environment(self) -> str:
+        """
+        Determine which environment to use as default based on configuration
+        
+        Returns:
+            str: Environment name ('orbit', 'homi', or 'unknown')
+        """
+        # Priority logic: Use Orbit as primary if available, fallback to Homi
+        if self.supabase_orbit_url and self.supabase_orbit_service_role_key:
+            return "orbit"
+        elif self.supabase_homi_url and self.supabase_homi_service_role_key:
+            return "homi"
+        else:
+            return "unknown"
+    
+    def _get_default_client(self):
+        """Get the default client based on environment determination"""
+        if self.environment == "orbit" and self.client_orbit:
+            return self.client_orbit
+        elif self.environment == "homi" and self.client_homi:
+            return self.client_homi
+        elif self.client_orbit:
+            return self.client_orbit
+        elif self.client_homi:
+            return self.client_homi
+        else:
+            return None
+    
+    def get_client(self, environment: str = None):
+        """
+        Get the appropriate Supabase client for the specified environment
+        
+        Args:
+            environment (str, optional): Environment name ('orbit' or 'homi'). 
+                                       If None, uses default environment.
+                                       
+        Returns:
+            Client: Supabase client for the specified environment
+            
+        Raises:
+            HTTPException: If the specified environment client is not available
+        """
+        if environment is None:
+            environment = self.environment
+        
+        if environment.lower() == "orbit":
+            if not self.client_orbit:
+                raise HTTPException(
+                    status_code=500,
+                    detail="Orbit Supabase client not initialized. Check SUPABASE_ORBIT_URL and SUPABASE_ORBIT_SERVICE_ROLE_KEY."
+                )
+            return self.client_orbit
+        elif environment.lower() == "homi":
+            if not self.client_homi:
+                raise HTTPException(
+                    status_code=500,
+                    detail="Homi Supabase client not initialized. Check SUPABASE_HOMI_URL and SUPABASE_HOMI_SERVICE_ROLE_KEY."
+                )
+            return self.client_homi
+        else:
+            # Fallback to default client
+            if not self.client:
+                raise HTTPException(
+                    status_code=500,
+                    detail="No Supabase client available. Check database configuration."
+                )
+            return self.client
+    
+    def get_client_for_table(self, table_name: str):
+        """
+        Get the appropriate client based on table name or data type
+        
+        This method implements business logic to determine which environment
+        should be used for specific tables or operations.
+        
+        Args:
+            table_name (str): Name of the table being accessed
+            
+        Returns:
+            Client: Appropriate Supabase client for the table
+        """
+        # Define table-to-environment mapping
+        table_environment_mapping = {
+            # Orbit tables (main business operations)
+            "leads": "orbit",
+            "appointments": "orbit", 
+            "disbursements": "orbit",
+            "whatsapp_messages": "orbit",
+            
+            # Homi tables (if you have specific homi operations)
+            "otp_storage": "homi",  # You can choose which env for OTP
+            # Add more table mappings as needed
+        }
+        
+        target_environment = table_environment_mapping.get(table_name, self.environment)
+        return self.get_client(target_environment)
 
-    def save_whatsapp_message(self, message_data: Dict) -> Dict:
+
+
+    def save_whatsapp_message(self, message_data: Dict, environment: str = None) -> Dict:
         """
         Save WhatsApp message to database (simplified)
         
@@ -39,15 +170,13 @@ class DatabaseService:
                 - mobile: Sender's mobile number
                 - message: Message content
                 - payload: Full webhook payload (optional)
+            environment (str, optional): Target environment ('orbit' or 'homi')
                 
         Returns:
             Dict: Database operation result
         """
-        if not self.client:
-            raise HTTPException(
-                status_code=500,
-                detail="Supabase client not initialized. Check database configuration."
-            )
+        # Get appropriate client for this operation
+        client = self.get_client_for_table("whatsapp_messages") if environment is None else self.get_client(environment)
         
         try:
             # Validate mobile number before saving
@@ -65,8 +194,8 @@ class DatabaseService:
                     "payload": message_data.get("payload")
                 }
 
-            # Insert data into whatsapp_messages table
-            result = self.client.table("whatsapp_messages").insert(db_data).execute()
+            # Insert data into whatsapp_messages table using appropriate client
+            result = client.table("whatsapp_messages").insert(db_data).execute()
             
             if result.data:
                 return {
@@ -88,22 +217,20 @@ class DatabaseService:
                 detail=f"Database error saving WhatsApp message: {str(e)}"
             )
     
-    def save_book_appointment_data(self, appointment_data: Dict, basic_api_response: Dict) -> Dict:
+    def save_book_appointment_data(self, appointment_data: Dict, basic_api_response: Dict, environment: str = None) -> Dict:
         """
         Save appointment booking data to Supabase database
         
         Args:
             appointment_data: Original appointment data from request (date, time, reference_id)
             basic_api_response: Response from Basic Application API CreateTaskOrComment
+            environment (str, optional): Target environment ('orbit' or 'homi')
             
         Returns:
             Dict: Database operation result
         """
-        if not self.client:
-            raise HTTPException(
-                status_code=500,
-                detail="Supabase client not initialized. Check database configuration."
-            )
+        # Get appropriate client for this operation
+        client = self.get_client_for_table("appointments") if environment is None else self.get_client(environment)
         
         try:
             from datetime import datetime
@@ -260,8 +387,8 @@ class DatabaseService:
                 
                 internal_status = "failed"
             
-            # Insert into appointments table
-            db_result = self.client.table("appointments").insert(appointment_record).execute()
+            # Insert into appointments table using appropriate client
+            db_result = client.table("appointments").insert(appointment_record).execute()
             
             if db_result.data:
                 appointment_id = db_result.data[0]["id"]
@@ -288,7 +415,7 @@ class DatabaseService:
                 detail=f"Failed to save appointment to database: {str(e)}"
             )
 
-    def save_lead_data(self, request_data: Dict, fbb_response: Dict, self_fullfilment_response: Dict) -> Dict:
+    def save_lead_data(self, request_data: Dict, fbb_response: Dict, self_fullfilment_response: Dict, environment: str = None) -> Dict:
         """
         Save lead data to Supabase database
         
@@ -300,6 +427,7 @@ class DatabaseService:
             request_data (Dict): Original request data from API call containing user input
             fbb_response (Dict): Response from CreateFBBByBasicUser API call
             self_fullfilment_response (Dict): Response from SelfFullfilment API call
+            environment (str, optional): Target environment ('orbit' or 'homi')
             
         Returns:
             Dict: Database operation result containing:
@@ -323,12 +451,8 @@ class DatabaseService:
             5. Performs upsert operation (insert new or update existing record)
             6. Returns operation result with relevant IDs and status
         """
-        if not self.client:
-            logger.error("Supabase client not initialized for lead saving")
-            raise HTTPException(
-                status_code=500,
-                detail="Supabase client not initialized. Check database configuration."
-            )
+        # Get appropriate client for this operation
+        client = self.get_client_for_table("leads") if environment is None else self.get_client(environment)
         
         # Generate request identifier for logging
         customer_mobile = request_data.get("mobile", "unknown")
@@ -584,12 +708,12 @@ class DatabaseService:
             
             if api_id:
                 logger.info(f"[{request_id}] Checking for existing record with API ID: {api_id}")
-                existing_check = self.client.table("leads").select("id, internal_status, processing_stage").eq("api_id", api_id).execute()
+                existing_check = client.table("leads").select("id, internal_status, processing_stage").eq("api_id", api_id).execute()
                 if existing_check.data:
                     existing_record = existing_check.data[0]
             elif basic_app_id:
                 logger.info(f"[{request_id}] Checking for existing record with Basic App ID: {basic_app_id}")
-                existing_check = self.client.table("leads").select("id, internal_status, processing_stage").eq("basic_app_id", basic_app_id).execute()
+                existing_check = client.table("leads").select("id, internal_status, processing_stage").eq("basic_app_id", basic_app_id).execute()
                 if existing_check.data:
                     existing_record = existing_check.data[0]
             
@@ -610,13 +734,13 @@ class DatabaseService:
                     lead_record["internal_status"] = "completed"
                 
                 # Update the record with new data
-                db_result = self.client.table("leads").update(lead_record).eq("id", existing_id).execute()
+                db_result = client.table("leads").update(lead_record).eq("id", existing_id).execute()
                 lead_id = existing_id
                 operation_type = "updated"
             else:
                 # INSERT new record
                 logger.info(f"[{request_id}] Inserting new lead record into database")
-                db_result = self.client.table("leads").insert(lead_record).execute()
+                db_result = client.table("leads").insert(lead_record).execute()
                 
                 if db_result.data:
                     lead_id = db_result.data[0]["id"]
@@ -646,75 +770,71 @@ class DatabaseService:
                 detail=f"Failed to save lead to database: {str(e)}"
             )
 
-    def get_leads_by_mobile(self, mobile: str) -> List[Dict]:
+    def get_leads_by_mobile(self, mobile: str, environment: str = None) -> List[Dict]:
         """
         Get leads by mobile number
         
         Args:
             mobile: Mobile number to search for
+            environment (str, optional): Target environment ('orbit' or 'homi')
             
         Returns:
             List[Dict]: List of leads
         """
-        if not self.client:
-            raise HTTPException(
-                status_code=500,
-                detail="Supabase client not initialized. Check database configuration."
-            )
+        # Get appropriate client for this operation
+        client = self.get_client_for_table("leads") if environment is None else self.get_client(environment)
         
         try:
-            result = self.client.table("leads").select("*").eq("customer_mobile", mobile).order("created_at", desc=True).execute()
+            result = client.table("leads").select("*").eq("customer_mobile", mobile).order("created_at", desc=True).execute()
             return result.data if result.data else []
         except Exception as e:
             logger.error(f"Error retrieving leads by mobile: {e}")
             return []
 
-    def get_leads_by_basic_app_id(self, basic_app_id: str) -> List[Dict]:
+    def get_leads_by_basic_app_id(self, basic_app_id: str, environment: str = None) -> List[Dict]:
         """
         Get leads by Basic Application ID
         
         Args:
             basic_app_id: Basic Application ID to search for
+            environment (str, optional): Target environment ('orbit' or 'homi')
             
         Returns:
             List[Dict]: List of leads
         """
-        if not self.client:
-            raise HTTPException(
-                status_code=500,
-                detail="Supabase client not initialized. Check database configuration."
-            )
+        # Get appropriate client for this operation
+        client = self.get_client_for_table("leads") if environment is None else self.get_client(environment)
         
         try:
-            result = self.client.table("leads").select("*").eq("basic_app_id", basic_app_id).order("created_at", desc=True).execute()
+            result = client.table("leads").select("*").eq("basic_app_id", basic_app_id).order("created_at", desc=True).execute()
             return result.data if result.data else []
         except Exception as e:
             logger.error(f"Error retrieving leads by Basic App ID: {e}")
             return []
 
-    def update_lead_status(self, basic_app_id: str, new_status: str) -> bool:
+    def update_lead_status(self, basic_app_id: str, new_status: str, environment: str = None) -> bool:
         """
         Update the application status for a lead record
         
         Args:
             basic_app_id: Basic Application ID to update
             new_status: New status to set
+            environment (str, optional): Target environment ('orbit' or 'homi')
             
         Returns:
             bool: True if update was successful, False otherwise
         """
-        if not self.client:
-            logger.error("Supabase client not initialized for lead status update")
-            return False
-        
         try:
+            # Get appropriate client for this operation
+            client = self.get_client_for_table("leads") if environment is None else self.get_client(environment)
+            
             # Update the application_status and updated_at timestamp
             update_data = {
                 "application_status": new_status,
                 "updated_at": "now()"
             }
             
-            result = self.client.table("leads").update(update_data).eq("basic_app_id", basic_app_id).execute()
+            result = client.table("leads").update(update_data).eq("basic_app_id", basic_app_id).execute()
             
             if result.data:
                 logger.info(f"Successfully updated lead status for Basic App ID: {basic_app_id} to: {new_status}")
@@ -841,21 +961,19 @@ class DatabaseService:
 
     ################################# Disbursement Methods ##############################################
     
-    def save_disbursement_data(self, disbursement_records: List[Dict]) -> Dict:
+    def save_disbursement_data(self, disbursement_records: List[Dict], environment: str = None) -> Dict:
         """
         Save disbursement records to Supabase database.
         
         Args:
             disbursement_records: List of disbursement dictionaries from AI analysis
+            environment (str, optional): Target environment ('orbit' or 'homi')
             
         Returns:
             Dict: Save operation statistics
         """
-        if not self.client:
-            raise HTTPException(
-                status_code=500,
-                detail="Supabase client not initialized. Check database configuration."
-            )
+        # Get appropriate client for this operation
+        client = self.get_client_for_table("disbursements") if environment is None else self.get_client(environment)
         
         stats = {
             'total_processed': 0,
@@ -883,7 +1001,7 @@ class DatabaseService:
                         continue
                     else:
                         # Check for duplicates based on loan_account_number and bank_app_id
-                        is_duplicate = self._check_disbursement_duplicate(record)
+                        is_duplicate = self._check_disbursement_duplicate(record, client)
                         
                         # Prepare record for database insertion
                         db_record = self._prepare_disbursement_record(record, is_duplicate)
@@ -901,7 +1019,7 @@ class DatabaseService:
                             # Validate record structure before insertion
                             clean_record = self._clean_record_for_supabase(db_record)
                             
-                            result = self.client.table("disbursements").insert(clean_record).execute()
+                            result = client.table("disbursements").insert(clean_record).execute()
                             
                             if result.data:
                                 stats['new_records'] += 1
@@ -1050,7 +1168,7 @@ class DatabaseService:
             'reason': 'All validation checks passed'
         }
 
-    def _check_disbursement_duplicate(self, record: Dict) -> bool:
+    def _check_disbursement_duplicate(self, record: Dict, client) -> bool:
         """Check if a disbursement record already exists."""
         try:
             loan_account = record.get('loanAccountNumber', '').strip()
@@ -1059,7 +1177,7 @@ class DatabaseService:
             if not loan_account and not bank_app_id:
                 return False
             
-            query = self.client.table("disbursements").select("id")
+            query = client.table("disbursements").select("id")
             
             # Check by loan account number first
             if loan_account and loan_account != 'Not found':
@@ -1235,7 +1353,7 @@ class DatabaseService:
         
         return cleaned_record
 
-    def update_basic_verify_status(self, verification_id: str, verification_status: str, comments: str = None) -> bool:
+    def update_basic_verify_status(self, verification_id: str, verification_status: str, comments: str = None, environment: str = None) -> bool:
         """Update the verification status of a disbursement record."""
         try:
             if not verification_id:
@@ -1251,18 +1369,17 @@ class DatabaseService:
             if comments:
                 update_data["comments"] = comments
             
+            # Get appropriate client for this operation
+            client = self.get_client_for_table("disbursements") if environment is None else self.get_client(environment)
+            
             # Update in Supabase
-            if self.client:
-                result = self.client.table("disbursements").update(update_data).eq("ai_disbursement_id", verification_id).execute()
-                
-                if result.data:
-                    logger.info(f"Successfully updated disbursement status to {verification_status} for ai_disbursement_id: {verification_id}")
-                    return True
-                else:
-                    logger.error(f"No record found with ai_disbursement_id: {verification_id}")
-                    return False
+            result = client.table("disbursements").update(update_data).eq("ai_disbursement_id", verification_id).execute()
+            
+            if result.data:
+                logger.info(f"Successfully updated disbursement status to {verification_status} for ai_disbursement_id: {verification_id}")
+                return True
             else:
-                logger.error("Supabase client not initialized")
+                logger.error(f"No record found with ai_disbursement_id: {verification_id}")
                 return False
                 
         except Exception as e:
@@ -1295,9 +1412,8 @@ class DatabaseService:
         
     #     return query
 
+######################################## Supabase OTP Storage ########################################
 
-
-## OTP Storage in Supabase
 class SupabaseOTPStorage:
     def __init__(self):
         # Check if environment variables are set and not empty
@@ -1424,14 +1540,7 @@ class SupabaseOTPStorage:
         except Exception as e:
             logger.error(f"Error marking OTP as used: {e}")
 
-
-
-
-# Local storage fallback implementation
-import time
-from threading import Lock
-from typing import Dict, Tuple, Optional
-
+######################################## Local OTP Storage ########################################
 class LocalOTPStorage:
     def __init__(self):
         self._storage: Dict[str, Tuple[str, float]] = {}

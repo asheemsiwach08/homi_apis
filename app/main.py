@@ -16,6 +16,13 @@ logging.basicConfig(
     ]
 )
 
+# Suppress httpx request logs
+logging.getLogger("httpx").setLevel(logging.WARNING)
+
+# Suppress other noisy loggers if needed
+logging.getLogger("urllib3").setLevel(logging.WARNING)
+logging.getLogger("requests").setLevel(logging.WARNING)
+
 logger = logging.getLogger(__name__)
 
 # Create FastAPI application

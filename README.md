@@ -29,9 +29,11 @@ A comprehensive FastAPI-based REST API for WhatsApp OTP verification, lead creat
   - Automatic webhook processing for real-time message handling
   - Multiple template support for different use cases
 - ✅ **Storage & Infrastructure**
+  - **Multi-Environment Database Support**: Orbit (primary) and Homi (secondary) environments
   - **Intelligent Storage Fallback**: Primary Supabase PostgreSQL with automatic local storage fallback
   - **Separated OTP Storage**: Dedicated OTP storage service with independent failover
-  - **Database Service Architecture**: Modular database services for different operations
+  - **Database Service Architecture**: Modular database services with automatic environment selection
+  - **Environment-Specific Operations**: Automatic table-to-environment mapping with manual override support
   - Google Sheets integration with secure credential management
   - Thread-safe operations and comprehensive audit trails
 - ✅ **API Features**
@@ -158,7 +160,19 @@ otpVerification/
    GUPSHUP_LEAD_STATUS_TEMPLATE_ID=your_lead_status_template_id
    GUPSHUP_LEAD_STATUS_SRC_NAME=your_lead_status_src_name
 
-   # Supabase Configuration (Optional - falls back to local storage if not configured)
+   # Multi-Environment Supabase Configuration
+   # Orbit Environment (Primary - Main business operations)
+   SUPABASE_ORBIT_URL=your_orbit_supabase_project_url
+   SUPABASE_ORBIT_SERVICE_ROLE_KEY=your_orbit_supabase_service_role_key
+   
+   # Homi Environment (Secondary - OTP and utilities)
+   SUPABASE_HOMI_URL=your_homi_supabase_project_url
+   SUPABASE_HOMI_SERVICE_ROLE_KEY=your_homi_supabase_service_role_key
+   
+   # Default Database Environment (orbit or homi)
+   DEFAULT_DATABASE_ENVIRONMENT=orbit
+   
+   # Legacy Configuration (Optional - for backward compatibility)
    SUPABASE_URL=your_supabase_project_url
    SUPABASE_SERVICE_ROLE_KEY=your_supabase_service_role_key
 
@@ -171,21 +185,41 @@ otpVerification/
    OTP_EXPIRY_MINUTES=3
    ```
 
-5. **Set up Supabase (Optional)**
+5. **Set up Multi-Environment Supabase**
    
-   **a. Create a Supabase project:**
-   - Go to [supabase.com](https://supabase.com)
-   - Create a new project
-   - Note down your project URL and API keys
+   The system supports two Supabase environments for better separation of concerns:
    
-   **b. Create the database tables:**
-   - Go to your Supabase dashboard
-   - Navigate to SQL Editor
-   - Run the SQL scripts from `database_setup/` directory
+   **a. Create Supabase Projects:**
+   - **Orbit Environment** (Primary): Main business operations (leads, appointments, disbursements)
+   - **Homi Environment** (Secondary): OTP storage and utility operations
+   - Go to [supabase.com](https://supabase.com) and create both projects
    
-   **c. Get your API keys:**
-   - Go to Settings > API
-   - Copy your Project URL, anon key, and service_role key
+   **b. Configure Database Tables:**
+   - For **Orbit Environment**: Run SQL scripts for leads, appointments, disbursements, whatsapp_messages tables
+   - For **Homi Environment**: Run SQL scripts for otp_storage and any utility tables
+   - Navigate to SQL Editor in each project and run the appropriate scripts from `database_setup/` directory
+   
+   **c. Environment Variable Setup:**
+   ```bash
+   # Orbit Environment (Primary)
+   SUPABASE_ORBIT_URL=https://your-orbit-project.supabase.co
+   SUPABASE_ORBIT_SERVICE_ROLE_KEY=your-orbit-service-role-key
+   
+   # Homi Environment (Secondary)  
+   SUPABASE_HOMI_URL=https://your-homi-project.supabase.co
+   SUPABASE_HOMI_SERVICE_ROLE_KEY=your-homi-service-role-key
+   
+   # Default Environment
+   DEFAULT_DATABASE_ENVIRONMENT=orbit
+   ```
+   
+   **d. Single Environment Setup (Alternative):**
+   If you prefer using a single environment, configure only one set and the system will automatically adapt:
+   ```bash
+   # Use only Orbit for everything
+   SUPABASE_ORBIT_URL=your_supabase_url
+   SUPABASE_ORBIT_SERVICE_ROLE_KEY=your_service_role_key
+   ```
 
 6. **Run the application**
    ```bash
@@ -747,9 +781,9 @@ Content-Type: application/json
 - **Background processing** for live monitoring
 - **Comprehensive logging** and error handling
 
-### Health Check
+### Health Check & Environment Status
 
-<!-- #### Health Status
+#### Health Status
 ```http
 GET /api_v1/health
 ```
@@ -758,9 +792,52 @@ GET /api_v1/health
 ```json
 {
     "status": "healthy",
-    "timestamp": "2024-01-15T10:30:00Z"
+    "timestamp": "2024-01-15T10:30:00Z",
+    "database_environments": {
+        "orbit": {"available": true, "error": null},
+        "homi": {"available": true, "error": null}
+    },
+    "environment_config": {
+        "default_environment": "orbit",
+        "orbit_configured": true,
+        "homi_configured": true,
+        "orbit_client_initialized": true,
+        "homi_client_initialized": true,
+        "table_environment_mapping": {
+            "leads": "orbit",
+            "appointments": "orbit",
+            "disbursements": "orbit",
+            "whatsapp_messages": "orbit",
+            "otp_storage": "homi"
+        }
+    }
 }
-``` -->
+```
+
+### Multi-Environment Database Operations
+
+All database operations support environment specification:
+
+#### Automatic Environment Selection (Recommended)
+```python
+# System automatically chooses the correct environment
+database_service.save_lead_data(request_data, fbb_response, self_fullfilment_response)
+database_service.get_leads_by_mobile("9876543210")
+```
+
+#### Explicit Environment Selection
+```python
+# Force specific environment
+database_service.save_lead_data(request_data, fbb_response, self_fullfilment_response, environment="orbit")
+database_service.get_leads_by_mobile("9876543210", environment="homi")
+```
+
+#### Environment Validation
+```python
+# Check environment status
+status = database_service.validate_environments()
+env_info = database_service.get_environment_info()
+```
 
 ## Loan Type Mapping
 

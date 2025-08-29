@@ -41,8 +41,18 @@ class Settings:
     GUPSHUP_LEAD_STATUS_SRC_NAME = os.getenv("GUPSHUP_LEAD_STATUS_SRC_NAME", "")
     
     # Supabase Configuration
-    SUPABASE_URL = os.getenv("SUPABASE_URL")
-    SUPABASE_SERVICE_ROLE_KEY = os.getenv("SUPABASE_SERVICE_ROLE_KEY")
+    SUPABASE_ORBIT_URL = os.getenv("SUPABASE_ORBIT_URL")
+    SUPABASE_ORBIT_SERVICE_ROLE_KEY = os.getenv("SUPABASE_ORBIT_SERVICE_ROLE_KEY")
+
+    SUPABASE_HOMI_URL = os.getenv("SUPABASE_HOMI_URL")
+    SUPABASE_HOMI_SERVICE_ROLE_KEY = os.getenv("SUPABASE_HOMI_SERVICE_ROLE_KEY")
+    
+    # Database Environment Configuration
+    DEFAULT_DATABASE_ENVIRONMENT = os.getenv("DEFAULT_DATABASE_ENVIRONMENT", "orbit")  # 'orbit' or 'homi'
+    
+    # Environment-specific OTP Configuration (legacy support)
+    SUPABASE_URL = os.getenv("SUPABASE_URL", os.getenv("SUPABASE_HOMI_URL"))  # Fallback for OTP storage
+    SUPABASE_SERVICE_ROLE_KEY = os.getenv("SUPABASE_SERVICE_ROLE_KEY", os.getenv("SUPABASE_HOMI_SERVICE_ROLE_KEY"))  # Fallback for OTP storage
 
     # OTP Configuration
     OTP_EXPIRY_MINUTES = int(os.getenv("OTP_EXPIRY_MINUTES", "3"))

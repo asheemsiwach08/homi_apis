@@ -19,6 +19,7 @@ class BasicVerifyApprovalResponse(BaseModel):
 ################################# Book Appointment Schemas #####################################
 
 class BookAppointmentRequest(BaseModel):
+    environment: Optional[str] = "orbit"
     date: str
     time: str
     reference_id: str
@@ -125,6 +126,7 @@ class DisbursementStatsResponse(BaseModel):
 ################################# Lead Create Schemas #####################################
 
 class LeadCreateRequest(BaseModel):
+    environment: Optional[str] = "orbit"
     firstName: str
     lastName: str
     gender: Optional[str] = None
@@ -157,6 +159,7 @@ class LeadCreateResponse(BaseModel):
 ################################# Lead Flash Schemas ##############################################
 
 class LeadFlashRequest(BaseModel):
+    environment: Optional[str] = "orbit"
     firstName: str
     lastName: str
     gender: Optional[str] = None
@@ -227,6 +230,7 @@ class LeadFlashResponse(BaseModel):
 ################################# Lead Status Schemas #####################################
 
 class LeadStatusRequest(BaseModel):
+    environment: Optional[str] = "orbit"
     mobile_number: Optional[str] = None
     basic_application_id: Optional[str] = None
 

@@ -20,6 +20,9 @@ basic_app_service = BasicApplicationService()
 
 def validate_book_appointment_data(request:BookAppointmentRequest):
     """Validate book appointment data"""
+    if not request.environment:
+        raise HTTPException(status_code=422, detail="Environment is required")
+    
     if not request.date or not request.time:
         raise HTTPException(status_code=422, detail="Date and time are required")
     
@@ -58,17 +61,17 @@ async def get_lead_status(status_request: LeadStatusRequest):
             try:
                 if status_request.basic_application_id:
                     # Update status using basic application ID in leads table
-                    database_service.update_lead_status(status_request.basic_application_id, str(status))
+                    database_service.update_lead_status(status_request.basic_application_id, str(status), environment=status_request.environment)
                     logger.info(f"Status updated in leads database for application ID: {status_request.basic_application_id}")
                 elif status_request.mobile_number:
                     # Get lead data by mobile number from leads table and update status
-                    lead_data_list = database_service.get_leads_by_mobile(status_request.mobile_number)
+                    lead_data_list = database_service.get_leads_by_mobile(status_request.mobile_number, environment=status_request.environment)
                     if lead_data_list:
                         # Get the most recent lead (first in the list since ordered by created_at desc)
                         lead_data = lead_data_list[0]
                         basic_app_id = lead_data.get("basic_app_id")
                         if basic_app_id:
-                            database_service.update_lead_status(str(basic_app_id), str(status))
+                            database_service.update_lead_status(str(basic_app_id), str(status), environment=status_request.environment)
                             logger.info(f"Status updated in leads database for mobile: {status_request.mobile_number}")
             except Exception as db_error:
                 logger.error(f"Failed to update status in leads database: {db_error}")
@@ -78,7 +81,7 @@ async def get_lead_status(status_request: LeadStatusRequest):
 
             # If no mobile number in request but we have basic_application_id, try to get it from leads database
             if not mobile_number_for_whatsapp and status_request.basic_application_id:
-                lead_data_list = database_service.get_leads_by_basic_app_id(status_request.basic_application_id)
+                lead_data_list = database_service.get_leads_by_basic_app_id(status_request.basic_application_id, environment=status_request.environment)
                 if lead_data_list:
                     lead_data = lead_data_list[0]  # Get the most recent record
                     mobile_number_for_whatsapp = lead_data.get("customer_mobile")
@@ -86,7 +89,7 @@ async def get_lead_status(status_request: LeadStatusRequest):
             # Send WhatsApp notification with the status
             if mobile_number_for_whatsapp:
                 try:
-                    lead_data_list = database_service.get_leads_by_mobile(mobile_number_for_whatsapp)
+                    lead_data_list = database_service.get_leads_by_mobile(mobile_number_for_whatsapp, environment=status_request.environment)
                     
                     if lead_data_list:
                         lead_data = lead_data_list[0]  # Get the most recent record
@@ -140,7 +143,7 @@ async def rm_book_appointment(request:BookAppointmentRequest):
         try:
             from app.services.database_service import database_service
             
-            db_result = database_service.save_book_appointment_data(api_data, result)
+            db_result = database_service.save_book_appointment_data(api_data, result, environment=request.environment)
         except Exception as db_error:
             logger.error(f"Failed to save book appointment to database. - {db_error}")
             # Don't fail the request if database save fails

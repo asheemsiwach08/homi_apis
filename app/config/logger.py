@@ -19,6 +19,13 @@ def setup_logging(log_level: str = "INFO") -> None:
         stream=sys.stdout,
         level=getattr(logging, log_level.upper()),
     )
+    
+    # Suppress httpx request logs
+    logging.getLogger("httpx").setLevel(logging.WARNING)
+    
+    # Suppress other noisy loggers if needed
+    logging.getLogger("urllib3").setLevel(logging.WARNING)
+    logging.getLogger("requests").setLevel(logging.WARNING)
 
 
 def get_logger(name: Optional[str] = None) -> logging.Logger:

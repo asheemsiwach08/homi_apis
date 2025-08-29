@@ -21,7 +21,7 @@ basic_app_service = BasicApplicationService()
                                 # Validate Lead Data
 ############################################################################################
 
-def validate_lead_create_data(lead_data: LeadCreateRequest):
+def validate_orbit_lead_create_data(lead_data: LeadCreateRequest):
     """
     Validate lead data using comprehensive utility validators
     
@@ -83,6 +83,36 @@ def validate_lead_create_data(lead_data: LeadCreateRequest):
     return True
 
 
+def validate_homfinity_lead_create_data(lead_data: LeadCreateRequest):
+    if not lead_data.environment:
+        raise HTTPException(status_code=422, detail="Environment is required and must be either 'orbit' or 'homfinity'")
+    elif lead_data.environment not in ["orbit", "homfinity"]:
+            raise HTTPException(status_code=422, detail="Environment is required and must be either 'orbit' or 'homfinity'")
+    
+    if not validate_loan_type(lead_data.loanType):
+        raise HTTPException(status_code=422, detail="Invalid loan type")
+    
+    if not validate_loan_amount(lead_data.loanAmountReq):
+        raise HTTPException(status_code=422, detail="Loan amount must be greater than 0")
+    
+    if not validate_mobile_number(lead_data.mobile):
+        raise HTTPException(status_code=422, detail="Mobile number must be 10 digits")
+    
+    if not validate_pin_code(lead_data.pincode):
+        raise HTTPException(status_code=422, detail="PIN code must be 6 digits")
+    
+    if not validate_email(lead_data.email):
+        raise HTTPException(status_code=422, detail="Email must be a valid email address")
+    
+    if not validate_first_name(lead_data.firstName):
+        raise HTTPException(status_code=422, detail="First name must be a valid first name")
+    
+    if not validate_last_name(lead_data.lastName):
+        raise HTTPException(status_code=422, detail="Last name must be a valid last name")
+    
+    return True
+
+
 ############################################################################################
                                 # Create Lead API
 ############################################################################################
@@ -132,7 +162,12 @@ async def create_lead_api(request: LeadCreateRequest):
     logger.info(f"Starting lead creation for {request.firstName} {request.lastName}")
     try:
         # Validate lead data
-        validate_lead_create_data(request)
+        if request.environment == "orbit":
+            validate_orbit_lead_create_data(request)
+        elif request.environment == "homfinity":
+            validate_homfinity_lead_create_data(request)
+        else:
+            raise HTTPException(status_code=422, detail="Environment is required and must be either 'orbit' or 'homfinity'")
 
         # Prepare data for API calls
         api_data = {
@@ -288,7 +323,12 @@ async def lead_flash_api(request: LeadFlashRequest):
     try:
         # Validate all input data
         # validate_lead_flash_data(request)
-        validate_lead_create_data(request)
+        if request.environment == "orbit":
+            validate_orbit_lead_create_data(request)
+        elif request.environment == "homfinity":
+            validate_homfinity_lead_create_data(request)
+        else:
+            raise HTTPException(status_code=422, detail="Environment is required and must be either 'orbit' or 'homfinity'")
         
         # Ensure application ID is provided
         if not request.applicationId:

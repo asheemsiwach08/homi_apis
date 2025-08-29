@@ -16,9 +16,9 @@ The `database_service.py` now supports multiple Supabase environments to handle 
    - Handles: leads, appointments, disbursements, WhatsApp messages
    - Environment variables: `SUPABASE_ORBIT_URL`, `SUPABASE_ORBIT_SERVICE_ROLE_KEY`
 
-2. **Homi Environment** - OTP and utility operations
+2. **Homfinity Environment** - OTP and utility operations
    - Handles: OTP storage, auxiliary services
-   - Environment variables: `SUPABASE_HOMI_URL`, `SUPABASE_HOMI_SERVICE_ROLE_KEY`
+   - Environment variables: `SUPABASE_HOMFINITY_URL`, `SUPABASE_HOMFINITY_SERVICE_ROLE_KEY`
 
 ### Environment Variables Setup
 
@@ -29,16 +29,16 @@ Add these environment variables to your `.env` file:
 SUPABASE_ORBIT_URL=https://your-orbit-project.supabase.co
 SUPABASE_ORBIT_SERVICE_ROLE_KEY=your-orbit-service-role-key
 
-# Homi Environment (Secondary)
-SUPABASE_HOMI_URL=https://your-homi-project.supabase.co
-SUPABASE_HOMI_SERVICE_ROLE_KEY=your-homi-service-role-key
+# Homfinity Environment (Secondary)
+SUPABASE_HOMFINITY_URL=https://your-homfinity-project.supabase.co
+SUPABASE_HOMFINITY_SERVICE_ROLE_KEY=your-homfinity-service-role-key
 
 # Default Environment Configuration
 DEFAULT_DATABASE_ENVIRONMENT=orbit
 
 # Legacy OTP Support (optional)
-SUPABASE_URL=https://your-homi-project.supabase.co
-SUPABASE_SERVICE_ROLE_KEY=your-homi-service-role-key
+SUPABASE_URL=https://your-homfinity-project.supabase.co
+SUPABASE_SERVICE_ROLE_KEY=your-homfinity-service-role-key
 ```
 
 ## How Environment Selection Works
@@ -54,7 +54,7 @@ table_environment_mapping = {
     "appointments": "orbit", 
     "disbursements": "orbit",
     "whatsapp_messages": "orbit",
-    "otp_storage": "homi"
+    "otp_storage": "homfinity"
 }
 ```
 
@@ -105,7 +105,7 @@ result = database_service.save_lead_data(
     request_data, 
     fbb_response, 
     self_fullfilment_response, 
-    environment="homi"
+    environment="homfinity"
 )
 
 # Get leads from specific environment
@@ -121,7 +121,7 @@ print(status)
 # Output:
 # {
 #     "orbit": {"available": True, "error": None},
-#     "homi": {"available": True, "error": None}
+#     "homfinity": {"available": True, "error": None}
 # }
 
 # Get environment configuration info
@@ -213,5 +213,5 @@ print(database_service.validate_environments())
 
 # Check specific client initialization
 print(f"Orbit client: {database_service.client_orbit}")
-print(f"Homi client: {database_service.client_homi}")
+print(f"Homfinity client: {database_service.client_homfinity}")
 ```

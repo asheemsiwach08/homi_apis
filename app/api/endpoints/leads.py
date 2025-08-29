@@ -43,7 +43,9 @@ def validate_lead_create_data(lead_data: LeadCreateRequest):
             - 422: For field-specific validation errors (format, range, etc.)
     """
     if not lead_data.environment:
-        raise HTTPException(status_code=422, detail="Environment is required")
+        raise HTTPException(status_code=422, detail="Environment is required and must be either 'orbit' or 'homfinity'")
+    elif lead_data.environment not in ["orbit", "homfinity"]:
+            raise HTTPException(status_code=422, detail="Environment is required and must be either 'orbit' or 'homfinity'")
     
     if not validate_loan_type(lead_data.loanType):
         raise HTTPException(status_code=422, detail="Invalid loan type")
@@ -125,6 +127,7 @@ async def create_lead_api(request: LeadCreateRequest):
         - Comprehensive error handling and audit trails
         - Support for lead modification (upserts based on existing records)
     """
+    print("Environment:", request.environment,"----------------------------------->>>")
     request_id = f"{request.mobile}_{request.pan}"
     logger.info(f"Starting lead creation for {request.firstName} {request.lastName}")
     try:

@@ -44,21 +44,21 @@ class Settings:
     SUPABASE_ORBIT_URL = os.getenv("SUPABASE_ORBIT_URL")
     SUPABASE_ORBIT_SERVICE_ROLE_KEY = os.getenv("SUPABASE_ORBIT_SERVICE_ROLE_KEY")
 
-    SUPABASE_HOMI_URL = os.getenv("SUPABASE_HOMI_URL")
-    SUPABASE_HOMI_SERVICE_ROLE_KEY = os.getenv("SUPABASE_HOMI_SERVICE_ROLE_KEY")
+    SUPABASE_HOMFINITY_URL = os.getenv("SUPABASE_HOMFINITY_URL")
+    SUPABASE_HOMFINITY_SERVICE_ROLE_KEY = os.getenv("SUPABASE_HOMFINITY_SERVICE_ROLE_KEY")
     
     # Database Environment Configuration
-    DEFAULT_DATABASE_ENVIRONMENT = os.getenv("DEFAULT_DATABASE_ENVIRONMENT", "orbit")  # 'orbit' or 'homi'
+    DEFAULT_DATABASE_ENVIRONMENT = os.getenv("DEFAULT_DATABASE_ENVIRONMENT", "orbit")  # 'orbit' or 'homfinity'
     
     # Environment-specific OTP Configuration (legacy support)
-    SUPABASE_URL = os.getenv("SUPABASE_URL", os.getenv("SUPABASE_HOMI_URL"))  # Fallback for OTP storage
-    SUPABASE_SERVICE_ROLE_KEY = os.getenv("SUPABASE_SERVICE_ROLE_KEY", os.getenv("SUPABASE_HOMI_SERVICE_ROLE_KEY"))  # Fallback for OTP storage
+    SUPABASE_URL = os.getenv("SUPABASE_URL", os.getenv("SUPABASE_HOMFINITY_URL"))  # Fallback for OTP storage
+    SUPABASE_SERVICE_ROLE_KEY = os.getenv("SUPABASE_SERVICE_ROLE_KEY", os.getenv("SUPABASE_HOMFINITY_SERVICE_ROLE_KEY"))  # Fallback for OTP storage
 
     # OTP Configuration
     OTP_EXPIRY_MINUTES = int(os.getenv("OTP_EXPIRY_MINUTES", "3"))
 
     # WhatsApp Webhook Configuration
-    WHATSAPP_WEBHOOK_VERIFY_TOKEN = os.getenv("WHATSAPP_WEBHOOK_VERIFY_TOKEN", "homi_whatsapp_webhook_2024_secure_token_123")
+    # WHATSAPP_WEBHOOK_VERIFY_TOKEN = os.getenv("WHATSAPP_WEBHOOK_VERIFY_TOKEN", "homi_whatsapp_webhook_2024_secure_token_123")
 
     # Loan Type Mapping
     LOAN_TYPE_MAPPING = {

@@ -21,7 +21,9 @@ basic_app_service = BasicApplicationService()
 def validate_book_appointment_data(request:BookAppointmentRequest):
     """Validate book appointment data"""
     if not request.environment:
-        raise HTTPException(status_code=422, detail="Environment is required")
+        raise HTTPException(status_code=422, detail="Environment is required and must be either 'orbit' or 'homfinity'")
+    elif request.environment not in ["orbit", "homfinity"]:
+            raise HTTPException(status_code=422, detail="Environment is required and must be either 'orbit' or 'homfinity'")
     
     if not request.date or not request.time:
         raise HTTPException(status_code=422, detail="Date and time are required")
@@ -37,6 +39,12 @@ def validate_book_appointment_data(request:BookAppointmentRequest):
 @router.post("/lead_status", response_model=LeadStatusResponse)
 async def get_lead_status(status_request: LeadStatusRequest):
     """Get lead status by various identifiers"""
+
+    if not status_request.environment:
+        raise HTTPException(status_code=422, detail="Environment is required and must be either 'orbit' or 'homfinity'")
+    elif status_request.environment not in ["orbit", "homfinity"]:
+            raise HTTPException(status_code=422, detail="Environment is required and must be either 'orbit' or 'homfinity'")
+    
     try:
         # Validate that at least one identifier is provided
         if not any([status_request.mobile_number, status_request.basic_application_id]):

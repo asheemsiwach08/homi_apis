@@ -604,13 +604,13 @@ docker-compose -f docker-compose.prod.yml up --build -d
 ### Option 3: Direct Docker
 ```bash
 # Build the image
-docker build -t homi-api .
+docker build -t homfinity-api .
 
 # Run the container
 docker run -d \
   -p 5000:5000 \
   --env-file .env \
-  homi-api
+  homfinity-api
 ```
 
 ## Notes

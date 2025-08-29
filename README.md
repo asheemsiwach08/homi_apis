@@ -29,7 +29,7 @@ A comprehensive FastAPI-based REST API for WhatsApp OTP verification, lead creat
   - Automatic webhook processing for real-time message handling
   - Multiple template support for different use cases
 - ✅ **Storage & Infrastructure**
-  - **Multi-Environment Database Support**: Orbit (primary) and Homi (secondary) environments
+  - **Multi-Environment Database Support**: Orbit (primary) and Homfinity (secondary) environments
   - **Intelligent Storage Fallback**: Primary Supabase PostgreSQL with automatic local storage fallback
   - **Separated OTP Storage**: Dedicated OTP storage service with independent failover
   - **Database Service Architecture**: Modular database services with automatic environment selection
@@ -165,11 +165,11 @@ otpVerification/
    SUPABASE_ORBIT_URL=your_orbit_supabase_project_url
    SUPABASE_ORBIT_SERVICE_ROLE_KEY=your_orbit_supabase_service_role_key
    
-   # Homi Environment (Secondary - OTP and utilities)
-   SUPABASE_HOMI_URL=your_homi_supabase_project_url
-   SUPABASE_HOMI_SERVICE_ROLE_KEY=your_homi_supabase_service_role_key
+   # Homfinity Environment (Secondary - OTP and utilities)
+   SUPABASE_HOMFINITY_URL=your_homfinity_supabase_project_url
+   SUPABASE_HOMFINITY_SERVICE_ROLE_KEY=your_homfinity_supabase_service_role_key
    
-   # Default Database Environment (orbit or homi)
+   # Default Database Environment (orbit or homfinity)
    DEFAULT_DATABASE_ENVIRONMENT=orbit
    
    # Legacy Configuration (Optional - for backward compatibility)
@@ -191,12 +191,12 @@ otpVerification/
    
    **a. Create Supabase Projects:**
    - **Orbit Environment** (Primary): Main business operations (leads, appointments, disbursements)
-   - **Homi Environment** (Secondary): OTP storage and utility operations
+   - **Homfinity Environment** (Secondary): OTP storage and utility operations
    - Go to [supabase.com](https://supabase.com) and create both projects
    
    **b. Configure Database Tables:**
    - For **Orbit Environment**: Run SQL scripts for leads, appointments, disbursements, whatsapp_messages tables
-   - For **Homi Environment**: Run SQL scripts for otp_storage and any utility tables
+   - For **Homfinity Environment**: Run SQL scripts for otp_storage and any utility tables
    - Navigate to SQL Editor in each project and run the appropriate scripts from `database_setup/` directory
    
    **c. Environment Variable Setup:**
@@ -205,9 +205,9 @@ otpVerification/
    SUPABASE_ORBIT_URL=https://your-orbit-project.supabase.co
    SUPABASE_ORBIT_SERVICE_ROLE_KEY=your-orbit-service-role-key
    
-   # Homi Environment (Secondary)  
-   SUPABASE_HOMI_URL=https://your-homi-project.supabase.co
-   SUPABASE_HOMI_SERVICE_ROLE_KEY=your-homi-service-role-key
+   # Homfinity Environment (Secondary)  
+   SUPABASE_HOMFINITY_URL=https://your-homfinity-project.supabase.co
+   SUPABASE_HOMFINITY_SERVICE_ROLE_KEY=your-homfinity-service-role-key
    
    # Default Environment
    DEFAULT_DATABASE_ENVIRONMENT=orbit
@@ -260,13 +260,13 @@ otpVerification/
 4. **Or build and run with Docker directly**
    ```bash
    # Build the image
-   docker build -t homi-api .
+   docker build -t homfinity-api .
 
    # Run the container
    docker run -d \
      -p 5000:5000 \
      --env-file .env \
-     homi-api
+     homfinity-api
    ```
 
 ## Phone Number Validation & Normalization
@@ -795,20 +795,20 @@ GET /api_v1/health
     "timestamp": "2024-01-15T10:30:00Z",
     "database_environments": {
         "orbit": {"available": true, "error": null},
-        "homi": {"available": true, "error": null}
+        "homfinity": {"available": true, "error": null}
     },
     "environment_config": {
         "default_environment": "orbit",
         "orbit_configured": true,
-        "homi_configured": true,
+        "homfinity_configured": true,
         "orbit_client_initialized": true,
-        "homi_client_initialized": true,
+        "homfinity_client_initialized": true,
         "table_environment_mapping": {
             "leads": "orbit",
             "appointments": "orbit",
             "disbursements": "orbit",
             "whatsapp_messages": "orbit",
-            "otp_storage": "homi"
+            "otp_storage": "homfinity"
         }
     }
 }
@@ -829,7 +829,7 @@ database_service.get_leads_by_mobile("9876543210")
 ```python
 # Force specific environment
 database_service.save_lead_data(request_data, fbb_response, self_fullfilment_response, environment="orbit")
-database_service.get_leads_by_mobile("9876543210", environment="homi")
+database_service.get_leads_by_mobile("9876543210", environment="homfinity")
 ```
 
 #### Environment Validation

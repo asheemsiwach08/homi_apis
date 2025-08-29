@@ -80,7 +80,7 @@ quick_reference:
   
   # Docker Commands
   docker_commands:
-    build: "docker build -t homi-api ."
+    build: "docker build -t homfinity-api ."
     run_dev: "docker-compose up --build"
     run_prod: "docker-compose -f docker-compose.prod.yml up --build -d"
     logs: "docker-compose logs -f"
@@ -160,7 +160,7 @@ quick_reference:
     
     backup_data:
       - "Supabase dashboard export"
-      - "docker save homi-api > backup.tar"
+      - "docker save homfinity-api > backup.tar"
   
   # Contact Information
   support:

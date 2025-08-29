@@ -21,8 +21,8 @@ class DatabaseService:
         self.supabase_orbit_url = settings.SUPABASE_ORBIT_URL
         self.supabase_orbit_service_role_key = settings.SUPABASE_ORBIT_SERVICE_ROLE_KEY 
         
-        self.supabase_homi_url = settings.SUPABASE_HOMI_URL
-        self.supabase_homi_service_role_key = settings.SUPABASE_HOMI_SERVICE_ROLE_KEY 
+        self.supabase_homfinity_url = settings.SUPABASE_HOMFINITY_URL
+        self.supabase_homfinity_service_role_key = settings.SUPABASE_HOMFINITY_SERVICE_ROLE_KEY 
         
         # Initialize clients
         self.client_orbit = None
@@ -43,22 +43,22 @@ class DatabaseService:
         else:
             logger.warning("Orbit Supabase credentials not configured")
         
-        # Initialize Homi client
-        if self.supabase_homi_url and self.supabase_homi_service_role_key:
+        # Initialize Homfinity client
+        if self.supabase_homfinity_url and self.supabase_homfinity_service_role_key:
             try:
-                self.client_homi = create_client(self.supabase_homi_url, self.supabase_homi_service_role_key)
-                logger.info("Successfully initialized Homi Supabase client")
+                self.client_homfinity = create_client(self.supabase_homfinity_url, self.supabase_homfinity_service_role_key)
+                logger.info("Successfully initialized Homfinity Supabase client")
             except Exception as e:
-                logger.error(f"Error initializing Homi Supabase client: {e}")
-                self.client_homi = None
+                logger.error(f"Error initializing Homfinity Supabase client: {e}")
+                self.client_homfinity = None
         else:
-            logger.warning("Homi Supabase credentials not configured")
+            logger.warning("Homfinity Supabase credentials not configured")
         
         # Set default client for backward compatibility
         self.client = self._get_default_client()
         
         # Validate at least one client is available
-        if not self.client_orbit and not self.client_homi:
+        if not self.client_orbit and not self.client_homfinity:
             logger.error("WARNING: No Supabase clients initialized successfully.")
             logger.error("Please check your environment variables and network connectivity.")
     
@@ -67,13 +67,13 @@ class DatabaseService:
         Determine which environment to use as default based on configuration
         
         Returns:
-            str: Environment name ('orbit', 'homi', or 'unknown')
+            str: Environment name ('orbit', 'homfinity', or 'unknown')
         """
-        # Priority logic: Use Orbit as primary if available, fallback to Homi
+        # Priority logic: Use Orbit as primary if available, fallback to Homfinity
         if self.supabase_orbit_url and self.supabase_orbit_service_role_key:
             return "orbit"
-        elif self.supabase_homi_url and self.supabase_homi_service_role_key:
-            return "homi"
+        elif self.supabase_homfinity_url and self.supabase_homfinity_service_role_key:
+            return "homfinity"
         else:
             return "unknown"
     
@@ -81,12 +81,12 @@ class DatabaseService:
         """Get the default client based on environment determination"""
         if self.environment == "orbit" and self.client_orbit:
             return self.client_orbit
-        elif self.environment == "homi" and self.client_homi:
-            return self.client_homi
+        elif self.environment == "homfinity" and self.client_homfinity:
+            return self.client_homfinity
         elif self.client_orbit:
             return self.client_orbit
-        elif self.client_homi:
-            return self.client_homi
+        elif self.client_homfinity:
+            return self.client_homfinity
         else:
             return None
     
@@ -95,7 +95,7 @@ class DatabaseService:
         Get the appropriate Supabase client for the specified environment
         
         Args:
-            environment (str, optional): Environment name ('orbit' or 'homi'). 
+            environment (str, optional): Environment name ('orbit' or 'homfinity'). 
                                        If None, uses default environment.
                                        
         Returns:
@@ -114,13 +114,13 @@ class DatabaseService:
                     detail="Orbit Supabase client not initialized. Check SUPABASE_ORBIT_URL and SUPABASE_ORBIT_SERVICE_ROLE_KEY."
                 )
             return self.client_orbit
-        elif environment.lower() == "homi":
-            if not self.client_homi:
+        elif environment.lower() == "homfinity":
+            if not self.client_homfinity:
                 raise HTTPException(
                     status_code=500,
-                    detail="Homi Supabase client not initialized. Check SUPABASE_HOMI_URL and SUPABASE_HOMI_SERVICE_ROLE_KEY."
+                    detail="Homfinity Supabase client not initialized. Check SUPABASE_HOMFINITY_URL and SUPABASE_HOMFINITY_SERVICE_ROLE_KEY."
                 )
-            return self.client_homi
+            return self.client_homfinity
         else:
             # Fallback to default client
             if not self.client:
@@ -151,8 +151,8 @@ class DatabaseService:
             "disbursements": "orbit",
             "whatsapp_messages": "orbit",
             
-            # Homi tables (if you have specific homi operations)
-            "otp_storage": "homi",  # You can choose which env for OTP
+            # Homfinity tables (if you have specific homfinity operations)
+            "otp_storage": "homfinity",  # You can choose which env for OTP
             # Add more table mappings as needed
         }
         
@@ -170,7 +170,7 @@ class DatabaseService:
                 - mobile: Sender's mobile number
                 - message: Message content
                 - payload: Full webhook payload (optional)
-            environment (str, optional): Target environment ('orbit' or 'homi')
+            environment (str, optional): Target environment ('orbit' or 'homfinity')
                 
         Returns:
             Dict: Database operation result
@@ -224,7 +224,7 @@ class DatabaseService:
         Args:
             appointment_data: Original appointment data from request (date, time, reference_id)
             basic_api_response: Response from Basic Application API CreateTaskOrComment
-            environment (str, optional): Target environment ('orbit' or 'homi')
+            environment (str, optional): Target environment ('orbit' or 'homfinity')
             
         Returns:
             Dict: Database operation result

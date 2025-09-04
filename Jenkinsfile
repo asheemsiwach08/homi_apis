@@ -8,6 +8,14 @@ pipeline {
     }
 
     stages {
+
+        stage('Debug Branch') {
+            steps {
+                sh 'echo "BRANCH_NAME = ${BRANCH_NAME}"'
+                sh 'git rev-parse --abbrev-ref HEAD'
+            }
+        }
+
         stage('Build & Deploy') {
             agent {
                 label "${env.BRANCH_NAME == 'dev_main' ? 'dev-agent' : ''}"

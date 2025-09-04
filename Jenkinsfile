@@ -10,7 +10,7 @@ pipeline {
     stages {
         stage('Build & Deploy') {
             agent {
-                label "${env.BRANCH_NAME == 'dev' ? 'dev-agent' : 'prod-agent'}"
+                label "${env.BRANCH_NAME == 'dev_main' ? 'dev-agent' : 'prod-agent'}"
             }
             stages {
                 stage('Checkout') {

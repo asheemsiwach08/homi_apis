@@ -2,7 +2,7 @@ pipeline {
     // Choose agent based on the branch name. The `env.BRANCH_NAME` is
     // automatically available in a Multibranch Pipeline.
     agent {
-        label "${env.BRANCH_NAME == 'dev_main' ? 'dev-agent' : ''}"
+        label "${env.BRANCH_NAME == 'dev_main' ? 'dev' : ''}"
     }
 
     environment {

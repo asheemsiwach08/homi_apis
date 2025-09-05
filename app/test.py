@@ -8,7 +8,7 @@ async def main():
         headers={
             'Cache-Control': 'no-cache',
             'Content-Type': 'application/x-www-form-urlencoded',
-            'apikey': 'rh3qjmdnats7ctrxqvjitudlo7f73xmm',
+            'apikey': '',
             'cache-control': 'no-cache'
         },
         data={

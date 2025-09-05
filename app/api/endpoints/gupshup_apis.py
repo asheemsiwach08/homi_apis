@@ -3,12 +3,11 @@ Modular Gupshup WhatsApp API Endpoints
 Comprehensive wrapper for all Gupshup outbound messaging APIs
 """
 
-from fastapi import APIRouter, HTTPException, Depends
-from typing import Optional, List, Dict, Any, Union
+from fastapi import APIRouter, HTTPException
+from typing import Optional, List, Dict, Any
 from pydantic import BaseModel, Field, validator
 import json
 import httpx
-from app.services.whatsapp_service import whatsapp_service
 from app.config.settings import settings
 from app.utils.validators import normalize_phone_number
 
@@ -24,8 +23,12 @@ class BaseGupshupResponse(BaseModel):
     data: Optional[Dict[str, Any]] = None
     gupshup_response: Optional[Dict[str, Any]] = None
 
-class PhoneNumberRequest(BaseModel):
-    """Base request with phone number validation"""
+class BaseAppRequest(BaseModel):
+    """Base request with app name for multi-app support"""
+    app_name: str = Field(..., description="Gupshup app name (e.g., 'homi', 'orbit')")
+
+class PhoneNumberRequest(BaseAppRequest):
+    """Base request with phone number validation and app name"""
     phone_number: str = Field(..., description="Phone number (supports multiple formats)")
     
     @validator('phone_number')
@@ -69,7 +72,7 @@ class ContactMessageRequest(PhoneNumberRequest):
     """Request for contact messages"""
     contacts: List[Dict[str, Any]] = Field(..., description="List of contacts")
 
-class BulkMessageRequest(BaseModel):
+class BulkMessageRequest(BaseAppRequest):
     """Request for bulk messaging"""
     phone_numbers: List[str] = Field(..., description="List of phone numbers")
     message_type: str = Field(..., description="Type: text, template, media")
@@ -86,18 +89,98 @@ class TemplateListResponse(BaseModel):
     message: str
     templates: List[Dict[str, Any]]
 
+class AppTemplatesRequest(BaseAppRequest):
+    """Request to get templates for a specific app"""
+    template_status: Optional[str] = Field("APPROVED", description="Template status filter (APPROVED, PENDING, REJECTED)")
+
+class AppListResponse(BaseModel):
+    """Response for listing available apps"""
+    success: bool
+    message: str
+    apps: List[Dict[str, Any]]
+
 # ==================== UTILITY FUNCTIONS ====================
 
-async def send_gupshup_request(data: Dict[str, Any], headers: Dict[str, str]) -> Dict[str, Any]:
+def get_gupshup_headers(app_config: dict) -> Dict[str, str]:
+    """
+    Get Gupshup headers with app-specific API key
+    
+    Args:
+        app_config: App configuration dict with api_key
+        
+    Returns:
+        Dict: Headers for Gupshup API requests
+    """
+    return {
+        'Cache-Control': 'no-cache',
+        'Content-Type': 'application/x-www-form-urlencoded',
+        'apikey': app_config["api_key"]
+    }
+
+async def get_templates_from_gupshup(app_id: str, api_key: str, template_status: str = "APPROVED") -> Dict[str, Any]:
+    """
+    Fetch templates from Gupshup API based on app ID
+    
+    Args:
+        app_id: Gupshup app ID
+        api_key: App-specific API key
+        template_status: Template status filter (APPROVED, PENDING, REJECTED)
+        
+    Returns:
+        Dict containing templates data from Gupshup API
+    """
+    try:
+        url = f"https://api.gupshup.io/wa/app/{app_id}/template"
+        
+        headers = {
+            "accept": "application/json",
+            "apikey": api_key
+        }
+        
+        params = {
+            "templateStatus": template_status
+        }
+        
+        async with httpx.AsyncClient() as client:
+            response = await client.get(url, headers=headers, params=params)
+            response.raise_for_status()
+            
+            result = response.json()
+            return {
+                "success": True,
+                "data": result,
+                "status_code": response.status_code
+            }
+            
+    except httpx.HTTPStatusError as e:
+        return {
+            "success": False,
+            "error": f"HTTP {e.response.status_code}: {e.response.text}",
+            "status_code": e.response.status_code
+        }
+    except Exception as e:
+        return {
+            "success": False,
+            "error": str(e),
+            "status_code": 500
+        }
+
+async def send_gupshup_request(api_url: str, data: Dict[str, Any], headers: Dict[str, str]) -> Dict[str, Any]:
     """Generic function to send requests to Gupshup API"""
     try:
         async with httpx.AsyncClient() as client:
             response = await client.post(
-                settings.GUPSHUP_API_URL,
+                api_url,
                 headers=headers,
                 data=data,
                 timeout=30.0
             )
+            print("------------------------------------------------------------------")
+            print("URL:", api_url)
+            print("HEADERS:", headers)
+            print("DATA:", data)
+            print("RESPONSE:", response.text)
+            print("------------------------------------------------------------------")
             
             # Gupshup API returns 202 for successful submissions
             if response.status_code in [200, 202]:
@@ -128,14 +211,35 @@ async def send_gupshup_request(data: Dict[str, Any], headers: Dict[str, str]) ->
             "status_code": 500
         }
 
-def get_gupshup_headers() -> Dict[str, str]:
-    """Get standard Gupshup API headers"""
-    return {
-        'Cache-Control': 'no-cache',
-        'Content-Type': 'application/x-www-form-urlencoded',
-        'apikey': settings.GUPSHUP_API_KEY,
-        'cache-control': 'no-cache'
-    }
+def validate_app_config(app_name: str) -> dict:
+    """
+    Validate and get app configuration
+    
+    Args:
+        app_name: Name of the app
+        
+    Returns:
+        Dict: App configuration
+        
+    Raises:
+        HTTPException: If app configuration is invalid
+    """
+    app_config = settings.get_gupshup_config(app_name)
+    
+    if not app_config["api_key"]:
+        raise HTTPException(
+            status_code=400,
+            detail=f"API key not configured for app: {app_name}"
+        )
+    
+    if not app_config["source"]:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Source number not configured for app: {app_name}"
+        )
+    
+    return app_config
+
 
 # ==================== API ENDPOINTS ====================
 
@@ -144,15 +248,22 @@ async def send_text_message(request: TextMessageRequest):
     """
     Send a simple text message via WhatsApp
     
+    - **app_name**: Gupshup app name (e.g., 'homi', 'orbit')
     - **phone_number**: Phone number in any format (will be normalized)
     - **message**: Text message to send
     - **source_name**: Optional custom source name
     """
-    headers = get_gupshup_headers()
+    # Get app-specific configuration
+    app_config = validate_app_config(request.app_name)
+    print("app_config", app_config)
+    headers = get_gupshup_headers(app_config)
+    print("headers", headers)
+    
+    # message ={"type":"text", "text": request.message} 
     
     data = {
         'channel': 'whatsapp',
-        'source': settings.GUPSHUP_SOURCE,
+        'source': app_config["source"],
         'destination': request.phone_number,
         'message': request.message
     }
@@ -160,7 +271,7 @@ async def send_text_message(request: TextMessageRequest):
     if request.source_name:
         data['src.name'] = request.source_name
     
-    result = await send_gupshup_request(data, headers)
+    result = await send_gupshup_request(settings.GUPSHUP_API_MSG_URL, data, headers)
     
     return BaseGupshupResponse(
         success=result["success"],
@@ -174,12 +285,15 @@ async def send_template_message(request: TemplateMessageRequest):
     """
     Send a template message via WhatsApp
     
+    - **app_name**: Gupshup app name (e.g., 'homi', 'orbit')
     - **phone_number**: Phone number in any format (will be normalized)
     - **template_id**: Gupshup template ID
     - **template_params**: List of template parameters
     - **source_name**: Optional custom source name
     """
-    headers = get_gupshup_headers()
+    # Get app-specific configuration
+    app_config = validate_app_config(request.app_name)
+    headers = get_gupshup_headers(app_config)
     
     template_data = {
         "id": request.template_id,
@@ -188,7 +302,7 @@ async def send_template_message(request: TemplateMessageRequest):
     
     data = {
         'channel': 'whatsapp',
-        'source': settings.GUPSHUP_SOURCE,
+        'source': app_config["source"],
         'destination': request.phone_number,
         'template': json.dumps(template_data)
     }
@@ -196,7 +310,7 @@ async def send_template_message(request: TemplateMessageRequest):
     if request.source_name:
         data['src.name'] = request.source_name
     
-    result = await send_gupshup_request(data, headers)
+    result = await send_gupshup_request(settings.GUPSHUP_API_TEMPLATE_URL, data, headers)
     
     return BaseGupshupResponse(
         success=result["success"],
@@ -210,13 +324,16 @@ async def send_media_message(request: MediaMessageRequest):
     """
     Send a media message (image, document, audio, video) via WhatsApp
     
+    - **app_name**: Gupshup app name (e.g., 'homi', 'orbit')
     - **phone_number**: Phone number in any format (will be normalized)
     - **media_type**: Type of media (image, document, audio, video)
     - **media_url**: URL of the media file
     - **caption**: Optional caption for the media
     - **filename**: Optional filename for documents
     """
-    headers = get_gupshup_headers()
+    # Get app-specific configuration
+    app_config = validate_app_config(request.app_name)
+    headers = get_gupshup_headers(app_config)
     
     # Build media message structure
     media_message = {
@@ -232,12 +349,12 @@ async def send_media_message(request: MediaMessageRequest):
     
     data = {
         'channel': 'whatsapp',
-        'source': settings.GUPSHUP_SOURCE,
+        'source': app_config["source"],
         'destination': request.phone_number,
         'message': json.dumps(media_message)
     }
     
-    result = await send_gupshup_request(data, headers)
+    result = await send_gupshup_request(settings.GUPSHUP_API_TEMPLATE_URL, data, headers)
     
     return BaseGupshupResponse(
         success=result["success"],
@@ -251,6 +368,7 @@ async def send_interactive_message(request: InteractiveMessageRequest):
     """
     Send an interactive message (buttons, lists) via WhatsApp
     
+    - **app_name**: Gupshup app name (e.g., 'homi', 'orbit')
     - **phone_number**: Phone number in any format (will be normalized)
     - **interactive_type**: Type of interactive message (button, list)
     - **header**: Optional message header
@@ -258,7 +376,9 @@ async def send_interactive_message(request: InteractiveMessageRequest):
     - **footer**: Optional message footer
     - **action**: Interactive action configuration
     """
-    headers = get_gupshup_headers()
+    # Get app-specific configuration
+    app_config = validate_app_config(request.app_name)
+    headers = get_gupshup_headers(app_config)
     
     interactive_message = {
         "type": "interactive",
@@ -277,12 +397,12 @@ async def send_interactive_message(request: InteractiveMessageRequest):
     
     data = {
         'channel': 'whatsapp',
-        'source': settings.GUPSHUP_SOURCE,
+        'source': app_config["source"],
         'destination': request.phone_number,
         'message': json.dumps(interactive_message)
     }
     
-    result = await send_gupshup_request(data, headers)
+    result = await send_gupshup_request(settings.GUPSHUP_API_TEMPLATE_URL, data, headers)
     
     return BaseGupshupResponse(
         success=result["success"],
@@ -296,13 +416,16 @@ async def send_location_message(request: LocationMessageRequest):
     """
     Send a location message via WhatsApp
     
+    - **app_name**: Gupshup app name (e.g., 'homi', 'orbit')
     - **phone_number**: Phone number in any format (will be normalized)
     - **latitude**: Latitude coordinate
     - **longitude**: Longitude coordinate
     - **name**: Optional location name
     - **address**: Optional location address
     """
-    headers = get_gupshup_headers()
+    # Get app-specific configuration
+    app_config = validate_app_config(request.app_name)
+    headers = get_gupshup_headers(app_config)
     
     location_message = {
         "type": "location",
@@ -320,12 +443,12 @@ async def send_location_message(request: LocationMessageRequest):
     
     data = {
         'channel': 'whatsapp',
-        'source': settings.GUPSHUP_SOURCE,
+        'source': app_config["source"],
         'destination': request.phone_number,
         'message': json.dumps(location_message)
     }
     
-    result = await send_gupshup_request(data, headers)
+    result = await send_gupshup_request(settings.GUPSHUP_API_TEMPLATE_URL, data, headers)
     
     return BaseGupshupResponse(
         success=result["success"],
@@ -339,10 +462,13 @@ async def send_contact_message(request: ContactMessageRequest):
     """
     Send a contact message via WhatsApp
     
+    - **app_name**: Gupshup app name (e.g., 'homi', 'orbit')
     - **phone_number**: Phone number in any format (will be normalized)
     - **contacts**: List of contact objects
     """
-    headers = get_gupshup_headers()
+    # Get app-specific configuration
+    app_config = validate_app_config(request.app_name)
+    headers = get_gupshup_headers(app_config)
     
     contact_message = {
         "type": "contacts",
@@ -351,12 +477,12 @@ async def send_contact_message(request: ContactMessageRequest):
     
     data = {
         'channel': 'whatsapp',
-        'source': settings.GUPSHUP_SOURCE,
+        'source': app_config["source"],
         'destination': request.phone_number,
         'message': json.dumps(contact_message)
     }
     
-    result = await send_gupshup_request(data, headers)
+    result = await send_gupshup_request(settings.GUPSHUP_API_TEMPLATE_URL, data, headers)
     
     return BaseGupshupResponse(
         success=result["success"],
@@ -370,6 +496,7 @@ async def send_bulk_messages(request: BulkMessageRequest):
     """
     Send bulk messages to multiple phone numbers
     
+    - **app_name**: Gupshup app name (e.g., 'homi', 'orbit')
     - **phone_numbers**: List of phone numbers
     - **message_type**: Type of message (text, template, media)
     - **message_data**: Message data based on type
@@ -389,12 +516,14 @@ async def send_bulk_messages(request: BulkMessageRequest):
             # Prepare message data based on type
             if request.message_type == "text":
                 message_request = TextMessageRequest(
+                    app_name=request.app_name,
                     phone_number=normalized_phone,
                     message=request.message_data.get("message", "")
                 )
                 result = await send_text_message(message_request)
             elif request.message_type == "template":
                 message_request = TemplateMessageRequest(
+                    app_name=request.app_name,
                     phone_number=normalized_phone,
                     template_id=request.message_data.get("template_id", ""),
                     template_params=request.message_data.get("template_params", [])
@@ -402,6 +531,7 @@ async def send_bulk_messages(request: BulkMessageRequest):
                 result = await send_template_message(message_request)
             elif request.message_type == "media":
                 message_request = MediaMessageRequest(
+                    app_name=request.app_name,
                     phone_number=normalized_phone,
                     media_type=request.message_data.get("media_type", ""),
                     media_url=request.message_data.get("media_url", ""),
@@ -471,127 +601,245 @@ async def get_message_status(message_id: str):
 @router.get("/templates", response_model=TemplateListResponse)
 async def get_templates():
     """
-    Get list of available WhatsApp templates
+    Get list of configured WhatsApp templates from environment variables
     """
-    # Note: This endpoint would require Gupshup's template API
-    # For now, returning configured templates
-    templates = [
-        {
+    templates = []
+    
+    # Add OTP template if configured
+    if settings.GUPSHUP_WHATSAPP_OTP_TEMPLATE_ID:
+        templates.append({
             "id": settings.GUPSHUP_WHATSAPP_OTP_TEMPLATE_ID,
             "name": "OTP Template",
             "category": "AUTHENTICATION",
-            "status": "APPROVED"
-        },
-        {
+            "status": "APPROVED",
+            "source": "environment"
+        })
+    
+    # Add lead creation template if configured
+    if settings.GUPSHUP_LEAD_CREATION_TEMPLATE_ID:
+        templates.append({
             "id": settings.GUPSHUP_LEAD_CREATION_TEMPLATE_ID,
             "name": "Lead Creation Template",
-            "category": "UTILITY",
-            "status": "APPROVED"
-        },
-        {
+            "category": "UTILITY", 
+            "status": "APPROVED",
+            "source": "environment"
+        })
+    
+    # Add lead status template if configured
+    if settings.GUPSHUP_LEAD_STATUS_TEMPLATE_ID:
+        templates.append({
             "id": settings.GUPSHUP_LEAD_STATUS_TEMPLATE_ID,
             "name": "Lead Status Template",
             "category": "UTILITY",
-            "status": "APPROVED"
-        }
-    ]
+            "status": "APPROVED",
+            "source": "environment"
+        })
     
     return TemplateListResponse(
         success=True,
-        message="Templates retrieved successfully",
+        message=f"Found {len(templates)} configured templates",
         templates=templates
     )
 
-@router.get("/health")
-async def gupshup_health_check():
+@router.post("/templates/by-app", response_model=BaseGupshupResponse)
+async def get_templates_by_app_name(request: AppTemplatesRequest):
     """
-    Health check for Gupshup API connectivity
+    Get WhatsApp templates for a specific Gupshup app from Gupshup API
+    
+    This endpoint fetches templates directly from Gupshup's API based on the provided app name.
+    The API key and app ID are automatically selected based on the app name.
     """
     try:
-        # Test API connectivity with a simple request
-        headers = get_gupshup_headers()
-        test_data = {
-            'channel': 'whatsapp',
-            'source': settings.GUPSHUP_SOURCE,
-            'destination': '919999999999',  # Test number
-            'message': 'Health check test'
-        }
+        # Get app-specific configuration
+        app_config = validate_app_config(request.app_name)
         
-        async with httpx.AsyncClient() as client:
-            response = await client.post(
-                settings.GUPSHUP_API_URL,
-                headers=headers,
-                data=test_data,
-                timeout=10.0
+        if not app_config["app_id"]:
+            raise HTTPException(
+                status_code=400,
+                detail=f"App ID not configured for app: {request.app_name}"
             )
         
-        return {
-            "success": True,
-            "message": "Gupshup API is accessible",
-            "status_code": response.status_code,
-            "api_url": settings.GUPSHUP_API_URL,
-            "source_configured": bool(settings.GUPSHUP_SOURCE),
-            "api_key_configured": bool(settings.GUPSHUP_API_KEY)
-        }
+        # Fetch templates from Gupshup API using app-specific credentials
+        result = await get_templates_from_gupshup(
+            app_config["app_id"], 
+            app_config["api_key"], 
+            request.template_status
+        )
+        
+        if result["success"]:
+            templates_data = result["data"]
+            
+            # Extract templates from Gupshup response
+            templates = []
+            if isinstance(templates_data, dict):
+                # Handle different possible response structures
+                if "templates" in templates_data:
+                    templates = templates_data["templates"]
+                elif "data" in templates_data:
+                    templates = templates_data["data"]
+                else:
+                    templates = [templates_data]  # Single template response
+            elif isinstance(templates_data, list):
+                templates = templates_data
+            
+            return BaseGupshupResponse(
+                success=True,
+                message=f"Found {len(templates)} templates for app: {request.app_name}",
+                data={
+                    "app_name": request.app_name,
+                    "app_id": app_config["app_id"],
+                    "template_status": request.template_status,
+                    "templates": templates,
+                    "total_count": len(templates)
+                },
+                gupshup_response=templates_data
+            )
+        else:
+            raise HTTPException(
+                status_code=result.get("status_code", 500),
+                detail=f"Failed to fetch templates: {result['error']}"
+            )
+            
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Error fetching templates for app {request.app_name}: {str(e)}"
+        )
+
+@router.get("/apps", response_model=AppListResponse)
+async def get_available_apps():
+    """
+    Get list of all configured Gupshup apps
+    
+    Returns all apps that have been configured with API keys and app IDs.
+    """
+    try:
+        apps_config = settings.GUPSHUP_APPS
+        
+        apps_list = []
+        for app_name, config in apps_config.items():
+            apps_list.append({
+                "app_name": app_name,
+                "app_id": config["app_id"],
+                "source": config["source"],
+                "has_api_key": bool(config["api_key"]),
+                "status": "configured"
+            })
+        
+        # Add default app if configured
+        if settings.GUPSHUP_API_KEY:
+            apps_list.append({
+                "app_name": "default",
+                "app_id": "N/A",
+                "source": settings.GUPSHUP_SOURCE,
+                "has_api_key": True,
+                "status": "configured"
+            })
+        
+        return AppListResponse(
+            success=True,
+            message=f"Found {len(apps_list)} configured apps",
+            apps=apps_list
+        )
         
     except Exception as e:
-        return {
-            "success": False,
-            "message": f"Gupshup API health check failed: {str(e)}",
-            "api_url": settings.GUPSHUP_API_URL,
-            "source_configured": bool(settings.GUPSHUP_SOURCE),
-            "api_key_configured": bool(settings.GUPSHUP_API_KEY)
-        }
+        raise HTTPException(
+            status_code=500,
+            detail=f"Error retrieving app configurations: {str(e)}"
+        )
+
+# @router.get("/health")
+# async def gupshup_health_check():
+#     """
+#     Health check for Gupshup API connectivity
+#     """
+#     try:
+#         # Test API connectivity with a simple request
+#         headers = get_gupshup_headers()
+#         test_data = {
+#             'channel': 'whatsapp',
+#             'source': settings.GUPSHUP_SOURCE,
+#             'destination': '919999999999',  # Test number
+#             'message': 'Health check test'
+#         }
+        
+#         async with httpx.AsyncClient() as client:
+#             response = await client.post(
+#                 settings.GUPSHUP_API_TEMPLATE_URL,
+#                 headers=headers,
+#                 data=test_data,
+#                 timeout=10.0
+#             )
+        
+#         return {
+#             "success": True,
+#             "message": "Gupshup API is accessible",
+#             "status_code": response.status_code,
+#             "api_url": settings.GUPSHUP_API_URL,
+#             "source_configured": bool(settings.GUPSHUP_SOURCE),
+#             "api_key_configured": bool(settings.GUPSHUP_API_KEY)
+#         }
+        
+#     except Exception as e:
+#         return {
+#             "success": False,
+#             "message": f"Gupshup API health check failed: {str(e)}",
+#             "api_url": settings.GUPSHUP_API_URL,
+#             "source_configured": bool(settings.GUPSHUP_SOURCE),
+#             "api_key_configured": bool(settings.GUPSHUP_API_KEY)
+#         }
 
 # ==================== LEGACY COMPATIBILITY ENDPOINTS ====================
 
-@router.post("/send-otp", response_model=BaseGupshupResponse)
-async def send_otp_legacy(request: PhoneNumberRequest):
-    """
-    Legacy OTP sending endpoint (compatible with existing system)
-    """
-    otp = whatsapp_service.generate_otp()
-    result = await whatsapp_service.send_otp(request.phone_number, otp)
+# @router.post("/send-otp", response_model=BaseGupshupResponse)
+# async def send_otp_legacy(request: PhoneNumberRequest):
+#     """
+#     Legacy OTP sending endpoint (compatible with existing system)
+#     """
+#     otp = whatsapp_service.generate_otp()
+#     result = await whatsapp_service.send_otp(request.phone_number, otp)
     
-    return BaseGupshupResponse(
-        success=result["success"],
-        message=result["message"],
-        data=result["data"]
-    )
+#     return BaseGupshupResponse(
+#         success=result["success"],
+#         message=result["message"],
+#         data=result["data"]
+#     )
 
-@router.post("/send-lead-confirmation", response_model=BaseGupshupResponse)
-async def send_lead_confirmation_legacy(
-    customer_name: str,
-    loan_type: str,
-    basic_application_id: str,
-    phone_number: str
-):
-    """
-    Legacy lead confirmation endpoint (compatible with existing system)
-    """
-    result = await whatsapp_service.send_lead_creation_confirmation(
-        customer_name, loan_type, basic_application_id, phone_number
-    )
+# @router.post("/send-lead-confirmation", response_model=BaseGupshupResponse)
+# async def send_lead_confirmation_legacy(
+#     customer_name: str,
+#     loan_type: str,
+#     basic_application_id: str,
+#     phone_number: str
+# ):
+#     """
+#     Legacy lead confirmation endpoint (compatible with existing system)
+#     """
+#     result = await whatsapp_service.send_lead_creation_confirmation(
+#         customer_name, loan_type, basic_application_id, phone_number
+#     )
     
-    return BaseGupshupResponse(
-        success=result["success"],
-        message=result["message"],
-        data=result["data"]
-    )
+#     return BaseGupshupResponse(
+#         success=result["success"],
+#         message=result["message"],
+#         data=result["data"]
+#     )
 
-@router.post("/send-status-update", response_model=BaseGupshupResponse)
-async def send_status_update_legacy(
-    phone_number: str,
-    name: str,
-    status: str
-):
-    """
-    Legacy status update endpoint (compatible with existing system)
-    """
-    result = await whatsapp_service.send_lead_status_update(phone_number, name, status)
+# @router.post("/send-status-update", response_model=BaseGupshupResponse)
+# async def send_status_update_legacy(
+#     phone_number: str,
+#     name: str,
+#     status: str
+# ):
+#     """
+#     Legacy status update endpoint (compatible with existing system)
+#     """
+#     result = await whatsapp_service.send_lead_status_update(phone_number, name, status)
     
-    return BaseGupshupResponse(
-        success=result["success"],
-        message=result["message"],
-        data=result["data"]
-    )
+#     return BaseGupshupResponse(
+#         success=result["success"],
+#         message=result["message"],
+#         data=result["data"]
+#     )

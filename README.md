@@ -150,7 +150,8 @@ otpVerification/
    # Gupshup WhatsApp API Configuration
    GUPSHUP_API_KEY=your_gupshup_api_key
    GUPSHUP_SOURCE=your_source_number
-   GUPSHUP_API_URL=https://api.gupshup.io/wa/api/v1/template/msg
+   GUPSHUP_API_TEMPLATE_URL=https://api.gupshup.io/wa/api/v1/template/msg
+   GUPSHUP_API_MSG_URL=https://api.gupshup.io/wa/api/v1/msg
 
    # WhatsApp Templates
    GUPSHUP_WHATSAPP_OTP_TEMPLATE_ID=your_otp_template_id

@@ -26,9 +26,75 @@ class Settings:
     BASIC_APPLICATION_AGENT_API_KEY = os.getenv("BASIC_APPLICATION_AGENT_API_KEY", "")
 
     # Gupshup WhatsApp API Configuration
-    GUPSHUP_API_URL = os.getenv("GUPSHUP_API_URL", "https://api.gupshup.io/wa/api/v1/msg")
+    GUPSHUP_API_TEMPLATE_URL = os.getenv("GUPSHUP_API_TEMPLATE_URL", "https://api.gupshup.io/wa/api/v1/template/msg")
+    GUPSHUP_API_MSG_URL = os.getenv("GUPSHUP_API_MSG_URL", "https://api.gupshup.io/wa/api/v1/msg")
     GUPSHUP_API_KEY = os.getenv("GUPSHUP_API_KEY", "")
     GUPSHUP_SOURCE = os.getenv("GUPSHUP_SOURCE", "")
+
+    # Multi-App Gupshup Configuration
+    # App configurations are loaded dynamically from environment variables
+    # Format: GUPSHUP_APP_{APP_NAME}_API_KEY and GUPSHUP_APP_{APP_NAME}_APP_ID
+    @property
+    def GUPSHUP_APPS(self) -> dict:
+        """
+        Load Gupshup app configurations from environment variables
+        
+        Expected environment variables:
+        - GUPSHUP_APP_HOMI_API_KEY=your_homi_api_key
+        - GUPSHUP_APP_HOMI_APP_ID=your_homi_app_id
+        - GUPSHUP_APP_ORBIT_API_KEY=your_orbit_api_key
+        - GUPSHUP_APP_ORBIT_APP_ID=your_orbit_app_id
+        """
+        apps = {}
+        
+        # Get all environment variables that start with GUPSHUP_APP_
+        for key, value in os.environ.items():
+            if key.startswith("GUPSHUP_APP_") and key.endswith("_API_KEY"):
+                # Extract app name from key (e.g., GUPSHUP_APP_HOMI_API_KEY -> HOMI)
+                app_name = key.replace("GUPSHUP_APP_", "").replace("_API_KEY", "")
+                
+                # Get corresponding app_id
+                app_id_key = f"GUPSHUP_APP_{app_name}_APP_ID"
+                app_id = os.getenv(app_id_key, "")
+                
+                # Get optional source for this app
+                source_key = f"GUPSHUP_APP_{app_name}_SOURCE"
+                source = os.getenv(source_key, self.GUPSHUP_SOURCE)
+                
+                if value and app_id:  # Both API key and app ID must be present
+                    apps[app_name.lower()] = {
+                        "api_key": value,
+                        "app_id": app_id,
+                        "source": source,
+                        "app_name": app_name.lower()
+                    }
+        
+        return apps
+    
+    def get_gupshup_config(self, app_name: str) -> dict:
+        """
+        Get Gupshup configuration for a specific app
+        
+        Args:
+            app_name: Name of the app (case-insensitive)
+            
+        Returns:
+            Dict with api_key, app_id, source, and app_name
+            Falls back to default configuration if app not found
+        """
+        app_name_lower = app_name.lower()
+        apps = self.GUPSHUP_APPS
+        
+        if app_name_lower in apps:
+            return apps[app_name_lower]
+        else:
+            # Fallback to default configuration
+            return {
+                "api_key": self.GUPSHUP_API_KEY,
+                "app_id": "",  # No default app_id
+                "source": self.GUPSHUP_SOURCE,
+                "app_name": "default"
+            }
 
     # Gupshup WhatsApp Templates
     GUPSHUP_WHATSAPP_OTP_TEMPLATE_ID = os.getenv("GUPSHUP_WHATSAPP_OTP_TEMPLATE_ID", "")

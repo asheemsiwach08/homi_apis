@@ -1,115 +1,97 @@
 pipeline {
-    agent none
+    // Choose agent based on the branch name. The `env.BRANCH_NAME` is
+    // automatically available in a Multibranch Pipeline.
+    agent {
+        label "${env.BRANCH_NAME == 'dev_main' ? 'dev-agent' : 'main-agent'}"
+    }
 
     environment {
-        AWS_REGION       = 'ap-south-1'
-        DOCKER_REGISTRY  = '676206929524.dkr.ecr.ap-south-1.amazonaws.com'
-        DOCKER_IMAGE     = 'dev-orbit-pem'
+        AWS_REGION      = 'ap-south-1'
+        DOCKER_REGISTRY = '676206929524.dkr.ecr.ap-south-1.amazonaws.com'
+        DOCKER_IMAGE    = 'dev-orbit-pem'
     }
 
     stages {
-        stage('Build & Deploy') {
-            // Choose agent dynamically based on branch
-            agent {
-                label "${(env.BRANCH_NAME ?: sh(script: 'git rev-parse --abbrev-ref HEAD', returnStdout: true).trim()) == 'dev_main' ? 'dev-agent' : ''}"
+        stage('Checkout') {
+            steps {
+                // `checkout scm` is sufficient for Multibranch Pipelines.
+                checkout scm
+                echo "Branch detected: ${env.BRANCH_NAME}"
             }
+        }
 
-            stages {
-                stage('Checkout') {
-                    steps {
-                        checkout scm
-                        script {
-                            // Capture branch name
-                            env.BRANCH_NAME = sh(script: "git rev-parse --abbrev-ref HEAD", returnStdout: true).trim()
-                            echo "Branch detected: ${env.BRANCH_NAME}"
-                        }
-                    }
+        stage('Inject .env') {
+            steps {
+                withCredentials([file(credentialsId: 'gupshup', variable: 'ENV_FILE')]) {
+                    sh 'cp $ENV_FILE .env && cat .env'
                 }
+            }
+        }
 
-                stage('Inject .env') {
-                    steps {
-                        withCredentials([file(credentialsId: 'gupshup', variable: 'ENV_FILE')]) {
-                            sh 'rm -f .env && cp $ENV_FILE .env && cat .env'
-                        }
-                    }
-                }
+        stage('Setup Python Environment') {
+            steps {
+                sh '''
+                    python3 -m venv venv
+                    source venv/bin/activate
+                    pip install --upgrade pip
+                    pip install -r requirements.txt
+                '''
+            }
+        }
 
-                stage('Setup Python Environment') {
-                    steps {
-                        sh '''
-                            python3 -m venv venv
-                            source venv/bin/activate
-                            pip install --upgrade pip
-                            pip install -r requirements.txt
-                            deactivate
-                        '''
-                    }
+        stage('AWS ECR Login') {
+            steps {
+                withCredentials([usernamePassword(credentialsId: 'aws-credentials', usernameVariable: 'AWS_ACCESS_KEY_ID', passwordVariable: 'AWS_SECRET_ACCESS_KEY')]) {
+                    sh "aws ecr get-login-password --region ${AWS_REGION} | docker login --username AWS --password-stdin ${DOCKER_REGISTRY}"
                 }
+            }
+        }
 
-                stage('AWS ECR Login') {
-                    steps {
-                        withCredentials([usernamePassword(credentialsId: 'aws-credentials', usernameVariable: 'AWS_ACCESS_KEY_ID', passwordVariable: 'AWS_SECRET_ACCESS_KEY')]) {
-                            sh '''
-                                aws ecr get-login-password --region ap-south-1 | \
-                                docker login --username AWS --password-stdin ${DOCKER_REGISTRY}
-                            '''
-                        }
-                    }
+        stage('Build, Tag & Push Docker Image') {
+            steps {
+                script {
+                    env.DOCKER_TAG = "${DOCKER_IMAGE}:${env.BRANCH_NAME}-${env.BUILD_NUMBER}"
+                    sh "docker build -t ${env.DOCKER_TAG} ."
+                    sh "docker tag ${env.DOCKER_TAG} ${DOCKER_REGISTRY}/${env.DOCKER_TAG}"
+                    sh "docker push ${DOCKER_REGISTRY}/${env.DOCKER_TAG}"
                 }
+            }
+        }
 
-                stage('Build, Tag & Push Docker Image') {
-                    steps {
-                        script {
-                            def branch = env.BRANCH_NAME
-                            env.DOCKER_TAG = "${DOCKER_IMAGE}:${branch}-${BUILD_NUMBER}"
-                            sh "docker build -t ${env.DOCKER_TAG} ."
-                            sh "docker tag ${env.DOCKER_TAG} ${DOCKER_REGISTRY}/${env.DOCKER_TAG}"
-                            sh "docker push ${DOCKER_REGISTRY}/${env.DOCKER_TAG}"
-                        }
-                    }
-                }
-
-                stage('Deploy Container on Port 5000') {
-                    steps {
-                        sh '''
-                            container_id=$(docker ps -q --filter "publish=5000")
-                            if [ -n "$container_id" ]; then
-                                docker stop $container_id && docker rm $container_id
-                            fi
-                            docker run -d -p 5000:5000 ${DOCKER_REGISTRY}/${DOCKER_TAG}
-                        '''
-                    }
-                }
+        stage('Deploy Container') {
+            steps {
+                sh '''
+                    # Add a check to handle existing containers
+                    if [ $(docker ps -q -f name=my-app-container) ]; then
+                        docker stop my-app-container
+                        docker rm my-app-container
+                    fi
+                    docker run -d --name my-app-container -p 5000:5000 ${DOCKER_REGISTRY}/${DOCKER_TAG}
+                '''
             }
         }
     }
 
     post {
         success {
-            script {
-                def branch = env.BRANCH_NAME
-                slackSend(
-                    tokenCredentialId: 'slack_channel_secret',
-                    message: "✅ Build SUCCESSFUL: ${env.JOB_NAME} [${env.BUILD_NUMBER}] on branch `${branch}`",
-                    channel: '#jenekin_update',
-                    color: 'good',
-                    iconEmoji: ':white_check_mark:',
-                    username: 'Jenkins'
-                )
-            }
+            slackSend(
+                tokenCredentialId: 'slack_channel_secret',
+                message: "✅ Build SUCCESSFUL: ${env.JOB_NAME} [${env.BUILD_NUMBER}] on branch `${env.BRANCH_NAME}`",
+                channel: '#jenekin_update',
+                color: 'good',
+                iconEmoji: ':white_check_mark:',
+                username: 'Jenkins'
+            )
         }
         failure {
-            script {
-                def branch = env.BRANCH_NAME
-                slackSend(
-                    tokenCredentialId: 'slack_channel_secret',
-                    message: "❌ Build FAILED: ${env.JOB_NAME} [${env.BUILD_NUMBER}] on branch `${branch}`",
-                    channel: '#jenekin_update',
-                    color: 'danger',
-                    iconEmoji: ':x:',
-                    username: 'Jenkins'
-                )
-            }
+            slackSend(
+                tokenCredentialId: 'slack_channel_secret',
+                message: "❌ Build FAILED: ${env.JOB_NAME} [${env.BUILD_NUMBER}] on branch `${env.BRANCH_NAME}`",
+                channel: '#jenekin_update',
+                color: 'danger',
+                iconEmoji: ':x:',
+                username: 'Jenkins'
+            )
         }
         always {
             cleanWs()

@@ -19,7 +19,8 @@ services:
       # Gupshup WhatsApp API Configuration
       - GUPSHUP_API_KEY=${GUPSHUP_API_KEY}
       - GUPSHUP_SOURCE=${GUPSHUP_SOURCE}
-      - GUPSHUP_API_URL=${GUPSHUP_API_URL:-https://api.gupshup.io/wa/api/v1/msg}
+      - GUPSHUP_API_TEMPLATE_URL=${GUPSHUP_API_TEMPLATE_URL:-https://api.gupshup.io/wa/api/v1/template/msg}
+      - GUPSHUP_API_MSG_URL=${GUPSHUP_API_MSG_URL:-https://api.gupshup.io/wa/api/v1/msg}
       
       # Gupshup WhatsApp Templates
       - GUPSHUP_WHATSAPP_OTP_TEMPLATE_ID=${GUPSHUP_WHATSAPP_OTP_TEMPLATE_ID}

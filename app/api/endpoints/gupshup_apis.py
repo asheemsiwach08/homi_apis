@@ -259,13 +259,13 @@ async def send_text_message(request: TextMessageRequest):
     headers = get_gupshup_headers(app_config)
     print("headers", headers)
     
-    # message ={"type":"text", "text": request.message} 
+    message ={"type":"text", "text": request.message} 
     
     data = {
         'channel': 'whatsapp',
         'source': app_config["source"],
         'destination': request.phone_number,
-        'message': request.message
+        'message': json.dumps(message)
     }
     
     if request.source_name:

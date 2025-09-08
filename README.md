@@ -147,11 +147,27 @@ otpVerification/
    BASIC_APPLICATION_USER_ID=your_user_id
    BASIC_APPLICATION_API_KEY=your_api_key
 
-   # Gupshup WhatsApp API Configuration
+   # Gupshup WhatsApp API Configuration (Default/Legacy)
    GUPSHUP_API_KEY=your_gupshup_api_key
    GUPSHUP_SOURCE=your_source_number
    GUPSHUP_API_TEMPLATE_URL=https://api.gupshup.io/wa/api/v1/template/msg
    GUPSHUP_API_MSG_URL=https://api.gupshup.io/wa/api/v1/msg
+
+   # Multi-App Gupshup Configuration (New Format)
+   # Configure multiple Gupshup apps with their own API keys and app IDs
+   # Format: {APP_NAME}_GUPSHUP_API_KEY, {APP_NAME}_GUPSHUP_APP_ID, {APP_NAME}_GUPSHUP_APP_NAME
+   
+   # Basic Home Loan App Configuration
+   BASICHOMELOAN_GUPSHUP_API_KEY=your_basichomeloan_api_key
+   BASICHOMELOAN_GUPSHUP_APP_ID=your_basichomeloan_app_id
+   BASICHOMELOAN_GUPSHUP_APP_NAME=your_basichomeloan_app_name
+   BASICHOMELOAN_GUPSHUP_SOURCE=your_basichomeloan_source_number
+   
+   # Iraby Basic App Configuration
+   IRABYBASIC_GUPSHUP_API_KEY=your_irabybasic_api_key
+   IRABYBASIC_GUPSHUP_APP_ID=your_irabybasic_app_id
+   IRABYBASIC_GUPSHUP_APP_NAME=your_irabybasic_app_name
+   IRABYBASIC_GUPSHUP_SOURCE=your_irabybasic_source_number
 
    # WhatsApp Templates
    GUPSHUP_WHATSAPP_OTP_TEMPLATE_ID=your_otp_template_id

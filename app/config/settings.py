@@ -33,40 +33,49 @@ class Settings:
 
     # Multi-App Gupshup Configuration
     # App configurations are loaded dynamically from environment variables
-    # Format: GUPSHUP_APP_{APP_NAME}_API_KEY and GUPSHUP_APP_{APP_NAME}_APP_ID
+    # Format: {APP_NAME}_GUPSHUP_API_KEY, {APP_NAME}_GUPSHUP_APP_ID and {APP_NAME}_GUPSHUP_APP_NAME
     @property
     def GUPSHUP_APPS(self) -> dict:
         """
         Load Gupshup app configurations from environment variables
         
         Expected environment variables:
-        - GUPSHUP_APP_HOMI_API_KEY=your_homi_api_key
-        - GUPSHUP_APP_HOMI_APP_ID=your_homi_app_id
-        - GUPSHUP_APP_ORBIT_API_KEY=your_orbit_api_key
-        - GUPSHUP_APP_ORBIT_APP_ID=your_orbit_app_id
+        - BASICHOMELOAN_GUPSHUP_API_KEY=your_basichomeloan_api_key
+        - BASICHOMELOAN_GUPSHUP_APP_ID=your_basichomeloan_app_id
+        - BASICHOMELOAN_GUPSHUP_APP_NAME=your_basichomeloan_app_name
+        - IRABYBASIC_GUPSHUP_API_KEY=your_irabybasic_api_key
+        - IRABYBASIC_GUPSHUP_APP_ID=your_irabybasic_app_id
+        - IRABYBASIC_GUPSHUP_APP_NAME=your_irabybasic_app_name
         """
         apps = {}
         
-        # Get all environment variables that start with GUPSHUP_APP_
+        # Handle new format: {APP_NAME}_GUPSHUP_APP_ID, {APP_NAME}_GUPSHUP_API_KEY and {APP_NAME}_GUPSHUP_APP_NAME
         for key, value in os.environ.items():
-            if key.startswith("GUPSHUP_APP_") and key.endswith("_API_KEY"):
-                # Extract app name from key (e.g., GUPSHUP_APP_HOMI_API_KEY -> HOMI)
-                app_name = key.replace("GUPSHUP_APP_", "").replace("_API_KEY", "")
+            if key.endswith("_GUPSHUP_APP_ID") and value:
+                # Extract app name from key (e.g., BASICHOMELOAN_GUPSHUP_APP_ID -> BASICHOMELOAN)
+                app_name = key.replace("_GUPSHUP_APP_ID", "")
                 
-                # Get corresponding app_id
-                app_id_key = f"GUPSHUP_APP_{app_name}_APP_ID"
-                app_id = os.getenv(app_id_key, "")
+                # Get corresponding API key
+                api_key_key = f"{app_name}_GUPSHUP_API_KEY"
+                api_key = os.getenv(api_key_key, self.GUPSHUP_API_KEY)
+                
+                # Get corresponding app_name (Gupshup app name)
+                app_name_key = f"{app_name}_GUPSHUP_APP_NAME"
+                gupshup_app_name = os.getenv(app_name_key, "")
                 
                 # Get optional source for this app
-                source_key = f"GUPSHUP_APP_{app_name}_SOURCE"
+                source_key = f"{app_name}_GUPSHUP_SOURCE"
                 source = os.getenv(source_key, self.GUPSHUP_SOURCE)
                 
-                if value and app_id:  # Both API key and app ID must be present
+                # For new format, we need at least app_id and api_key
+                # app_name is optional but recommended
+                if value and api_key:  # Both app ID and API key must be present
                     apps[app_name.lower()] = {
-                        "api_key": value,
-                        "app_id": app_id,
+                        "api_key": api_key,
+                        "app_id": value,
+                        "app_name": gupshup_app_name if gupshup_app_name else app_name.lower(),
                         "source": source,
-                        "app_name": app_name.lower()
+                        "internal_name": app_name.lower()
                     }
         
         return apps

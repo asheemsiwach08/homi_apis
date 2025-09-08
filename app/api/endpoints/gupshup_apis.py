@@ -117,7 +117,7 @@ def get_gupshup_headers(app_config: dict) -> Dict[str, str]:
         'apikey': app_config["api_key"]
     }
 
-async def get_templates_from_gupshup(app_id: str, api_key: str, template_status: str = "APPROVED") -> Dict[str, Any]:
+async def get_templates_from_gupshup(app_id: str, api_key: str, template_status: str = None) -> Dict[str, Any]:
     """
     Fetch templates from Gupshup API based on app ID
     
@@ -138,7 +138,7 @@ async def get_templates_from_gupshup(app_id: str, api_key: str, template_status:
         }
         
         params = {
-            "templateStatus": template_status
+            "templateStatus": template_status if template_status else None
         }
         
         async with httpx.AsyncClient() as client:
@@ -175,12 +175,6 @@ async def send_gupshup_request(api_url: str, data: Dict[str, Any], headers: Dict
                 data=data,
                 timeout=30.0
             )
-            print("------------------------------------------------------------------")
-            print("URL:", api_url)
-            print("HEADERS:", headers)
-            print("DATA:", data)
-            print("RESPONSE:", response.text)
-            print("------------------------------------------------------------------")
             
             # Gupshup API returns 202 for successful submissions
             if response.status_code in [200, 202]:
@@ -255,9 +249,7 @@ async def send_text_message(request: TextMessageRequest):
     """
     # Get app-specific configuration
     app_config = validate_app_config(request.app_name)
-    print("app_config", app_config)
     headers = get_gupshup_headers(app_config)
-    print("headers", headers)
     
     message ={"type":"text", "text": request.message} 
     
@@ -598,72 +590,39 @@ async def get_message_status(message_id: str):
         }
     )
 
-@router.get("/templates", response_model=TemplateListResponse)
-async def get_templates():
-    """
-    Get list of configured WhatsApp templates from environment variables
-    """
-    templates = []
-    
-    # Add OTP template if configured
-    if settings.GUPSHUP_WHATSAPP_OTP_TEMPLATE_ID:
-        templates.append({
-            "id": settings.GUPSHUP_WHATSAPP_OTP_TEMPLATE_ID,
-            "name": "OTP Template",
-            "category": "AUTHENTICATION",
-            "status": "APPROVED",
-            "source": "environment"
-        })
-    
-    # Add lead creation template if configured
-    if settings.GUPSHUP_LEAD_CREATION_TEMPLATE_ID:
-        templates.append({
-            "id": settings.GUPSHUP_LEAD_CREATION_TEMPLATE_ID,
-            "name": "Lead Creation Template",
-            "category": "UTILITY", 
-            "status": "APPROVED",
-            "source": "environment"
-        })
-    
-    # Add lead status template if configured
-    if settings.GUPSHUP_LEAD_STATUS_TEMPLATE_ID:
-        templates.append({
-            "id": settings.GUPSHUP_LEAD_STATUS_TEMPLATE_ID,
-            "name": "Lead Status Template",
-            "category": "UTILITY",
-            "status": "APPROVED",
-            "source": "environment"
-        })
-    
-    return TemplateListResponse(
-        success=True,
-        message=f"Found {len(templates)} configured templates",
-        templates=templates
-    )
 
-@router.post("/templates/by-app", response_model=BaseGupshupResponse)
-async def get_templates_by_app_name(request: AppTemplatesRequest):
+@router.get("/templates/by-app", response_model=BaseGupshupResponse)
+async def get_templates_by_app_name(
+    app_name: str, 
+    template_status: Optional[str] = None
+):
     """
     Get WhatsApp templates for a specific Gupshup app from Gupshup API
     
     This endpoint fetches templates directly from Gupshup's API based on the provided app name.
     The API key and app ID are automatically selected based on the app name.
+    
+    Query Parameters:
+    - app_name: Name of the Gupshup app (e.g., 'basichomeloan', 'irabybasic')
+    - template_status: Filter templates by status (default: None)
+    
+    Example: /api_v1/gupshup/templates/by-app?app_name=basichomeloan&template_status=APPROVED
     """
     try:
         # Get app-specific configuration
-        app_config = validate_app_config(request.app_name)
+        app_config = validate_app_config(app_name)
         
         if not app_config["app_id"]:
             raise HTTPException(
                 status_code=400,
-                detail=f"App ID not configured for app: {request.app_name}"
+                detail=f"App ID not configured for app: {app_name}"
             )
         
         # Fetch templates from Gupshup API using app-specific credentials
         result = await get_templates_from_gupshup(
             app_config["app_id"], 
             app_config["api_key"], 
-            request.template_status
+            template_status
         )
         
         if result["success"]:
@@ -684,11 +643,11 @@ async def get_templates_by_app_name(request: AppTemplatesRequest):
             
             return BaseGupshupResponse(
                 success=True,
-                message=f"Found {len(templates)} templates for app: {request.app_name}",
+                message=f"Found {len(templates)} templates for app: {app_name}",
                 data={
-                    "app_name": request.app_name,
+                    "app_name": app_name,
                     "app_id": app_config["app_id"],
-                    "template_status": request.template_status,
+                    "template_status": template_status,
                     "templates": templates,
                     "total_count": len(templates)
                 },
@@ -705,7 +664,7 @@ async def get_templates_by_app_name(request: AppTemplatesRequest):
     except Exception as e:
         raise HTTPException(
             status_code=500,
-            detail=f"Error fetching templates for app {request.app_name}: {str(e)}"
+            detail=f"Error fetching templates for app {app_name}: {str(e)}"
         )
 
 @router.get("/apps", response_model=AppListResponse)

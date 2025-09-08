@@ -169,6 +169,8 @@ otpVerification/
    IRABYBASIC_GUPSHUP_APP_NAME=your_irabybasic_app_name
    IRABYBASIC_GUPSHUP_SOURCE=your_irabybasic_source_number
 
+   ... other apps
+
    # WhatsApp Templates
    GUPSHUP_WHATSAPP_OTP_TEMPLATE_ID=your_otp_template_id
    GUPSHUP_WHATSAPP_OTP_SRC_NAME=source_name

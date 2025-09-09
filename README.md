@@ -240,7 +240,7 @@ otpVerification/
    SUPABASE_ORBIT_SERVICE_ROLE_KEY=your_service_role_key
    ```
 
-6. **Run the application** *
+6. **Run the application**
    ```bash
    python -m app.main
    ```

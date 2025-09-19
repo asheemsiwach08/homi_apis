@@ -238,6 +238,16 @@ class LeadStatusResponse(BaseModel):
     status: str
     message: str
 
+class TrackApplicationRequest(BaseModel):
+    environment: Optional[str] = "orbit"
+    mobile_number: Optional[str] = None
+    basic_application_id: Optional[str] = None
+
+class TrackApplicationResponse(BaseModel):
+    status: str
+    message: str
+    data: Optional[dict] = None
+
 
 ################################# OTP Schemas #######################################
 

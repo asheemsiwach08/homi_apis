@@ -153,8 +153,10 @@ async def get_track_application_status(status_request: TrackApplicationRequest):
         )
         
         if api_status:
-            # Extract status from API response
+            # Extract track application data from API response
             track_application_data = api_status.get("result",{})
+            
+            # Extract status from API response
             status = api_status.get("result",{}).get("latestStatus","Not found")
             message = f"Your lead status is: {status}"
             

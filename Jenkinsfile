@@ -1,7 +1,7 @@
 pipeline {
     
     agent {
-        label "${env.BRANCH_NAME == 'dev_main' ? 'dev-agent' : ''}"
+        label "${env.BRANCH_NAME == 'dev_main' ? 'dev-agent' : 'main'}"
     }
 
     triggers {
@@ -23,10 +23,36 @@ pipeline {
             }
         }
 
+        // stage('Inject .env') {
+        //     steps {
+        //         withCredentials([file(credentialsId: 'gupshup', variable: 'ENV_FILE')]) {
+        //             sh 'cp $ENV_FILE .env && cat .env'
+        //         }
+        //     }
+        // }
+
         stage('Inject .env') {
             steps {
-                withCredentials([file(credentialsId: 'gupshup', variable: 'ENV_FILE')]) {
-                    sh 'cp $ENV_FILE .env && cat .env'
+                script {
+                // Choose the secret .env strictly by branch
+                def envCredId
+                switch (env.BRANCH_NAME) {
+                    case 'dev_main':
+                    envCredId = 'env-file-dev'   // Jenkins "Secret file" credential for DEV
+                    break
+                    case 'main':
+                    envCredId = 'env-file-main'  // Jenkins "Secret file" credential for MAIN/PROD
+                    break
+                    default:
+                    error "Unsupported branch '${env.BRANCH_NAME}'. Only 'dev_main' and 'main' are allowed."
+                }
+
+                echo "Using .env from credentials: ${envCredId}"
+                withCredentials([file(credentialsId: envCredId, variable: 'ENV_FILE')]) {
+                    sh 'cp "$ENV_FILE" .env'
+                    # Optional sanity check without leaking secrets:
+                    # sh '[ -s .env ] || { echo ".env missing or empty"; exit 1; }'
+                }
                 }
             }
         }

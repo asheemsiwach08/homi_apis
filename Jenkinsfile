@@ -55,14 +55,16 @@ pipeline {
                 }
 
                 echo "Using .env from credentials: ${envCredId}"
+
                 withCredentials([file(credentialsId: envCredId, variable: 'ENV_FILE')]) {
                     sh 'cp "$ENV_FILE" .env'
-                    # Optional sanity check without leaking secrets:
-                    # sh '[ -s .env ] || { echo ".env missing or empty"; exit 1; }'
+                    // Optional sanity check without leaking secrets:
+                    // sh '[ -s .env ] || { echo ".env missing or empty"; exit 1; }'
                 }
                 }
             }
         }
+
 
         stage('Setup Python Env & Install Dependencies') {
             steps {

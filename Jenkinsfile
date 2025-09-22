@@ -4,10 +4,10 @@ pipeline {
         label "${env.BRANCH_NAME == 'dev_main' ? 'dev-agent' : 'main'}"
     }
 
-    triggers {
-        githubPush()  // Trigger build on GitHub push
-        label "${env.BRANCH_NAME == 'dev_main' ? 'dev-agent' : 'main'}"
-    }
+    // triggers {
+    //     githubPush()  // Trigger build on GitHub push
+    //     label "${env.BRANCH_NAME == 'dev_main' ? 'dev-agent' : 'main'}"
+    // }
 
     triggers {
         githubPush()  // Trigger build on GitHub push

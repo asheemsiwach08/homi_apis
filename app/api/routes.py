@@ -2,7 +2,7 @@ from fastapi import APIRouter
 from app.api.endpoints import (
     track_leads, otp, whatsapp_webhook, 
     historical_disbursements, live_disbursements,
-    leads, basicverify_approval
+    leads, basicverify_approval, gupshup_apis
 )
 
 # Create main API router
@@ -17,3 +17,4 @@ api_router.include_router(whatsapp_webhook.router)
 api_router.include_router(live_disbursements.router) 
 api_router.include_router(basicverify_approval.router)
 api_router.include_router(historical_disbursements.router)
+api_router.include_router(gupshup_apis.router)

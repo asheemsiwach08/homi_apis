@@ -454,6 +454,10 @@ class BasicApplicationService:
                 )
             # Get signature headers
             api_url = f"{self.basic_api_url}/api/v1/NewApplication/CreateFBBByBasicUser"
+            print(api_url)
+            print(api_payload)
+            print(self.BASIC_APPLICATION_USER_ID)
+            print(self.BASIC_APPLICATION_API_KEY)
             headers = self.generate_signature_headers(
                 api_url, "POST",
                  api_payload,

@@ -4,7 +4,7 @@ from app.utils.validators import validate_mobile_number
 from app.services.whatsapp_service import whatsapp_service
 from app.services.database_service import database_service
 from app.services.basic_application_service import BasicApplicationService
-from app.models.schemas import (LeadStatusRequest, LeadStatusResponse,
+from app.models.schemas import (LeadStatusRequest, LeadStatusResponse,TrackApplicationRequest, TrackApplicationResponse,
                                 BookAppointmentRequest, BookAppointmentResponse)
 
 logger = logging.getLogger(__name__)
@@ -123,6 +123,103 @@ async def get_lead_status(status_request: LeadStatusRequest):
         raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}") 
+
+############################################################################################
+                                # Track Application API #
+############################################################################################
+
+@router.post("/track_application", response_model=TrackApplicationResponse)
+async def get_track_application_status(status_request: TrackApplicationRequest):
+    """Get lead status by various identifiers"""
+
+    if not status_request.environment:
+        raise HTTPException(status_code=422, detail="Environment is required and must be either 'orbit' or 'homfinity'")
+    elif status_request.environment not in ["orbit", "homfinity"]:
+            raise HTTPException(status_code=422, detail="Environment is required and must be either 'orbit' or 'homfinity'")
+    
+    try:
+        # Validate that at least one identifier is provided
+        if not any([status_request.mobile_number, status_request.basic_application_id]):
+            raise HTTPException(status_code=400, detail="Either mobile number or basic application ID must be provided")
+        
+        # Validate mobile number if provided
+        if status_request.mobile_number and not validate_mobile_number(status_request.mobile_number):
+            raise HTTPException(status_code=422, detail="Mobile number must be 10 digits")
+        
+        # Try to get status from Basic Application API using basic application ID or mobile number
+        api_status = await basic_app_service.get_lead_status(
+            mobile_number=status_request.mobile_number,
+            basic_application_id=status_request.basic_application_id
+        )
+        
+        if api_status:
+            # Extract track application data from API response
+            track_application_data = api_status.get("result",{})
+            
+            # Extract status from API response
+            status = api_status.get("result",{}).get("latestStatus","Not found")
+            message = f"Your lead status is: {status}"
+            
+            # Save status to Supabase leads database
+            try:
+                if status_request.basic_application_id:
+                    # Update status using basic application ID in leads table
+                    database_service.update_lead_status(status_request.basic_application_id, str(status), environment=status_request.environment)
+                    logger.info(f"Status updated in leads database for application ID: {status_request.basic_application_id}")
+                elif status_request.mobile_number:
+                    # Get lead data by mobile number from leads table and update status
+                    lead_data_list = database_service.get_leads_by_mobile(status_request.mobile_number, environment=status_request.environment)
+                    if lead_data_list:
+                        # Get the most recent lead (first in the list since ordered by created_at desc)
+                        lead_data = lead_data_list[0]
+                        basic_app_id = lead_data.get("basic_app_id")
+                        if basic_app_id:
+                            database_service.update_lead_status(str(basic_app_id), str(status), environment=status_request.environment)
+                            logger.info(f"Status updated in leads database for mobile: {status_request.mobile_number}")
+            except Exception as db_error:
+                logger.error(f"Failed to update status in leads database: {db_error}")
+            
+            # Get mobile number for WhatsApp (either from request or database)
+            mobile_number_for_whatsapp = status_request.mobile_number
+
+            # If no mobile number in request but we have basic_application_id, try to get it from leads database
+            if not mobile_number_for_whatsapp and status_request.basic_application_id:
+                lead_data_list = database_service.get_leads_by_basic_app_id(status_request.basic_application_id, environment=status_request.environment)
+                if lead_data_list:
+                    lead_data = lead_data_list[0]  # Get the most recent record
+                    mobile_number_for_whatsapp = lead_data.get("customer_mobile")
+            
+            # Send WhatsApp notification with the status
+            if mobile_number_for_whatsapp:
+                try:
+                    lead_data_list = database_service.get_leads_by_mobile(mobile_number_for_whatsapp, environment=status_request.environment)
+                    
+                    if lead_data_list:
+                        lead_data = lead_data_list[0]  # Get the most recent record
+                        name = lead_data.get("customer_first_name", "") + " " + lead_data.get("customer_last_name", "")
+                        
+                        # Send the status update to WhatsApp
+                        await whatsapp_service.send_lead_status_update(
+                            phone_number="+91" + mobile_number_for_whatsapp,
+                            name=name,
+                            status=str(status)
+                        )
+                except Exception as whatsapp_error:
+                    logger.error(f"Failed to send WhatsApp status update: {whatsapp_error}")
+            
+            return TrackApplicationResponse(status=str(status), message=message, data=track_application_data)
+        else:
+            return TrackApplicationResponse(
+                status="Not Found",
+                message="We couldn’t find your details. You can track your application manually at: https://www.basichomeloan.com/track-your-application",
+                data=None
+            )
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}") 
+
 
 
 ############################################################################################

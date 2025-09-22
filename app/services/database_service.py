@@ -26,7 +26,7 @@ class DatabaseService:
         
         # Initialize clients
         self.client_orbit = None
-        self.client_homi = None
+        self.client_homfinity = None
         self.client = None  # Default client for backward compatibility
         
         # Environment determination flag
@@ -427,7 +427,7 @@ class DatabaseService:
             request_data (Dict): Original request data from API call containing user input
             fbb_response (Dict): Response from CreateFBBByBasicUser API call
             self_fullfilment_response (Dict): Response from SelfFullfilment API call
-            environment (str, optional): Target environment ('orbit' or 'homi')
+            environment (str, optional): Target environment ('orbit' or 'homfinity')
             
         Returns:
             Dict: Database operation result containing:
@@ -776,7 +776,7 @@ class DatabaseService:
         
         Args:
             mobile: Mobile number to search for
-            environment (str, optional): Target environment ('orbit' or 'homi')
+            environment (str, optional): Target environment ('orbit' or 'homfinity')
             
         Returns:
             List[Dict]: List of leads
@@ -797,7 +797,7 @@ class DatabaseService:
         
         Args:
             basic_app_id: Basic Application ID to search for
-            environment (str, optional): Target environment ('orbit' or 'homi')
+            environment (str, optional): Target environment ('orbit' or 'homfinity')
             
         Returns:
             List[Dict]: List of leads
@@ -819,7 +819,7 @@ class DatabaseService:
         Args:
             basic_app_id: Basic Application ID to update
             new_status: New status to set
-            environment (str, optional): Target environment ('orbit' or 'homi')
+            environment (str, optional): Target environment ('orbit' or 'homfinity')
             
         Returns:
             bool: True if update was successful, False otherwise
@@ -967,7 +967,7 @@ class DatabaseService:
         
         Args:
             disbursement_records: List of disbursement dictionaries from AI analysis
-            environment (str, optional): Target environment ('orbit' or 'homi')
+            environment (str, optional): Target environment ('orbit' or 'homfinity')
             
         Returns:
             Dict: Save operation statistics

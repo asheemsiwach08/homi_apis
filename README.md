@@ -147,10 +147,29 @@ otpVerification/
    BASIC_APPLICATION_USER_ID=your_user_id
    BASIC_APPLICATION_API_KEY=your_api_key
 
-   # Gupshup WhatsApp API Configuration
+   # Gupshup WhatsApp API Configuration (Default/Legacy)
    GUPSHUP_API_KEY=your_gupshup_api_key
    GUPSHUP_SOURCE=your_source_number
-   GUPSHUP_API_URL=https://api.gupshup.io/wa/api/v1/template/msg
+   GUPSHUP_API_TEMPLATE_URL=https://api.gupshup.io/wa/api/v1/template/msg
+   GUPSHUP_API_MSG_URL=https://api.gupshup.io/wa/api/v1/msg
+
+   # Multi-App Gupshup Configuration (New Format)
+   # Configure multiple Gupshup apps with their own API keys and app IDs
+   # Format: {APP_NAME}_GUPSHUP_API_KEY, {APP_NAME}_GUPSHUP_APP_ID, {APP_NAME}_GUPSHUP_APP_NAME
+   
+   # Basic Home Loan App Configuration
+   BASICHOMELOAN_GUPSHUP_API_KEY=your_basichomeloan_api_key
+   BASICHOMELOAN_GUPSHUP_APP_ID=your_basichomeloan_app_id
+   BASICHOMELOAN_GUPSHUP_APP_NAME=your_basichomeloan_app_name
+   BASICHOMELOAN_GUPSHUP_SOURCE=your_basichomeloan_source_number
+   
+   # Iraby Basic App Configuration
+   IRABYBASIC_GUPSHUP_API_KEY=your_irabybasic_api_key
+   IRABYBASIC_GUPSHUP_APP_ID=your_irabybasic_app_id
+   IRABYBASIC_GUPSHUP_APP_NAME=your_irabybasic_app_name
+   IRABYBASIC_GUPSHUP_SOURCE=your_irabybasic_source_number
+
+   ... other apps
 
    # WhatsApp Templates
    GUPSHUP_WHATSAPP_OTP_TEMPLATE_ID=your_otp_template_id
@@ -668,6 +687,275 @@ Content-Type: application/json
 - "Track my application"
 - "My application ID is APP123456"
 - "Check status for mobile 9876543210"
+
+### Gupshup WhatsApp APIs (Modular Wrapper)
+
+The API provides comprehensive modular endpoints for all Gupshup WhatsApp outbound messaging capabilities, designed for easy UI integration:
+
+#### 1. Send Text Message
+```http
+POST /api_v1/gupshup/send-text
+Content-Type: application/json
+
+{
+    "phone_number": "788888888",
+    "message": "Hello! This is a test message from HOM-i.",
+    "source_name": "HomiAi"
+}
+```
+
+#### 2. Send Template Message
+```http
+POST /api_v1/gupshup/send-template
+Content-Type: application/json
+
+{
+    "phone_number": "788888888",
+    "template_id": "your_template_id",
+    "template_params": ["John Doe", "APP123456"],
+    "source_name": "HomiAi"
+}
+```
+
+#### 3. Send Media Message
+```http
+POST /api_v1/gupshup/send-media
+Content-Type: application/json
+
+{
+    "phone_number": "788888888",
+    "media_type": "image",
+    "media_url": "https://example.com/image.jpg",
+    "caption": "Check out this property!",
+    "filename": "property_image.jpg"
+}
+```
+
+**Supported Media Types:**
+- `image` - Images (JPG, PNG, GIF)
+- `document` - PDFs, Word docs, etc.
+- `audio` - Audio files
+- `video` - Video files
+
+#### 4. Send Interactive Message (Buttons)
+```http
+POST /api_v1/gupshup/send-interactive
+Content-Type: application/json
+
+{
+    "phone_number": "788888888",
+    "interactive_type": "button",
+    "header": {
+        "type": "text",
+        "text": "Choose an option"
+    },
+    "body": {
+        "text": "Please select what you'd like to do:"
+    },
+    "footer": {
+        "text": "HOM-i Support"
+    },
+    "action": {
+        "buttons": [
+            {
+                "type": "reply",
+                "reply": {
+                    "id": "check_status",
+                    "title": "Check Status"
+                }
+            },
+            {
+                "type": "reply",
+                "reply": {
+                    "id": "contact_support",
+                    "title": "Contact Support"
+                }
+            }
+        ]
+    }
+}
+```
+
+#### 5. Send Interactive Message (List)
+```http
+POST /api_v1/gupshup/send-interactive
+Content-Type: application/json
+
+{
+    "phone_number": "788888888",
+    "interactive_type": "list",
+    "header": {
+        "type": "text",
+        "text": "Select Loan Type"
+    },
+    "body": {
+        "text": "Choose the type of loan you're interested in:"
+    },
+    "footer": {
+        "text": "HOM-i Loans"
+    },
+    "action": {
+        "button": "View Options",
+        "sections": [
+            {
+                "title": "Loan Types",
+                "rows": [
+                    {
+                        "id": "home_loan",
+                        "title": "Home Loan",
+                        "description": "Buy your dream home"
+                    },
+                    {
+                        "id": "lap",
+                        "title": "Loan Against Property",
+                        "description": "Unlock property value"
+                    }
+                ]
+            }
+        ]
+    }
+}
+```
+
+#### 6. Send Location Message
+```http
+POST /api_v1/gupshup/send-location
+Content-Type: application/json
+
+{
+    "phone_number": "788888888",
+    "latitude": 28.6139,
+    "longitude": 77.2090,
+    "name": "HOM-i Office",
+    "address": "New Delhi, India"
+}
+```
+
+#### 7. Send Contact Message
+```http
+POST /api_v1/gupshup/send-contact
+Content-Type: application/json
+
+{
+    "phone_number": "788888888",
+    "contacts": [
+        {
+            "name": {
+                "formatted_name": "HOM-i Support",
+                "first_name": "HOM-i"
+            },
+            "phones": [
+                {
+                    "phone": "+919876543210",
+                    "type": "MAIN"
+                }
+            ]
+        }
+    ]
+}
+```
+
+#### 8. Send Bulk Messages
+```http
+POST /api_v1/gupshup/send-bulk
+Content-Type: application/json
+
+{
+    "phone_numbers": ["788888888", "799999999", "777777777"],
+    "message_type": "text",
+    "message_data": {
+        "message": "Welcome to HOM-i! Your loan application is being processed."
+    },
+    "delay_between_messages": 5
+}
+```
+
+**Bulk Message Types:**
+- `text` - Simple text messages
+- `template` - Template-based messages
+- `media` - Media messages
+
+#### 9. Check Message Status
+```http
+GET /api_v1/gupshup/message-status/{message_id}
+```
+
+#### 10. Get Available Templates
+```http
+GET /api_v1/gupshup/templates
+```
+
+**Response:**
+```json
+{
+    "success": true,
+    "message": "Templates retrieved successfully",
+    "templates": [
+        {
+            "id": "otp_template_id",
+            "name": "OTP Template",
+            "category": "AUTHENTICATION",
+            "status": "APPROVED"
+        }
+    ]
+}
+```
+
+#### 11. Health Check
+```http
+GET /api_v1/gupshup/health
+```
+
+**Response:**
+```json
+{
+    "success": true,
+    "message": "Gupshup API is accessible",
+    "status_code": 202,
+    "api_url": "https://api.gupshup.io/wa/api/v1/msg",
+    "source_configured": true,
+    "api_key_configured": true
+}
+```
+
+#### Legacy Compatibility Endpoints
+
+The API maintains backward compatibility with existing endpoints:
+
+#### Send OTP (Legacy)
+```http
+POST /api_v1/gupshup/send-otp
+Content-Type: application/json
+
+{
+    "phone_number": "788888888"
+}
+```
+
+#### Send Lead Confirmation (Legacy)
+```http
+POST /api_v1/gupshup/send-lead-confirmation
+Content-Type: application/json
+
+{
+    "customer_name": "John Doe",
+    "loan_type": "HL",
+    "basic_application_id": "APP123456",
+    "phone_number": "788888888"
+}
+```
+
+#### Send Status Update (Legacy)
+```http
+POST /api_v1/gupshup/send-status-update
+Content-Type: application/json
+
+{
+    "phone_number": "788888888",
+    "name": "John Doe",
+    "status": "Under Review"
+}
+```
 
 ### WhatsApp Message Storage
 

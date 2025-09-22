@@ -6,20 +6,27 @@ pipeline {
 
     triggers {
         githubPush()  // Trigger build on GitHub push
+        label "${env.BRANCH_NAME == 'dev_main' ? 'dev-agent' : 'main'}"
+    }
+
+    triggers {
+        githubPush()  // Trigger build on GitHub push
     }
 
     environment {
-        AWS_REGION      = 'ap-south-1'
+        BRANCH_NAME = "${env.BRANCH_NAME}"
+        AWS_REGION = 'ap-south-1'
         DOCKER_REGISTRY = '676206929524.dkr.ecr.ap-south-1.amazonaws.com'
-        DOCKER_IMAGE    = 'dev-orbit-pem'
+        DOCKER_IMAGE = 'dev-orbit-pem'
+        DOCKER_NAME = "GUPSHUP"
+        DOCKER_TAG = "${DOCKER_IMAGE}:${DOCKER_NAME}${BUILD_NUMBER}"
     }
 
     stages {
+        // Debugging the branch outside any stage
         stage('Checkout') {
             steps {
-                // `checkout scm` is sufficient for Multibranch Pipelines.
                 checkout scm
-                echo "Branch detected: ${env.BRANCH_NAME}"
             }
         }
 
@@ -56,58 +63,88 @@ pipeline {
                 }
             }
         }
-        
 
-        stage('Setup Python Environment') {
+        stage('Setup Python Env & Install Dependencies') {
             steps {
                 sh '''
                     python3 -m venv venv
                     source venv/bin/activate
                     pip install --upgrade pip
                     pip install -r requirements.txt
+                    deactivate
                 '''
             }
         }
 
-        stage('AWS ECR Login') {
+        stage('Login to AWS ECR') {
             steps {
                 withCredentials([usernamePassword(credentialsId: 'aws-credentials', usernameVariable: 'AWS_ACCESS_KEY_ID', passwordVariable: 'AWS_SECRET_ACCESS_KEY')]) {
-                    sh "aws ecr get-login-password --region ${AWS_REGION} | docker login --username AWS --password-stdin ${DOCKER_REGISTRY}"
+                    sh '''
+                        bash -c '
+                        export AWS_ACCESS_KEY_ID="$AWS_ACCESS_KEY_ID"
+                        export AWS_SECRET_ACCESS_KEY="$AWS_SECRET_ACCESS_KEY"
+                        aws ecr get-login-password --region ap-south-1 | docker login --username AWS --password-stdin 676206929524.dkr.ecr.ap-south-1.amazonaws.com
+                        '
+                    '''
                 }
             }
         }
 
-        stage('Build, Tag & Push Docker Image') {
+        stage('Build Docker Image') {
             steps {
-                script {
-                    env.DOCKER_TAG = "${DOCKER_IMAGE}:${env.BRANCH_NAME}-${env.BUILD_NUMBER}"
-                    sh "docker build -t ${env.DOCKER_TAG} ."
-                    sh "docker tag ${env.DOCKER_TAG} ${DOCKER_REGISTRY}/${env.DOCKER_TAG}"
-                    sh "docker push ${DOCKER_REGISTRY}/${env.DOCKER_TAG}"
-                }
+                sh 'docker build -t ${DOCKER_TAG} .'
             }
         }
 
-        stage('Deploy Container') {
+        stage('Tag Docker Image') {
+            steps {
+                sh 'docker tag ${DOCKER_TAG} ${DOCKER_REGISTRY}/${DOCKER_TAG}'
+            }
+        }
+
+        stage('Push Docker Image to ECR') {
+            steps {
+                sh 'docker push ${DOCKER_REGISTRY}/${DOCKER_TAG}'
+            }
+        }
+
+        stage('Stop and Remove Old Docker Container Running on Port 5000') {
             steps {
                 sh '''
-                    # Add a check to handle existing containers
-                    if [ $(docker ps -q -f name=my-app-container) ]; then
-                        docker stop my-app-container
-                        docker rm my-app-container
+                    container_id=$(docker ps -q --filter "publish=5000")
+                    if [ -n "$container_id" ]; then
+                        docker stop $container_id
+                        docker rm $container_id
+                        echo 'Old container stopped and removed'
+                    else
+                        echo 'No container running on port 5000'
                     fi
-                    docker run -d --name my-app-container -p 5000:5000 ${DOCKER_REGISTRY}/${DOCKER_TAG}
                 '''
+            }
+        }
+
+        stage('Run New Docker Container on Port 5000') {
+            steps {
+                withCredentials([usernamePassword(credentialsId: 'aws-credentials', usernameVariable: 'AWS_ACCESS_KEY_ID', passwordVariable: 'AWS_SECRET_ACCESS_KEY')]) {
+                    sh '''
+                        bash -c '
+                        export AWS_ACCESS_KEY_ID="$AWS_ACCESS_KEY_ID"
+                        export AWS_SECRET_ACCESS_KEY="$AWS_SECRET_ACCESS_KEY"
+                        docker run -d -p 5000:5000 \
+                            -e AWS_ACCESS_KEY_ID="$AWS_ACCESS_KEY_ID" \
+                            -e AWS_SECRET_ACCESS_KEY="$AWS_SECRET_ACCESS_KEY" \
+                            ${DOCKER_REGISTRY}/${DOCKER_TAG}
+                        '
+                    '''
+                }
             }
         }
     }
-
-
     post {
         success {
-            slackSend(
+            slackSend (
                 tokenCredentialId: 'slack_channel_secret',
-                message: "✅ Build SUCCESSFUL: ${env.JOB_NAME} [${env.BUILD_NUMBER}] on branch `${env.BRANCH_NAME}`",
+                message: "✅ Build SUCCESSFUL: GUPSHUP${env.JOB_NAME} [${env.BUILD_NUMBER}]",
                 channel: '#jenekin_update',
                 color: 'good',
                 iconEmoji: ':white_check_mark:',
@@ -115,9 +152,9 @@ pipeline {
             )
         }
         failure {
-            slackSend(
+            slackSend (
                 tokenCredentialId: 'slack_channel_secret',
-                message: "❌ Build FAILED: ${env.JOB_NAME} [${env.BUILD_NUMBER}] on branch `${env.BRANCH_NAME}`",
+                message: "❌ Build FAILED: ${env.JOB_NAME} [${env.BUILD_NUMBER}]",
                 channel: '#jenekin_update',
                 color: 'danger',
                 iconEmoji: ':x:',

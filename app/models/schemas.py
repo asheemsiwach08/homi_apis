@@ -1,5 +1,5 @@
 from typing import Optional, List, Dict, Any, Literal
-from pydantic import BaseModel, EmailStr, Field
+from pydantic import BaseModel, EmailStr, Field, validator
 
 
 ############################### Basic Verify Approval Schemas ##################################
@@ -238,6 +238,16 @@ class LeadStatusResponse(BaseModel):
     status: str
     message: str
 
+class TrackApplicationRequest(BaseModel):
+    environment: Optional[str] = "orbit"
+    mobile_number: Optional[str] = None
+    basic_application_id: Optional[str] = None
+
+class TrackApplicationResponse(BaseModel):
+    status: str
+    message: str
+    data: Optional[dict] = None
+
 
 ################################# OTP Schemas #######################################
 
@@ -266,4 +276,76 @@ class WhatsAppStatusResponse(BaseModel):
     success: bool
     message: str
     status: Optional[str] = None
+
+################################# Gupshup API Schemas #######################################
+
+class BaseGupshupResponse(BaseModel):
+    """Base response model for all Gupshup APIs"""
+    success: bool
+    message: str
+    data: Optional[Dict[str, Any]] = None
+    gupshup_response: Optional[Dict[str, Any]] = None
+
+class PhoneNumberRequest(BaseModel):
+    """Base request with phone number validation"""
+    phone_number: str = Field(..., description="Phone number (supports multiple formats)")
+    
+    @validator('phone_number')
+    def validate_phone_number(cls, v):
+        from app.utils.validators import normalize_phone_number
+        return normalize_phone_number(v)
+
+class TemplateMessageRequest(PhoneNumberRequest):
+    """Request for template-based messages"""
+    template_id: str = Field(..., description="Gupshup template ID")
+    template_params: List[str] = Field(default=[], description="Template parameters")
+    source_name: Optional[str] = Field(None, description="Custom source name")
+
+class TextMessageRequest(PhoneNumberRequest):
+    """Request for simple text messages"""
+    message: str = Field(..., description="Text message to send")
+    source_name: Optional[str] = Field(None, description="Custom source name")
+
+class MediaMessageRequest(PhoneNumberRequest):
+    """Request for media messages"""
+    media_type: str = Field(..., description="Media type: image, document, audio, video")
+    media_url: str = Field(..., description="URL of the media file")
+    caption: Optional[str] = Field(None, description="Caption for the media")
+    filename: Optional[str] = Field(None, description="Filename for documents")
+
+class InteractiveMessageRequest(PhoneNumberRequest):
+    """Request for interactive messages (buttons, lists)"""
+    interactive_type: str = Field(..., description="Type: button, list")
+    header: Optional[Dict[str, Any]] = Field(None, description="Message header")
+    body: Dict[str, Any] = Field(..., description="Message body")
+    footer: Optional[Dict[str, Any]] = Field(None, description="Message footer")
+    action: Dict[str, Any] = Field(..., description="Interactive action")
+
+class LocationMessageRequest(PhoneNumberRequest):
+    """Request for location messages"""
+    latitude: float = Field(..., description="Latitude")
+    longitude: float = Field(..., description="Longitude")
+    name: Optional[str] = Field(None, description="Location name")
+    address: Optional[str] = Field(None, description="Location address")
+
+class ContactMessageRequest(PhoneNumberRequest):
+    """Request for contact messages"""
+    contacts: List[Dict[str, Any]] = Field(..., description="List of contacts")
+
+class BulkMessageRequest(BaseModel):
+    """Request for bulk messaging"""
+    phone_numbers: List[str] = Field(..., description="List of phone numbers")
+    message_type: str = Field(..., description="Type: text, template, media")
+    message_data: Dict[str, Any] = Field(..., description="Message data based on type")
+    delay_between_messages: Optional[int] = Field(5, description="Delay in seconds between messages")
+
+class MessageStatusRequest(BaseModel):
+    """Request to check message status"""
+    message_id: str = Field(..., description="Gupshup message ID")
+
+class TemplateListResponse(BaseModel):
+    """Response for template listing"""
+    success: bool
+    message: str
+    templates: List[Dict[str, Any]]
 

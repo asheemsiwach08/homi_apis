@@ -7,7 +7,8 @@ class WhatsAppService:
     """Service for handling WhatsApp message sending using Gupshup API with different templates"""
     
     def __init__(self):
-        self.api_url = settings.GUPSHUP_API_URL
+        self.api_template_url = settings.GUPSHUP_API_TEMPLATE_URL
+        self.api_msg_url = settings.GUPSHUP_API_MSG_URL
         self.api_key = settings.GUPSHUP_API_KEY
         self.source = settings.GUPSHUP_SOURCE
 
@@ -44,7 +45,7 @@ class WhatsAppService:
         try:
             async with httpx.AsyncClient() as client:
                 response = await client.post(
-                    self.api_url,
+                    self.api_template_url,
                     headers=headers,
                     data=data,
                     timeout=30.0
@@ -122,7 +123,7 @@ class WhatsAppService:
         try:
             async with httpx.AsyncClient() as client:
                 response = await client.post(
-                    self.api_url,
+                    self.api_template_url,
                     headers=headers,
                     data=data,
                     timeout=30.0
@@ -188,7 +189,7 @@ class WhatsAppService:
         try:
             async with httpx.AsyncClient() as client:
                 response = await client.post(
-                    self.api_url,
+                    self.api_template_url,
                     headers=headers,
                     data=data,
                     timeout=30.0
@@ -249,7 +250,7 @@ class WhatsAppService:
         try:
             async with httpx.AsyncClient() as client:
                 response = await client.post(
-                    self.api_url,
+                    self.api_msg_url,
                     headers=headers,
                     data=data,
                     timeout=30.0

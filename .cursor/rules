@@ -66,14 +66,18 @@ This is a comprehensive FastAPI-based REST API for WhatsApp OTP verification, le
 - Implement proper error handling for WhatsApp failures
 - Use async operations for all WhatsApp API calls
 
-## Disbursement Data Validation Rules
-- **Essential Fields Validation**: Before saving any disbursement record to Supabase:
-  1. Either `loanAccountNumber` OR `bankAppId` must be present (at least one)
-  2. `disbursementAmount` must be present and greater than 0
-  3. Reject records that don't meet these criteria with clear validation messages
-- **Date Format Handling**: Convert all date formats (DD-MM-YYYY, DD/MM/YYYY, etc.) to PostgreSQL-compatible YYYY-MM-DD format
-- **Currency Handling**: Strip currency symbols (₹, $) and commas from amounts before validation
-- **Comprehensive Logging**: Track validation failures separately from processing errors
+## Multi-App Gupshup Configuration (Updated Format)
+- **New Format**: `{APP_NAME}_GUPSHUP_API_KEY`, `{APP_NAME}_GUPSHUP_APP_ID`, `{APP_NAME}_GUPSHUP_APP_NAME`
+- **Examples**:
+  - `BASICHOMELOAN_GUPSHUP_API_KEY`
+  - `BASICHOMELOAN_GUPSHUP_APP_ID`
+  - `BASICHOMELOAN_GUPSHUP_APP_NAME`
+  - `IRABYBASIC_GUPSHUP_API_KEY`
+  - `IRABYBASIC_GUPSHUP_APP_ID`
+  - `IRABYBASIC_GUPSHUP_APP_NAME`
+- **Legacy Support**: Still supports old format `GUPSHUP_APP_{APP_NAME}_API_KEY` for backward compatibility
+- **Configuration**: Environment variables are automatically parsed in `app/config/settings.py`
+- **Usage**: Access via `settings.get_gupshup_config(app_name)` method
 
 ## Testing Guidelines
 - Test all endpoints with valid and invalid data
@@ -84,7 +88,7 @@ This is a comprehensive FastAPI-based REST API for WhatsApp OTP verification, le
 - Test phone number normalization with various formats
 - Test lead creation and status tracking
 - Test WhatsApp notification delivery
-- Test disbursement data validation rules
+- Test multi-app Gupshup configuration
 
 ## Documentation Requirements
 - Update README.md for any major changes
@@ -95,7 +99,7 @@ This is a comprehensive FastAPI-based REST API for WhatsApp OTP verification, le
 - Document phone number normalization rules
 - Document lead management workflow
 - Document WhatsApp template requirements
-- Document disbursement validation rules
+- Document multi-app Gupshup configuration format
 
 ## Storage Solution
 - **Primary**: Supabase PostgreSQL for persistent storage
@@ -106,24 +110,42 @@ This is a comprehensive FastAPI-based REST API for WhatsApp OTP verification, le
 - **Audit Trails**: Used and expired OTPs remain in database for analytics and compliance
 - **Data Retention**: Maintains OTP and lead history for security investigations and usage patterns
 - **Lead Storage**: Store complete lead data with Basic Application API responses
-- **Service Architecture**: Separated `otp_storage` and `database_service` with independent failover
 
 ## Environment Variables
 - `BASIC_APPLICATION_API_URL`: Basic Application API endpoint
 - `BASIC_APPLICATION_USER_ID`: Basic Application API user ID
 - `BASIC_APPLICATION_API_KEY`: Basic Application API key
-- `GUPSHUP_API_KEY`: Gupshup WhatsApp API key
-- `GUPSHUP_SOURCE`: Gupshup source number
+- `GUPSHUP_API_KEY`: Default Gupshup API key
+- `GUPSHUP_SOURCE`: Default Gupshup source number
 - `GUPSHUP_WHATSAPP_OTP_TEMPLATE_ID`: OTP template ID
 - `GUPSHUP_LEAD_CREATION_TEMPLATE_ID`: Lead creation template ID
 - `GUPSHUP_LEAD_STATUS_TEMPLATE_ID`: Lead status template ID
 - `SUPABASE_URL`: Supabase project URL
 - `SUPABASE_SERVICE_ROLE_KEY`: Supabase service role key
-- `HOST`: Server host (default: 0.0.0.0)
-- `PORT`: Server port (default: 5000)
+
+### Multi-App Gupshup Environment Variables (New Format)
+- `{APP_NAME}_GUPSHUP_API_KEY`: App-specific API key
+- `{APP_NAME}_GUPSHUP_APP_ID`: App-specific app ID
+- `{APP_NAME}_GUPSHUP_APP_NAME`: App-specific app name
+- `{APP_NAME}_GUPSHUP_SOURCE`: App-specific source number (optional)
+
+### Examples:
+- `BASICHOMELOAN_GUPSHUP_API_KEY`
+- `BASICHOMELOAN_GUPSHUP_APP_ID`
+- `BASICHOMELOAN_GUPSHUP_APP_NAME`
+- `IRABYBASIC_GUPSHUP_API_KEY`
+- `IRABYBASIC_GUPSHUP_APP_ID`
+- `IRABYBASIC_GUPSHUP_APP_NAME`
 
 ## Debug Endpoints
-<!-- - `/api_v1/health`: Health check endpoint -->
+- `/api_v1/health`: Health check endpoint
+- `/api_v1/gupshup/apps`: List configured Gupshup apps
 - Check logs for service initialization status
 - Monitor WhatsApp service configuration
-- Monitor database connection status
+- Monitor database connection status 
+
+## Migration Notes
+- Updated Gupshup environment variable format from `GUPSHUP_APP_{APP_NAME}_API_KEY` to `{APP_NAME}_GUPSHUP_API_KEY`
+- Backward compatibility maintained for legacy format
+- All Docker Compose files updated with new environment variables
+- Documentation updated across README.md, API_USAGE_DEPLOYMENT_GUIDE.md, and quick-reference.yaml

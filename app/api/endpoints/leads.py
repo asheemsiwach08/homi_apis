@@ -157,7 +157,6 @@ async def create_lead_api(request: LeadCreateRequest):
         - Comprehensive error handling and audit trails
         - Support for lead modification (upserts based on existing records)
     """
-    print("Environment:", request.environment,"----------------------------------->>>")
     request_id = f"{request.mobile}_{request.pan}"
     logger.info(f"Starting lead creation for {request.firstName} {request.lastName}")
     try:
@@ -418,7 +417,7 @@ async def lead_flash_api(request: LeadFlashRequest):
             "projectId": request.projectId or "",
             "creditScoreStatus": request.creditScoreStatus or ""
         }   
-        print("API DATA:", api_data)
+
         # Call Basic Fulfillment API (optional step)
         try:
             basic_app_service.create_fullfilment_using_application_id(api_data)

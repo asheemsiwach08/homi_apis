@@ -383,7 +383,9 @@ async def ghupshup_whatsapp_webhook(request: Request):
         return {"status": "success", "message": "message sent to frontend", "message_data": message_data}
     
     except Exception as e:
-        message_to_user = f"Sorry, there was an error processing your request. Please try again later."
+        raw_body = await request.body()
+        body_text = raw_body.decode('utf-8')
+        message_to_user = f"Sorry, there was an error processing your request. Please try again later. - {body_text}"
         await  whatsapp_service.send_message_new(
                 phone_number="917988362283",
                 message=message_to_user,

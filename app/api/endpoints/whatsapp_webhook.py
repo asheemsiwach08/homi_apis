@@ -325,116 +325,116 @@ def extract_data_from_body(body: dict) -> dict:
     }
 
 
-# @router.post("/whatsapp/gupshup/webhook")
-async def ghupshup_whatsapp_webhook(request: Request):
-    """
-    Webhook endpoint that receives WhatsApp messages from Gupshup
-    This endpoint is called automatically by WhatsApp when a message is received
-    """
+# # @router.post("/whatsapp/gupshup/webhook")
+# async def ghupshup_whatsapp_webhook(request: Request):
+#     """
+#     Webhook endpoint that receives WhatsApp messages from Gupshup
+#     This endpoint is called automatically by WhatsApp when a message is received
+#     """
     
-    try:
-        # Log request details for debugging
-        content_type = request.headers.get("content-type", "")
-        logger.info(f"Webhook received - Content-Type: {content_type}")
+#     try:
+#         # Log request details for debugging
+#         content_type = request.headers.get("content-type", "")
+#         logger.info(f"Webhook received - Content-Type: {content_type}")
         
-        # Get the raw body first
-        raw_body = await request.body()
-        logger.info(f"Raw body length: {len(raw_body)} bytes")
+#         # Get the raw body first
+#         raw_body = await request.body()
+#         logger.info(f"Raw body length: {len(raw_body)} bytes")
 
-        #-------------------------------------------------------------------------#
-        # TODO: Remove this after testing
-        body = {
-                "app": "Homfinity",
-                "timestamp": 1762324484943,
-                "version": 2,
-                "type": "message",
-                "payload": {
-                    "id": "wamid.HBgMOTE3OTg4MzYyMjgzFQIAEhgUM0E2ODE4RUJEODc0N0YxRDVDOTYA",
-                    "source": "917988362283",
-                    "type": "text",
-                    "payload": {
-                    "text": "Hello, what is your name?"
-                    },
-                    "sender": {
-                    "phone": "917988362283",
-                    "name": "Asheem Siwach",
-                    "country_code": "91",
-                    "dial_code": "7988362283"
-                    }
-                }
-                }
+#         #-------------------------------------------------------------------------#
+#         # TODO: Remove this after testing
+#         body = {
+#                 "app": "Homfinity",
+#                 "timestamp": 1762324484943,
+#                 "version": 2,
+#                 "type": "message",
+#                 "payload": {
+#                     "id": "wamid.HBgMOTE3OTg4MzYyMjgzFQIAEhgUM0E2ODE4RUJEODc0N0YxRDVDOTYA",
+#                     "source": "917988362283",
+#                     "type": "text",
+#                     "payload": {
+#                     "text": "Hello, what is your name?"
+#                     },
+#                     "sender": {
+#                     "phone": "917988362283",
+#                     "name": "Asheem Siwach",
+#                     "country_code": "91",
+#                     "dial_code": "7988362283"
+#                     }
+#                 }
+#                 }
 
-        raw_body = json.dumps(body)
-        #-------------------------------------------------------------------------#
+#         raw_body = json.dumps(body)
+#         #-------------------------------------------------------------------------#
         
-        # # Handle different content types
-        # if not raw_body:
-        #     # TODO: Remove this after testing
-        #     await whatsapp_service.send_message_with_app_config(
-        #         phone_number="917988362283",
-        #         message="Empty request body",
-        #         app_name="Homfinity"
-        #         )
-        #     logger.warning("Received empty webhook body")
-        #     return {"status": "error", "message": "Empty request body"}
+#         # # Handle different content types
+#         # if not raw_body:
+#         #     # TODO: Remove this after testing
+#         #     await whatsapp_service.send_message_with_app_config(
+#         #         phone_number="917988362283",
+#         #         message="Empty request body",
+#         #         app_name="Homfinity"
+#         #         )
+#         #     logger.warning("Received empty webhook body")
+#         #     return {"status": "error", "message": "Empty request body"}
         
-        # # Try to parse as JSON
-        # try:
-        #     if content_type.startswith("application/json"):
-        #         body = await request.json()
-        #     else:
-        #         # Try to parse raw body as JSON anyway
-        #         body_text = raw_body.decode('utf-8')
-        #         logger.info(f"Raw body text: {body_text[:500]}...")  # Log first 500 chars
-        #         body = json.loads(body_text)
-        # except json.JSONDecodeError as json_error:
-        #     logger.error(f"JSON decode error: {json_error}")
-        #     logger.error(f"Raw body: {raw_body.decode('utf-8', errors='ignore')}")
+#         # # Try to parse as JSON
+#         # try:
+#         #     if content_type.startswith("application/json"):
+#         #         body = await request.json()
+#         #     else:
+#         #         # Try to parse raw body as JSON anyway
+#         #         body_text = raw_body.decode('utf-8')
+#         #         logger.info(f"Raw body text: {body_text[:500]}...")  # Log first 500 chars
+#         #         body = json.loads(body_text)
+#         # except json.JSONDecodeError as json_error:
+#         #     logger.error(f"JSON decode error: {json_error}")
+#         #     logger.error(f"Raw body: {raw_body.decode('utf-8', errors='ignore')}")
             
-        #     # Check if it's form data
-        #     if content_type.startswith("application/x-www-form-urlencoded"):
-        #         # Handle form data
-        #         form_data = await request.form()
-        #         logger.info(f"Received form data: {dict(form_data)}")
-        #         return {"status": "error", "message": "Form data not supported, expecting JSON"}
+#         #     # Check if it's form data
+#         #     if content_type.startswith("application/x-www-form-urlencoded"):
+#         #         # Handle form data
+#         #         form_data = await request.form()
+#         #         logger.info(f"Received form data: {dict(form_data)}")
+#         #         return {"status": "error", "message": "Form data not supported, expecting JSON"}
             
-        #     return {"status": "error", "message": f"Invalid JSON: {str(json_error)}"}
+#         #     return {"status": "error", "message": f"Invalid JSON: {str(json_error)}"}
         
-        # logger.info(f"Received webhook payload: {json.dumps(body, indent=2)}")
+#         # logger.info(f"Received webhook payload: {json.dumps(body, indent=2)}")
 
-        # Restructure the data from the body
-        message_data = extract_data_from_body(body)
-        user_text = message_data["user_message"]
+#         # Restructure the data from the body
+#         message_data = extract_data_from_body(body)
+#         user_text = message_data["user_message"]
 
 
 
-        message_to_user = f"Welcome to the {message_data["app_name"]}. Please have patience we are initiating a step to get started."
-        message_data["response_to_user"] = message_to_user
-        # await whatsapp_service.send_message_with_app_config(
-        #     phone_number=message_data["mobile"],
-        #     message=message_to_user,
-        #     app_name=message_data["app_name"]
-        # )
+#         message_to_user = f"Welcome to the {message_data["app_name"]}. Please have patience we are initiating a step to get started."
+#         message_data["response_to_user"] = message_to_user
+#         # await whatsapp_service.send_message_with_app_config(
+#         #     phone_number=message_data["mobile"],
+#         #     message=message_to_user,
+#         #     app_name=message_data["app_name"]
+#         # )
 
-        # Saving the message data to the database
-        save_result = database_service.save_whatsapp_conversation(message_data)
-        logger.info(f"2nd Conversation saved to database: {save_result}")
+#         # Saving the message data to the database
+#         save_result = database_service.save_whatsapp_conversation(message_data)
+#         logger.info(f"2nd Conversation saved to database: {save_result}")
         
         
-        return {"status": "success", "message": "message sent to frontend", "message_data": message_data}
+#         return {"status": "success", "message": "message sent to frontend", "message_data": message_data}
     
-    except Exception as e:
-        # TODO: Remove this after testing
-        raw_body = await request.body()
-        body_text = raw_body.decode('utf-8')
-        message_to_user = f"Sorry, there was an error processing your request. Please try again later. - {body_text}"
-        await  whatsapp_service.send_message_with_app_config(
-                phone_number="917988362283",
-                message=message_to_user,
-                app_name="BasicHomeLoan"
-                )
-        logger.error(f"Error processing WhatsApp webhook: {str(e)}")
-        return {"status": "error", "message": "Error processing WhatsApp webhook", "error": str(e)}
+#     except Exception as e:
+#         # TODO: Remove this after testing
+#         raw_body = await request.body()
+#         body_text = raw_body.decode('utf-8')
+#         message_to_user = f"Sorry, there was an error processing your request. Please try again later. - {body_text}"
+#         await  whatsapp_service.send_message_with_app_config(
+#                 phone_number="917988362283",
+#                 message=message_to_user,
+#                 app_name="BasicHomeLoan"
+#                 )
+#         logger.error(f"Error processing WhatsApp webhook: {str(e)}")
+#         return {"status": "error", "message": "Error processing WhatsApp webhook", "error": str(e)}
 
 
 ############################################################################################

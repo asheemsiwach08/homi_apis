@@ -1,6 +1,7 @@
 import json
 import httpx
 import random
+from fastapi import HTTPException
 from app.config.settings import settings
 
 class WhatsAppService:
@@ -20,6 +21,36 @@ class WhatsAppService:
         self.whatsapp_otp_src_name = settings.GUPSHUP_WHATSAPP_OTP_SRC_NAME
         self.lead_creation_src_name = settings.GUPSHUP_LEAD_CREATION_SRC_NAME
         self.lead_status_src_name = settings.GUPSHUP_LEAD_STATUS_SRC_NAME
+
+    def validate_app_config(self, app_name: str) -> dict:
+        """
+        Validate and get app configuration
+        
+        Args:
+            app_name: Name of the app
+            
+        Returns:
+            Dict: App configuration
+            
+        Raises:
+            HTTPException: If app configuration is invalid
+        """
+        app_config = settings.get_gupshup_config(app_name)
+        
+        if not app_config["api_key"]:
+            raise HTTPException(
+                status_code=400,
+                detail=f"API key not configured for app: {app_name}"
+            )
+        
+        if not app_config["source"]:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Source number not configured for app: {app_name}"
+            )
+        
+        return app_config
+
 
     def generate_otp(self) -> str:
         """Generate a 6-digit OTP"""
@@ -283,27 +314,30 @@ class WhatsAppService:
                 "data": {"error": str(e)}
             }
 
-    async def send_message_new(self, phone_number: str, message: str, api_key: str, source: str = None) -> dict:
+    async def send_message_with_app_config(self, phone_number: str, message: str, app_name: str) -> dict:
         """
         Send a simple text message via WhatsApp using Gupshup API
         
         Args:
             phone_number: Customer's phone number
             message: Text message to send
-            
+            app_name: Name of the app
         Returns:
             dict: Response with success status and message
         """
+        app_config = self.validate_app_config(app_name)
+        print("APP CONFIG: ", app_config)
+
         headers = {
             'Cache-Control': 'no-cache',
             'Content-Type': 'application/x-www-form-urlencoded',
-            'apikey': api_key,
+            'apikey': app_config["api_key"],
             'cache-control': 'no-cache'
         }
         
         data = {
             'channel': 'whatsapp',
-            'source': source if source else self.source,
+            'source': app_config["source"],
             'destination': phone_number,
             'message': message
         }
@@ -316,9 +350,10 @@ class WhatsAppService:
                     data=data,
                     timeout=30.0
                 )
+                print("RESPONSE: ", response)
                 
                 # Gupshup API returns 202 for successful submissions
-                if response.status_code in [200, 202]:
+                if response.status_code in [200]:
                     try:
                         response_data = response.json()
                         data_dict = response_data if isinstance(response_data, dict) else {"response": str(response_data)}

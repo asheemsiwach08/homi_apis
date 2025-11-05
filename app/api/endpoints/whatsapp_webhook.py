@@ -264,8 +264,68 @@ async def whatsapp_webhook(request: Request):
                                 # New WhatsApp Webhook API
 ############################################################################################
 
+def extract_data_from_body(body: dict) -> dict:
+    """
+    Extract data from Gupshup payload structure
 
-@router.post("/whatsapp/gupshup/webhook")
+    Args:
+        body: Gupshup payload structure
+    Returns:
+        dict: data containing all details of the message
+    """
+    # Extract data from Gupshup payload structure
+    app_name = body.get("app")
+    timestamp = body.get("timestamp")
+    message_type = body.get("type")
+    payload_data = body.get("payload", {})
+    
+    # Extract message details from payload
+    message_id = payload_data.get("id")
+    source = payload_data.get("source")  # This is the sender's phone number
+    message_type_detail = payload_data.get("type")
+    message_payload = payload_data.get("payload", {})
+    sender = payload_data.get("sender", {})
+    
+    # Extract the actual message text
+    if message_type_detail == "text":
+        message_text = message_payload.get("text", "")
+    else:
+        message_text = "Non-text message received"
+    
+    # Extract sender details
+    sender_phone = sender.get("phone", source)  # Use source as fallback
+    sender_name = sender.get("name", "")
+    country_code = sender.get("country_code", "")
+    dial_code = sender.get("dial_code", "")
+
+    logger.info(f"Received WhatsApp message from {sender_phone}: {message_text} with app name: {app_name}")
+    return {
+        "app_name": app_name,
+        "timestamp": timestamp,
+        "message_type": message_type,
+        "user_message": message_text,
+        "source": source,
+        "mobile": sender_phone,
+        "response_to_user": "welcome to the whatsapp webhook",
+        "template_id": "1234567890",
+        "template_name": "welcome",
+        "payload": json.dumps(body),
+        "message_details": {
+            "message_id": message_id,
+            "message": message_text,
+            "message_type_detail": message_type_detail,
+            "message_payload": message_payload
+        },
+        "sender_details": {
+            "phone": sender_phone,
+            "name": sender_name,
+            "country_code": country_code,
+            "dial_code": dial_code
+        }
+    }
+
+
+# @router.post("/whatsapp/gupshup/webhook")
 async def ghupshup_whatsapp_webhook(request: Request):
     """
     Webhook endpoint that receives WhatsApp messages from Gupshup
@@ -280,102 +340,83 @@ async def ghupshup_whatsapp_webhook(request: Request):
         # Get the raw body first
         raw_body = await request.body()
         logger.info(f"Raw body length: {len(raw_body)} bytes")
-        
-        # Handle different content types
-        if not raw_body:
-            await whatsapp_service.send_message_new(
-                phone_number="917988362283",
-                message="Empty request body",
-                api_key="sk_1a6a61ece44b45c59bbb619af88b45fb",
-                source="15558035611"
-                )
-            logger.warning("Received empty webhook body")
-            return {"status": "error", "message": "Empty request body"}
-        
-        # Try to parse as JSON
-        try:
-            if content_type.startswith("application/json"):
-                body = await request.json()
-            else:
-                # Try to parse raw body as JSON anyway
-                body_text = raw_body.decode('utf-8')
-                logger.info(f"Raw body text: {body_text[:500]}...")  # Log first 500 chars
-                body = json.loads(body_text)
-        except json.JSONDecodeError as json_error:
-            logger.error(f"JSON decode error: {json_error}")
-            logger.error(f"Raw body: {raw_body.decode('utf-8', errors='ignore')}")
-            
-            # Check if it's form data
-            if content_type.startswith("application/x-www-form-urlencoded"):
-                # Handle form data
-                form_data = await request.form()
-                logger.info(f"Received form data: {dict(form_data)}")
-                return {"status": "error", "message": "Form data not supported, expecting JSON"}
-            
-            return {"status": "error", "message": f"Invalid JSON: {str(json_error)}"}
-        
-        logger.info(f"Received webhook payload: {json.dumps(body, indent=2)}")
-        
-        # Extract data from Gupshup payload structure
-        app_name = body.get("app")
-        timestamp = body.get("timestamp")
-        message_type = body.get("type")
-        payload_data = body.get("payload", {})
-        
-        # Extract message details from payload
-        message_id = payload_data.get("id")
-        source = payload_data.get("source")  # This is the sender's phone number
-        message_type_detail = payload_data.get("type")
-        message_payload = payload_data.get("payload", {})
-        sender = payload_data.get("sender", {})
-        
-        # Extract the actual message text
-        if message_type_detail == "text":
-            message_text = message_payload.get("text", "")
-        else:
-            message_text = "Non-text message received"
-        
-        # Extract sender details
-        sender_phone = sender.get("phone", source)  # Use source as fallback
-        sender_name = sender.get("name", "")
-        country_code = sender.get("country_code", "")
-        dial_code = sender.get("dial_code", "")
-        
-        logger.info(f"Received WhatsApp message from {sender_phone}: {message_text}")
 
-        message_data = {
-            "app_name": app_name,
-            "timestamp": timestamp,
-            "message_type": message_type,
-            "user_message": message_text,
-            "source": source,
-            "mobile": sender_phone,
-            "response_to_user": "welcome to the whatsapp webhook",
-            "template_id": "1234567890",
-            "template_name": "welcome",
-            "payload": json.dumps(body),
-            "message_details": {
-                "message_id": message_id,
-                "message": message_text,
-                "message_type_detail": message_type_detail,
-                "message_payload": message_payload
-            },
-            "sender_details": {
-                "phone": sender_phone,
-                "name": sender_name,
-                "country_code": country_code,
-                "dial_code": dial_code
-            }
-        }
+        #-------------------------------------------------------------------------#
+        # TODO: Remove this after testing
+        body = {
+                "app": "Homfinity",
+                "timestamp": 1762324484943,
+                "version": 2,
+                "type": "message",
+                "payload": {
+                    "id": "wamid.HBgMOTE3OTg4MzYyMjgzFQIAEhgUM0E2ODE4RUJEODc0N0YxRDVDOTYA",
+                    "source": "917988362283",
+                    "type": "text",
+                    "payload": {
+                    "text": "Hello, what is your name?"
+                    },
+                    "sender": {
+                    "phone": "917988362283",
+                    "name": "Asheem Siwach",
+                    "country_code": "91",
+                    "dial_code": "7988362283"
+                    }
+                }
+                }
 
-        message_to_user = f"Welcome to the {app_name}. Please have patience we are initiating a step to get started."
+        raw_body = json.dumps(body)
+        #-------------------------------------------------------------------------#
+        
+        # # Handle different content types
+        # if not raw_body:
+        #     # TODO: Remove this after testing
+        #     await whatsapp_service.send_message_with_app_config(
+        #         phone_number="917988362283",
+        #         message="Empty request body",
+        #         app_name="Homfinity"
+        #         )
+        #     logger.warning("Received empty webhook body")
+        #     return {"status": "error", "message": "Empty request body"}
+        
+        # # Try to parse as JSON
+        # try:
+        #     if content_type.startswith("application/json"):
+        #         body = await request.json()
+        #     else:
+        #         # Try to parse raw body as JSON anyway
+        #         body_text = raw_body.decode('utf-8')
+        #         logger.info(f"Raw body text: {body_text[:500]}...")  # Log first 500 chars
+        #         body = json.loads(body_text)
+        # except json.JSONDecodeError as json_error:
+        #     logger.error(f"JSON decode error: {json_error}")
+        #     logger.error(f"Raw body: {raw_body.decode('utf-8', errors='ignore')}")
+            
+        #     # Check if it's form data
+        #     if content_type.startswith("application/x-www-form-urlencoded"):
+        #         # Handle form data
+        #         form_data = await request.form()
+        #         logger.info(f"Received form data: {dict(form_data)}")
+        #         return {"status": "error", "message": "Form data not supported, expecting JSON"}
+            
+        #     return {"status": "error", "message": f"Invalid JSON: {str(json_error)}"}
+        
+        # logger.info(f"Received webhook payload: {json.dumps(body, indent=2)}")
+
+        # Restructure the data from the body
+        message_data = extract_data_from_body(body)
+        user_text = message_data["user_message"]
+
+
+
+        message_to_user = f"Welcome to the {message_data["app_name"]}. Please have patience we are initiating a step to get started."
         message_data["response_to_user"] = message_to_user
-        await whatsapp_service.send_message_new(
-                phone_number=sender_phone,
-                message=message_to_user,
-                api_key="sk_1a6a61ece44b45c59bbb619af88b45fb",
-                source="15558035611"
-                )
+        # await whatsapp_service.send_message_with_app_config(
+        #     phone_number=message_data["mobile"],
+        #     message=message_to_user,
+        #     app_name=message_data["app_name"]
+        # )
+
+        # Saving the message data to the database
         save_result = database_service.save_whatsapp_conversation(message_data)
         logger.info(f"2nd Conversation saved to database: {save_result}")
         
@@ -383,14 +424,14 @@ async def ghupshup_whatsapp_webhook(request: Request):
         return {"status": "success", "message": "message sent to frontend", "message_data": message_data}
     
     except Exception as e:
+        # TODO: Remove this after testing
         raw_body = await request.body()
         body_text = raw_body.decode('utf-8')
         message_to_user = f"Sorry, there was an error processing your request. Please try again later. - {body_text}"
-        await  whatsapp_service.send_message_new(
+        await  whatsapp_service.send_message_with_app_config(
                 phone_number="917988362283",
                 message=message_to_user,
-                api_key="sk_1a6a61ece44b45c59bbb619af88b45fb",
-                source="15558035611"
+                app_name="BasicHomeLoan"
                 )
         logger.error(f"Error processing WhatsApp webhook: {str(e)}")
         return {"status": "error", "message": "Error processing WhatsApp webhook", "error": str(e)}

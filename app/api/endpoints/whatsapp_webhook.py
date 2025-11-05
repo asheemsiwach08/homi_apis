@@ -283,6 +283,12 @@ async def ghupshup_whatsapp_webhook(request: Request):
         
         # Handle different content types
         if not raw_body:
+            await whatsapp_service.send_message_new(
+                phone_number="917988362283",
+                message="Empty request body",
+                api_key="sk_1a6a61ece44b45c59bbb619af88b45fb",
+                source="15558035611"
+                )
             logger.warning("Received empty webhook body")
             return {"status": "error", "message": "Empty request body"}
         
@@ -364,10 +370,12 @@ async def ghupshup_whatsapp_webhook(request: Request):
 
         message_to_user = f"Welcome to the {app_name}. Please have patience we are initiating a step to get started."
         message_data["response_to_user"] = message_to_user
-        await whatsapp_service.send_message(
-            phone_number=sender_phone,
-            message=message_to_user
-        )
+        await whatsapp_service.send_message_new(
+                phone_number=sender_phone,
+                message=message_to_user,
+                api_key="sk_1a6a61ece44b45c59bbb619af88b45fb",
+                source="15558035611"
+                )
         save_result = database_service.save_whatsapp_conversation(message_data)
         logger.info(f"2nd Conversation saved to database: {save_result}")
         
@@ -375,11 +383,13 @@ async def ghupshup_whatsapp_webhook(request: Request):
         return {"status": "success", "message": "message sent to frontend", "message_data": message_data}
     
     except Exception as e:
-        message_to_user = f"Welcome to the {app_name}. Please have patience we are initiating a step to get started."
-        await whatsapp_service.send_message(
-            phone_number=sender_phone,
-            message=message_to_user
-        )
+        message_to_user = f"Sorry, there was an error processing your request. Please try again later."
+        await  whatsapp_service.send_message_new(
+                phone_number="917988362283",
+                message=message_to_user,
+                api_key="sk_1a6a61ece44b45c59bbb619af88b45fb",
+                source="15558035611"
+                )
         logger.error(f"Error processing WhatsApp webhook: {str(e)}")
         return {"status": "error", "message": "Error processing WhatsApp webhook", "error": str(e)}
 

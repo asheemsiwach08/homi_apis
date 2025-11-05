@@ -275,6 +275,36 @@ async def ghupshup_whatsapp_webhook(request: Request):
     print("---------------Gupshup WhatsApp Webhook API---------------------------")
     print(request)
     print("---------------Gupshup WhatsApp Webhook API---------------------------")
+
+    # Save the conversation to database
+    # message_data = {
+    #         "app_name": "HOMI",
+    #         "timestamp": "1761722152605",
+    #         "message_type": "text",
+    #         "user_message": "Testing message format 2",
+    #         "source": "whatsapp",
+    #         "mobile": "7988362283",
+    #         "response_to_user": "welcome to the whatsapp webhook",
+    #         "template_id": "1234567890",
+    #         "template_name": "welcome",
+    #         "payload": "",
+    #         "message_details": {
+    #             "message_id": "msg123",
+    #             "message": "Testing message format 2",
+    #             "message_type_detail": "text",
+    #             "message_payload": "Testing message format 2"
+    #         },
+    #         "sender_details": {
+    #             "phone": "7988362283",
+    #             "name": "John Doe",
+    #             "country_code": "IN",
+    #             "dial_code": "+91"
+    #         }
+    #     }
+
+    # save_result = database_service.save_whatsapp_conversation(message_data)
+    # logger.info(f"1st Conversation saved to database: {save_result}")
+        
     try:
         # Log request details for debugging
         content_type = request.headers.get("content-type", "")
@@ -344,8 +374,13 @@ async def ghupshup_whatsapp_webhook(request: Request):
             "app_name": app_name,
             "timestamp": timestamp,
             "message_type": message_type,
-            "payload_data": payload_data,
+            "user_message": message_text,
             "source": source,
+            "mobile": sender_phone,
+            "response_to_user": "welcome to the whatsapp webhook",
+            "template_id": "1234567890",
+            "template_name": "welcome",
+            "payload": json.dumps(body),
             "message_details": {
                 "message_id": message_id,
                 "message": message_text,
@@ -359,6 +394,9 @@ async def ghupshup_whatsapp_webhook(request: Request):
                 "dial_code": dial_code
             }
         }
+        save_result = database_service.save_whatsapp_conversation(message_data)
+        logger.info(f"2nd Conversation saved to database: {save_result}")
+        
         
         return {"status": "success", "message": "message sent to frontend", "message_data": message_data}
     

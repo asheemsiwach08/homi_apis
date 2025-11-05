@@ -19,8 +19,8 @@ class DatabaseService:
     def __init__(self):
         # Environment configurations
         self.supabase_orbit_url = settings.SUPABASE_ORBIT_URL
-        self.supabase_orbit_service_role_key = settings.SUPABASE_ORBIT_SERVICE_ROLE_KEY 
-        
+        self.supabase_orbit_service_role_key = settings.SUPABASE_ORBIT_SERVICE_ROLE_KEY
+
         self.supabase_homfinity_url = settings.SUPABASE_HOMFINITY_URL
         self.supabase_homfinity_service_role_key = settings.SUPABASE_HOMFINITY_SERVICE_ROLE_KEY 
         
@@ -215,6 +215,59 @@ class DatabaseService:
             raise HTTPException(
                 status_code=500,
                 detail=f"Database error saving WhatsApp message: {str(e)}"
+            )
+
+    def save_whatsapp_conversation(self, message_data: Dict, environment: str = None) -> Dict:
+        """
+        Save WhatsApp conversation to database (simplified) from different apps along with their response
+        
+        Args:
+            message_data: Dictionary containing message details
+                - will include all the details from the webhook payload need to save in the database
+            environment (str, optional): Target environment ('orbit' or 'homfinity')
+                
+        Returns:
+            Dict: Database operation result
+        """
+        # Get appropriate client for this operation
+        client = self.get_client_for_table("whatsapp_conversation") if environment is None else self.get_client(environment)
+        
+        try:
+            # Validate mobile number before saving
+            mobile = message_data.get("mobile")
+            if not mobile or mobile is None or str(mobile).strip() == "":
+                raise HTTPException(
+                        status_code=400,
+                        detail="Cannot save message: mobile number is required"
+                    )
+                
+            # Prepare data for database with proper field mapping
+            db_data = message_data
+        
+            print("Database Data: ", db_data)
+
+            # Insert data into whatsapp_conversation table using appropriate client
+            result = client.table("whatsapp_conversation").insert(db_data).execute()
+            print("Result: ", result)
+            
+            if result.data:
+                return {
+                    "success": True,
+                    "message_id": result.data[0].get("id"),
+                    "message": "WhatsApp conversation saved to database"
+                }
+            else:
+                raise HTTPException(
+                    status_code=500,
+                    detail="Failed to save WhatsApp conversation to database"
+                )
+                
+        except HTTPException:
+            raise
+        except Exception as e:
+            raise HTTPException(
+                status_code=500,
+                detail=f"Database error saving WhatsApp conversation: {str(e)}"
             )
     
     def save_book_appointment_data(self, appointment_data: Dict, basic_api_response: Dict, environment: str = None) -> Dict:

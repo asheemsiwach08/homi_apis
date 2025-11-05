@@ -271,40 +271,7 @@ async def ghupshup_whatsapp_webhook(request: Request):
     Webhook endpoint that receives WhatsApp messages from Gupshup
     This endpoint is called automatically by WhatsApp when a message is received
     """
-
-    print("---------------Gupshup WhatsApp Webhook API---------------------------")
-    print(request)
-    print("---------------Gupshup WhatsApp Webhook API---------------------------")
-
-    # Save the conversation to database
-    # message_data = {
-    #         "app_name": "HOMI",
-    #         "timestamp": "1761722152605",
-    #         "message_type": "text",
-    #         "user_message": "Testing message format 2",
-    #         "source": "whatsapp",
-    #         "mobile": "7988362283",
-    #         "response_to_user": "welcome to the whatsapp webhook",
-    #         "template_id": "1234567890",
-    #         "template_name": "welcome",
-    #         "payload": "",
-    #         "message_details": {
-    #             "message_id": "msg123",
-    #             "message": "Testing message format 2",
-    #             "message_type_detail": "text",
-    #             "message_payload": "Testing message format 2"
-    #         },
-    #         "sender_details": {
-    #             "phone": "7988362283",
-    #             "name": "John Doe",
-    #             "country_code": "IN",
-    #             "dial_code": "+91"
-    #         }
-    #     }
-
-    # save_result = database_service.save_whatsapp_conversation(message_data)
-    # logger.info(f"1st Conversation saved to database: {save_result}")
-        
+    
     try:
         # Log request details for debugging
         content_type = request.headers.get("content-type", "")
@@ -394,6 +361,13 @@ async def ghupshup_whatsapp_webhook(request: Request):
                 "dial_code": dial_code
             }
         }
+
+        message_to_user = f"Welcome to the {app_name}. Please have patience we are initiating a step to get started."
+        message_data["response_to_user"] = message_to_user
+        await whatsapp_service.send_message(
+            phone_number=sender_phone,
+            message=message_to_user
+        )
         save_result = database_service.save_whatsapp_conversation(message_data)
         logger.info(f"2nd Conversation saved to database: {save_result}")
         
@@ -401,6 +375,11 @@ async def ghupshup_whatsapp_webhook(request: Request):
         return {"status": "success", "message": "message sent to frontend", "message_data": message_data}
     
     except Exception as e:
+        message_to_user = f"Welcome to the {app_name}. Please have patience we are initiating a step to get started."
+        await whatsapp_service.send_message(
+            phone_number=sender_phone,
+            message=message_to_user
+        )
         logger.error(f"Error processing WhatsApp webhook: {str(e)}")
         return {"status": "error", "message": "Error processing WhatsApp webhook", "error": str(e)}
 

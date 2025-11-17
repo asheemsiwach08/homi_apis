@@ -1,13 +1,16 @@
 import re
 import json
 import logging
-from typing import Optional, Dict, Any
+from typing import Optional, Dict, Any, Tuple, List
 from fastapi import APIRouter, HTTPException, Request, Form
 from app.models.schemas import WhatsAppStatusResponse
 from app.services.basic_application_service import BasicApplicationService
 from app.services.whatsapp_service import whatsapp_service
 from app.services.database_service import database_service
 from app.config.settings import settings
+from app.services.campaign_services import generate_user_response
+from app.services.campaign_services import to_utc_dt
+
 
 logger = logging.getLogger(__name__)
 
@@ -43,7 +46,7 @@ def is_status_check_request(message: str) -> bool:
                                 # WhatsApp Webhook API
 ############################################################################################
 
-@router.post("/whatsapp/webhook")
+# @router.post("/whatsapp/webhook")
 async def whatsapp_webhook(request: Request):
     """
     Webhook endpoint that receives WhatsApp messages from Gupshup
@@ -264,6 +267,134 @@ async def whatsapp_webhook(request: Request):
                                 # New WhatsApp Webhook API
 ############################################################################################
 
+def process_message_data(payload: dict, requested_data: dict) -> dict:
+    """
+    Process the message data and insert the requested data
+    Args:
+        payload: The payload of the message
+        requested_data: The requested data
+    Returns:
+        dict: The requested data
+    """
+    msg_type = payload.get("type", "")  # text, image, video, audio, document, location, contact, etc.
+    if msg_type =="text":
+        text = payload.get("payload", {}).get("text", "")
+        inbound_id = payload.get("id", "")
+        sender = payload.get("sender", {})
+    
+        requested_data["phone"] = sender.get("phone", "")
+        requested_data["user_message"] = text
+        requested_data["response_to_user"] = ""
+
+        # Pop the data which should not be updated
+        requested_data.pop("billing_details")
+        requested_data.pop("event_details")
+
+        # If message type is text, and text is based on context
+        requested_data["wa_id"] = payload.get("context", {}).get("id", "")
+        requested_data["gs_id"] = payload.get("context", {}).get("gsId", "")
+        requested_data["previous_message"] = payload.get("context", {}).get("postbackText", "")
+        requested_data["app_phone_number"] = payload.get("context", {}).get("from", "")
+
+        # Update the sender details
+        requested_data["sender_details"]["phone"] = sender.get("phone", "")
+        requested_data["sender_details"]["name"] = sender.get("name", "")
+        requested_data["sender_details"]["country_code"] = sender.get("country_code", "")
+        requested_data["sender_details"]["dial_code"] = sender.get("dial_code", "")
+        
+        requested_data["message_details"]["text"] = text
+        requested_data["message_details"]["inbound_id"] = inbound_id
+        requested_data["message_details"]["created_at"] = to_utc_dt(payload.get("timestamp", None)).isoformat() # Convert the timestamp to UTC datetime and format for database
+        
+        # Set root-level created_at and updated_at for database table
+        timestamp_iso = to_utc_dt(payload.get("timestamp", None)).isoformat()
+        requested_data["created_at"] = timestamp_iso # Convert the timestamp to UTC datetime and format for database
+        requested_data["updated_at"] = timestamp_iso # Set updated_at to same value as created_at for new records
+        
+        requested_data["fallback_trigger"] = False  # Setting it False as this is the msg we received from user
+        requested_data["retry_count"] = 0  # Setting it 0 as this is the first message
+        
+    return requested_data
+
+def process_message_event_data(payload: dict, requested_data: dict) -> dict:
+    """
+    Process the message event data and update the requested data
+    Args:
+        payload: The payload of the message event
+        requested_data: The requested data
+    Returns:
+        dict: The requested data
+    """
+    status = payload.get("type", "")
+    wa_id = payload.get("id", "")
+    gs_id = payload.get("gsId", "")
+    destination = payload.get("dest", "")
+    ts = payload.get("payload", {}).get("ts", "")
+
+    # Pop the data which should not be updated
+    requested_data.pop("message_details")
+    requested_data.pop("sender_details")
+    requested_data.pop("billing_details")
+
+    # Update the requested data
+    requested_data["phone"] = destination
+    requested_data["wa_id"] = wa_id
+    requested_data["gs_id"] = gs_id
+    requested_data["phone"] = destination
+    requested_data["event_details"]["event_status"] = status
+    requested_data["event_details"]["event_wa_id"] = wa_id
+    requested_data["event_details"]["event_gs_id"] = gs_id
+    requested_data["event_details"]["event_destination"] = destination
+    requested_data["event_details"]["event_updated_at"] = to_utc_dt(ts).isoformat() # Convert the timestamp to UTC datetime and format for database
+    
+    # Set root-level updated_at for database table
+    event_timestamp_iso = to_utc_dt(ts).isoformat()
+    requested_data["updated_at"] = event_timestamp_iso # Set updated_at for event records
+
+    return requested_data
+
+def process_billing_event_data(payload: dict, requested_data: dict) -> dict:
+    """
+    Process the billing event data and insert the requested data
+    Args:
+        payload: The payload of the billing event
+        requested_data: The requested data
+    Returns:
+        dict: The requested data
+    """
+    ded = payload.get("deductions", {})
+    refs = payload.get("references", {})
+    billable = ded.get("billable")
+    category = ded.get("category")
+    policy = ded.get("policy", ded.get("model"))
+    wa_id = refs.get("id")
+    gs_id = refs.get("gsId")
+    destination = refs.get("destination")
+
+    # Pop the data which should not be updated
+    requested_data.pop("message_details")
+    requested_data.pop("sender_details")
+    requested_data.pop("event_details")
+
+    # Update the requested data
+    requested_data["phone"] = destination
+    requested_data["wa_id"] = wa_id
+    requested_data["gs_id"] = gs_id
+    requested_data["billing_details"]["billing_deductions"] = ded
+    requested_data["billing_details"]["billing_references"] = refs
+    requested_data["billing_details"]["billing_billable"] = billable
+    requested_data["billing_details"]["billing_category"] = category
+    requested_data["billing_details"]["billing_policy"] = policy
+    requested_data["billing_details"]["billing_wa_id"] = wa_id
+    requested_data["billing_details"]["billing_gs_id"] = gs_id
+    requested_data["billing_details"]["billing_updated_at"] = to_utc_dt(payload.get("timestamp", None)).isoformat() 
+
+    # Set root-level updated_at for database table
+    billing_timestamp_iso = to_utc_dt(payload.get("timestamp", None)).isoformat() 
+    requested_data["updated_at"] = billing_timestamp_iso # Set updated_at for billing records
+
+    return requested_data
+            
 def extract_data_from_body(body: dict) -> dict:
     """
     Extract data from Gupshup payload structure
@@ -301,12 +432,12 @@ def extract_data_from_body(body: dict) -> dict:
     logger.info(f"Received WhatsApp message from {sender_phone}: {message_text} with app name: {app_name}")
     return {
         "app_name": app_name,
-        "timestamp": timestamp,
+        "timestamp": to_utc_dt(timestamp).isoformat() if timestamp else None,  # Convert timestamp to ISO format for database
         "message_type": message_type,
         "user_message": message_text,
         "source": source,
         "mobile": sender_phone,
-        "response_to_user": "welcome to the whatsapp webhook",
+        "response_to_user": "",
         "template_id": "1234567890",
         "template_name": "welcome",
         "payload": json.dumps(body),
@@ -324,117 +455,184 @@ def extract_data_from_body(body: dict) -> dict:
         }
     }
 
-
-# # @router.post("/whatsapp/gupshup/webhook")
-# async def ghupshup_whatsapp_webhook(request: Request):
-#     """
-#     Webhook endpoint that receives WhatsApp messages from Gupshup
-#     This endpoint is called automatically by WhatsApp when a message is received
-#     """
+@router.post("/whatsapp/gupshup/webhook")
+async def gupshup_whatsapp_webhook(request: Request):
+    """
+    Webhook endpoint that receives WhatsApp messages from Gupshup
+    This endpoint is called automatically by WhatsApp when a message is received
+    """
     
-#     try:
-#         # Log request details for debugging
-#         content_type = request.headers.get("content-type", "")
-#         logger.info(f"Webhook received - Content-Type: {content_type}")
-        
-#         # Get the raw body first
-#         raw_body = await request.body()
-#         logger.info(f"Raw body length: {len(raw_body)} bytes")
-
-#         #-------------------------------------------------------------------------#
-#         # TODO: Remove this after testing
-#         body = {
-#                 "app": "Homfinity",
-#                 "timestamp": 1762324484943,
-#                 "version": 2,
-#                 "type": "message",
-#                 "payload": {
-#                     "id": "wamid.HBgMOTE3OTg4MzYyMjgzFQIAEhgUM0E2ODE4RUJEODc0N0YxRDVDOTYA",
-#                     "source": "917988362283",
-#                     "type": "text",
-#                     "payload": {
-#                     "text": "Hello, what is your name?"
-#                     },
-#                     "sender": {
-#                     "phone": "917988362283",
-#                     "name": "Asheem Siwach",
-#                     "country_code": "91",
-#                     "dial_code": "7988362283"
-#                     }
-#                 }
-#                 }
-
-#         raw_body = json.dumps(body)
-#         #-------------------------------------------------------------------------#
-        
-#         # # Handle different content types
-#         # if not raw_body:
-#         #     # TODO: Remove this after testing
-#         #     await whatsapp_service.send_message_with_app_config(
-#         #         phone_number="917988362283",
-#         #         message="Empty request body",
-#         #         app_name="Homfinity"
-#         #         )
-#         #     logger.warning("Received empty webhook body")
-#         #     return {"status": "error", "message": "Empty request body"}
-        
-#         # # Try to parse as JSON
-#         # try:
-#         #     if content_type.startswith("application/json"):
-#         #         body = await request.json()
-#         #     else:
-#         #         # Try to parse raw body as JSON anyway
-#         #         body_text = raw_body.decode('utf-8')
-#         #         logger.info(f"Raw body text: {body_text[:500]}...")  # Log first 500 chars
-#         #         body = json.loads(body_text)
-#         # except json.JSONDecodeError as json_error:
-#         #     logger.error(f"JSON decode error: {json_error}")
-#         #     logger.error(f"Raw body: {raw_body.decode('utf-8', errors='ignore')}")
-            
-#         #     # Check if it's form data
-#         #     if content_type.startswith("application/x-www-form-urlencoded"):
-#         #         # Handle form data
-#         #         form_data = await request.form()
-#         #         logger.info(f"Received form data: {dict(form_data)}")
-#         #         return {"status": "error", "message": "Form data not supported, expecting JSON"}
-            
-#         #     return {"status": "error", "message": f"Invalid JSON: {str(json_error)}"}
-        
-#         # logger.info(f"Received webhook payload: {json.dumps(body, indent=2)}")
-
-#         # Restructure the data from the body
-#         message_data = extract_data_from_body(body)
-#         user_text = message_data["user_message"]
-
-
-
-#         message_to_user = f"Welcome to the {message_data["app_name"]}. Please have patience we are initiating a step to get started."
-#         message_data["response_to_user"] = message_to_user
-#         # await whatsapp_service.send_message_with_app_config(
-#         #     phone_number=message_data["mobile"],
-#         #     message=message_to_user,
-#         #     app_name=message_data["app_name"]
-#         # )
-
-#         # Saving the message data to the database
-#         save_result = database_service.save_whatsapp_conversation(message_data)
-#         logger.info(f"2nd Conversation saved to database: {save_result}")
-        
-        
-#         return {"status": "success", "message": "message sent to frontend", "message_data": message_data}
+    # try:
+        # Log request details for debugging
+    content_type = request.headers.get("content-type", "")
+    # content_type = "application/json"
+    logger.info(f"Webhook received - Content-Type: {content_type}")
     
-#     except Exception as e:
-#         # TODO: Remove this after testing
-#         raw_body = await request.body()
-#         body_text = raw_body.decode('utf-8')
-#         message_to_user = f"Sorry, there was an error processing your request. Please try again later. - {body_text}"
-#         await  whatsapp_service.send_message_with_app_config(
-#                 phone_number="917988362283",
-#                 message=message_to_user,
-#                 app_name="BasicHomeLoan"
-#                 )
-#         logger.error(f"Error processing WhatsApp webhook: {str(e)}")
-#         return {"status": "error", "message": "Error processing WhatsApp webhook", "error": str(e)}
+    # Get the raw body first
+    raw_body = await request.body() # TODO: Uncomment this while deploying & remove the below line
+    # raw_body = request.get("body", "")
+    logger.info(f"Raw body length: {len(raw_body)} bytes")
+
+    #-------------------------------------------------------------------------#
+    # TODO: Remove this after testing
+    # body = {
+    #         "app": "HomiAi",
+    #         "timestamp": 1762324484943,
+    #         "version": 2,
+    #         "type": "message",
+    #         "payload": {
+    #             "id": "wamid.HBgMOTE3OTg4MzYyMjgzFQIAEhgUM0E2ODE4RUJEODc0N0YxRDVDOTYA",
+    #             "source": "917988362283",
+    #             "type": "text",
+    #             "payload": {
+    #             "text": "Mumbai"
+    #             },
+    #             "sender": {
+    #             "phone": "917988362283",
+    #             "name": "Asheem Siwach",
+    #             "country_code": "91",
+    #             "dial_code": "7988362283"
+    #             }
+    #         }
+    #         }
+
+    # raw_body = json.dumps(body)
+    #-------------------------------------------------------------------------#
+    
+    # Handle different content types
+    # if not raw_body:
+    #     # TODO: Remove this after testing
+    #     await whatsapp_service.send_message_with_app_config(
+    #         phone_number="917988362283",
+    #         message="Empty request body",
+    #         app_name="Homfinity"
+    #         )
+    #     logger.warning("Received empty webhook body")
+    #     return {"status": "error", "message": "Empty request body"}
+    
+    # Try to parse as JSON
+    try:
+        if content_type.startswith("application/json"):
+            body = await request.json() # TODO: Uncomment this while deploying & remove the below line
+            # body = request.get("body", "")
+        else:
+            # Try to parse raw body as JSON anyway
+            body_text = raw_body.decode('utf-8') # TODO: Uncomment this while deploying & remove the below line
+            # body_text = raw_body 
+            logger.info(f"Raw body text: {body_text[:500]}...")  # Log first 500 chars
+            body = json.loads(body_text)
+    except json.JSONDecodeError as json_error:
+        logger.error(f"JSON decode error: {json_error}")
+        logger.error(f"Raw body: {raw_body.decode('utf-8', errors='ignore')}")
+        
+        # Check if it's form data
+        if content_type.startswith("application/x-www-form-urlencoded"):
+            # Handle form data
+            form_data = await request.form() # TODO: Uncomment this while deploying & remove the below line
+            # form_data = request.get("form", "")
+            logger.info(f"Received form data: {dict(form_data)}")
+            return {"status": "error", "message": "Form data not supported, expecting JSON"}
+        
+        return {"status": "error", "message": f"Invalid JSON: {str(json_error)}"}
+    
+    logger.info(f"Received webhook payload: {json.dumps(body, indent=2)}")
+
+    ## Deep 1:- Extract the data in more depth
+    requested_data = {"sender_details":{}, "message_details":{}, "event_details":{}, "billing_details":{}}
+    # Deep 1.1: Extract the body type and payload 
+    top_level_type = body.get("type", "")
+    payload = body.get("payload", {})
+
+    requested_data["app_name"] = body.get("app", "Not Defined")  # Can be used to identify the app name
+    requested_data["message_type"] = top_level_type
+    requested_data["payload"] = body.get("payload", {})
+    
+    # Deep 1.2: Extract the data from the payload
+    try: 
+        if top_level_type == "message":
+            requested_data = process_message_data(payload, requested_data)
+
+            if requested_data:
+                # Save inbound message to the database
+                try:
+                    inbound_insert_result = database_service.save_whatsapp_conversation(table_name="whatsapp_conversation_test", message_data=requested_data, environment="orbit")
+                    requested_data["record_id"] = inbound_insert_result.get("message_id", "")
+                except Exception as e:
+                    logger.error(f"Error saving conversation to database: {str(e)}")
+                    return {"status": "error", "message": "Error saving conversation to database", "error": str(e)} 
+
+                try:
+                    # Restructure the data from the body
+                    # message_data = extract_data_from_body(body)
+                    # user_text = message_data["user_message"]
+
+                    data = await generate_user_response(data=requested_data)
+                    print("\n\nGenerate User Response: ", data)
+                    print("----------------------------------------------------")
+                except Exception as e:
+                    logger.warning(f"Error generating user response: {str(e)}")
+                    return {"status":"error", "message": "Error generating user response", "error": str(e)}
+
+
+
+        elif top_level_type == "message-event":
+            requested_data = process_message_event_data(payload, requested_data)
+
+            if requested_data:
+                try:
+                    event_update_result = database_service.update_record(
+                        table_environment="whatsapp_campaigns",
+                        table_name="whatsapp_conversation_test",
+                        record_col_name="wa_id",
+                        record_id=requested_data["wa_id"],
+                        update_data=requested_data,
+                        environment="orbit"
+                    )
+                    requested_data["record_id"] = event_update_result.get("message_id", "")
+                except Exception as e:
+                    logger.error(f"Error updating event data to database: {str(e)}")
+                    return {"status": "error", "message": "Error updating event data to database", "error": str(e)}
+
+        elif top_level_type == "billing-event":
+            requested_data = process_billing_event_data(payload, requested_data)
+
+            if requested_data:
+                try:
+                    billing_update_result = database_service.update_record(
+                        table_environment="whatsapp_campaigns",
+                        table_name="whatsapp_conversation_test",
+                        record_col_name="wa_id",
+                        record_id=requested_data["wa_id"],
+                        update_data=requested_data,
+                        environment="orbit"
+                    )
+                    requested_data["record_id"] = billing_update_result.get("message_id", "")
+                except Exception as e:
+                    logger.warning(f"Error updating billing data to database: {str(e)}")
+                    return {"status": "error", "message": "Error updating billing data to database", "error": str(e)}
+
+        else:
+            logger.warning(f"Unknown event type: {top_level_type}")
+            return {"status": "error", "message": "Unknown event type", "error": "unknown_event_type"}
+
+        return {"status": "success", "message": "Event processed successfully", "requested_data": requested_data}
+    except Exception as e:
+        logger.error(f"Error processing WhatsApp webhook: {str(e)}")
+        return {"status": "error", "message": "Error processing WhatsApp webhook", "error": str(e)}
+
+            
+
+
+
+
+    # Saving the message data to the database
+    # save_result = database_service.save_whatsapp_conversation(message_data)
+    # logger.info(f"2nd Conversation saved to database: {save_result}")
+    
+
+    # except Exception as e:
+    #     logger.error(f"Error processing WhatsApp webhook: {str(e)}")
+    #     return {"status": "error", "message": "Error processing WhatsApp webhook", "error": str(e)}
 
 
 ############################################################################################

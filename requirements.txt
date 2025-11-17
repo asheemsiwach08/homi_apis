@@ -4,6 +4,9 @@ uvicorn[standard]
 pydantic[email]
 python-dotenv
 
+# String matching
+rapidfuzz
+
 # Database and storage
 supabase
 psycopg2-binary

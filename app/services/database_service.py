@@ -149,8 +149,8 @@ class DatabaseService:
             "leads": "orbit",
             "appointments": "orbit", 
             "disbursements": "orbit",
-            "whatsapp_messages": "orbit",
-            
+            "whatsapp_campaigns": "orbit",   # Use this for all campaign related data
+            # "whatsapp_messages": "orbit",
             # Homfinity tables (if you have specific homfinity operations)
             "otp_storage": "homfinity",  # You can choose which env for OTP
             # Add more table mappings as needed
@@ -159,6 +159,128 @@ class DatabaseService:
         target_environment = table_environment_mapping.get(table_name, self.environment)
         return self.get_client(target_environment)
 
+    # Generic method to get records from any table
+    def get_records_from_table(self, table_environment: str, table_name: str, col_name: str, col_value: str, 
+                             environment: str = None, where_clauses: Optional[List[Dict[str, str]]] = None,
+                             order_by: Optional[str] = None, ascending: bool = True, limit: Optional[int] = None) -> List:
+        """
+        Get records from table with optional additional where clauses, ordering, and limit
+        
+        Args:
+            table_environment: Environment of the table
+            table_name: Name of the table
+            col_name: Name of the column
+            col_value: Value of the column
+            environment: Optional environment override
+            where_clauses: Optional list of additional where conditions
+                          Format: [{"column": "col_name", "operator": "eq", "value": "col_value"}]
+                          Supported operators: eq, neq, gt, gte, lt, lte, like, ilike, is_, in_, contains
+            order_by: Optional column name to order by
+            ascending: Whether to sort in ascending order (True) or descending (False). Default: True
+            limit: Optional limit on number of records to return
+            
+        Returns:
+            List: Records from table
+        """
+        # Get appropriate client for this operation
+        client = self.get_client_for_table(table_environment) if environment is None else self.get_client(environment)
+        try:
+            # Build query starting with the base condition
+            query = client.table(table_name).select("*").eq(col_name, col_value)
+            
+            # Add additional where clauses if provided
+            if where_clauses:
+                for clause in where_clauses:
+                    column = clause.get("column")
+                    operator = clause.get("operator", "eq")
+                    value = clause.get("value")
+                    
+                    if not column or value is None:
+                        continue
+                        
+                    # Apply the appropriate operator
+                    if operator == "eq":
+                        query = query.eq(column, value)
+                    elif operator == "neq":
+                        query = query.neq(column, value)
+                    elif operator == "gt":
+                        query = query.gt(column, value)
+                    elif operator == "gte":
+                        query = query.gte(column, value)
+                    elif operator == "lt":
+                        query = query.lt(column, value)
+                    elif operator == "lte":
+                        query = query.lte(column, value)
+                    elif operator == "like":
+                        query = query.like(column, value)
+                    elif operator == "ilike":
+                        query = query.ilike(column, value)
+                    elif operator == "is_":
+                        query = query.is_(column, value)
+                    elif operator == "in_":
+                        query = query.in_(column, value)
+                    elif operator == "contains":
+                        query = query.contains(column, value)
+                    else:
+                        logger.warning(f"Unsupported operator: {operator}")
+            
+            # Add ordering if specified
+            if order_by:
+                if ascending:
+                    query = query.order(order_by)
+                else:
+                    query = query.order(order_by, desc=True)
+            
+            # Add limit if specified
+            if limit and limit > 0:
+                query = query.limit(limit)
+            
+            result = query.execute()  # Execute the query and get the result
+
+            if result.data:
+                return result.data
+            else:
+                raise HTTPException(
+                    status_code=404,
+                    detail=f"Records not found in table {table_name}"
+                )
+        except Exception as e:
+            raise HTTPException(
+                status_code=500,
+                detail=f"Error getting records from table {table_name}: {str(e)}"
+            )
+
+    def update_record(self, table_environment: str, table_name: str, record_col_name: str, record_id: str, update_data: Dict, environment: str = None) -> bool:
+        """
+        Update the application status for a lead record
+        
+        Args:
+            table_environment: Environment of the table
+            table_name: Name of the table to update
+            record_col_name: Name of the column to update
+            record_id: ID of the record to update
+            update_data: Dictionary containing the data to update
+            environment (str, optional): Target environment ('orbit' or 'homfinity')
+            
+        Returns:
+            Dict: Updated record
+        """
+        try:
+            # Get appropriate client for this operation
+            client = self.get_client_for_table(table_environment) if environment is None else self.get_client(environment)
+            
+            result = client.table(table_name).update(update_data).eq(record_col_name, record_id).execute()
+            
+            if result.data:
+                logger.info(f"Successfully updated record in table {table_name} with record ID: {record_id}")
+                return result.data
+            else:
+                logger.warning(f"No record found in table {table_name} with record ID: {record_id}")
+                return None
+                
+        except Exception as e:
+            logger.error(f"Error updating record in table {table_name}: {e}")
+            return None
 
 
     def save_whatsapp_message(self, message_data: Dict, environment: str = None) -> Dict:
@@ -176,7 +298,7 @@ class DatabaseService:
             Dict: Database operation result
         """
         # Get appropriate client for this operation
-        client = self.get_client_for_table("whatsapp_messages") if environment is None else self.get_client(environment)
+        client = self.get_client_for_table("whatsapp_campaigns") if environment is None else self.get_client(environment)
         
         try:
             # Validate mobile number before saving
@@ -217,7 +339,7 @@ class DatabaseService:
                 detail=f"Database error saving WhatsApp message: {str(e)}"
             )
 
-    def save_whatsapp_conversation(self, message_data: Dict, environment: str = None) -> Dict:
+    def save_whatsapp_conversation(self, table_name: str,message_data: Dict, environment: str = None) -> Dict:
         """
         Save WhatsApp conversation to database (simplified) from different apps along with their response
         
@@ -230,44 +352,43 @@ class DatabaseService:
             Dict: Database operation result
         """
         # Get appropriate client for this operation
-        client = self.get_client_for_table("whatsapp_conversation") if environment is None else self.get_client(environment)
-        
+        client = self.get_client_for_table("whatsapp_campaigns") if environment is None else self.get_client(environment)
         try:
             # Validate mobile number before saving
-            mobile = message_data.get("mobile")
-            if not mobile or mobile is None or str(mobile).strip() == "":
+            phone = message_data.get("phone")
+            if not phone or phone is None or str(phone).strip() == "":
                 raise HTTPException(
                         status_code=400,
-                        detail="Cannot save message: mobile number is required"
+                        detail="❌Cannot save message: phone number is required for saving the conversation"
                     )
                 
             # Prepare data for database with proper field mapping
             db_data = message_data
         
-            print("Database Data: ", db_data)
-
             # Insert data into whatsapp_conversation table using appropriate client
-            result = client.table("whatsapp_conversation").insert(db_data).execute()
-            print("Result: ", result)
+            result = client.table(table_name).insert(db_data).execute()
             
             if result.data:
+                logger.info(f"✅ WhatsApp conversation saved to database with ID: {result.data[0].get('id')}")
                 return {
                     "success": True,
                     "message_id": result.data[0].get("id"),
-                    "message": "WhatsApp conversation saved to database"
+                    "message": "✅ WhatsApp conversation saved to database"
                 }
             else:
+                logger.warning(f"❌ Failed to save WhatsApp conversation to database")
                 raise HTTPException(
                     status_code=500,
-                    detail="Failed to save WhatsApp conversation to database"
+                    detail="❌ Failed to save WhatsApp conversation to database"
                 )
                 
         except HTTPException:
             raise
         except Exception as e:
+            logger.error(f"❌ Database error saving WhatsApp conversation: {str(e)}")
             raise HTTPException(
                 status_code=500,
-                detail=f"Database error saving WhatsApp conversation: {str(e)}"
+                detail=f"❌ Database error saving WhatsApp conversation: {str(e)}"
             )
     
     def save_book_appointment_data(self, appointment_data: Dict, basic_api_response: Dict, environment: str = None) -> Dict:

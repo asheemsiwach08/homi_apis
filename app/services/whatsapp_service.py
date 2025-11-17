@@ -72,6 +72,11 @@ class WhatsAppService:
             'src.name': self.whatsapp_otp_src_name,
             'template': f'{{"id":"{self.whatsapp_otp_template_id}","params":["{otp}"]}}'
         }
+
+        print("---------------- WHATSAPP OTP DATA ----------------------------")
+        print("Data: ", data)
+        print("Headers: ", headers)
+        print("---------------------------------------------------------------")
         
         try:
             async with httpx.AsyncClient() as client:
@@ -326,7 +331,6 @@ class WhatsAppService:
             dict: Response with success status and message
         """
         app_config = self.validate_app_config(app_name)
-        print("APP CONFIG: ", app_config)
 
         headers = {
             'Cache-Control': 'no-cache',
@@ -335,13 +339,16 @@ class WhatsAppService:
             'cache-control': 'no-cache'
         }
         
+        message ={"type":"text", "text": message} 
+
         data = {
             'channel': 'whatsapp',
             'source': app_config["source"],
+            'src.name': app_config["app_name"],
             'destination': phone_number,
-            'message': message
+            'message': json.dumps(message)
         }
-        
+
         try:
             async with httpx.AsyncClient() as client:
                 response = await client.post(
@@ -350,10 +357,9 @@ class WhatsAppService:
                     data=data,
                     timeout=30.0
                 )
-                print("RESPONSE: ", response)
                 
                 # Gupshup API returns 202 for successful submissions
-                if response.status_code in [200]:
+                if response.status_code in [200, 202]:
                     try:
                         response_data = response.json()
                         data_dict = response_data if isinstance(response_data, dict) else {"response": str(response_data)}

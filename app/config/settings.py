@@ -92,6 +92,7 @@ class Settings:
                 # Get optional source for this app
                 source_key = f"{app_name}_GUPSHUP_SOURCE"
                 source = os.getenv(source_key, self.GUPSHUP_SOURCE)
+
                 
                 # For new format, we need at least app_id and api_key
                 # app_name is optional but recommended

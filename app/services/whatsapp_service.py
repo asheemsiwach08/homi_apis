@@ -73,11 +73,6 @@ class WhatsAppService:
             'template': f'{{"id":"{self.whatsapp_otp_template_id}","params":["{otp}"]}}'
         }
 
-        print("---------------- WHATSAPP OTP DATA ----------------------------")
-        print("Data: ", data)
-        print("Headers: ", headers)
-        print("---------------------------------------------------------------")
-        
         try:
             async with httpx.AsyncClient() as client:
                 response = await client.post(

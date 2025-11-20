@@ -238,12 +238,9 @@ class DatabaseService:
             result = query.execute()  # Execute the query and get the result
 
             if result.data:
-                return result.data
+                return result.data if result.data else None
             else:
-                raise HTTPException(
-                    status_code=404,
-                    detail=f"Records not found in table {table_name}"
-                )
+                return None
         except Exception as e:
             raise HTTPException(
                 status_code=500,

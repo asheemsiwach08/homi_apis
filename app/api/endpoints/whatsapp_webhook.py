@@ -188,7 +188,7 @@ async def whatsapp_webhook(request: Request):
                 "message": "Phone number not found",
                 "phone_number": None
             }
-        
+
         # Try to get status from Basic Application API
         api_status = await basic_app_service.get_lead_status(
             mobile_number=str(phone_number),
@@ -267,6 +267,91 @@ async def whatsapp_webhook(request: Request):
                                 # New WhatsApp Webhook API
 ############################################################################################
 
+async def send_application_status_update(data: dict):
+
+    phone_number = data.get("phone", None)
+    
+    if phone_number is None:
+        return {
+            "status": "error",
+            "message": "We couldn't identify your mobile number. Please try again.",
+            "phone_number": None
+        }
+    else:
+        phone_number = phone_number.strip()[-10:]
+    # Try to get status from Basic Application API
+    api_status = await basic_app_service.get_lead_status(mobile_number=str(phone_number))
+
+    application_status_update_data = {
+        "application_status": "Not found",
+        "phone_number": phone_number,
+        "remarks": "",
+    }
+    if api_status:
+        # Extract status from API response
+        status = api_status.get("result", {}).get("latestStatus", "Not found")
+        response_message = f"Your application status is: {status}"
+        application_status_update_data["application_status"] = str(status)
+        
+        # Get lead data from database for WhatsApp response
+        lead_data = database_service.get_leads_by_mobile(phone_number)[0]  # Get the first record
+        
+        # Save status to Supabase database
+        try:
+            if lead_data and lead_data.get("basic_app_id"):
+                basic_app_id = lead_data.get("basic_app_id")
+                if basic_app_id:
+                    database_service.update_lead_status(str(basic_app_id), str(status))
+                    logger.info(f"Status updated in database for mobile: {phone_number}")
+
+                name = lead_data.get("first_name", "") + " " + lead_data.get("last_name", "")        
+                # Send the status update to WhatsApp
+                await whatsapp_service.send_lead_status_update(
+                    phone_number="+91" + phone_number,
+                    name=name,
+                    status=str(status)
+                )
+                application_status_update_data["remarks"] = "Status updated in leads table and user notified via WhatsApp"
+        except Exception as db_error:
+            logger.error(f"Failed to update status in database: {db_error}")
+            message = "Sorry, there was an error processing your request. Please try again later."
+            await whatsapp_service.send_message(
+                phone_number="+91" + phone_number,
+                message=message
+            )
+            application_status_update_data["remarks"] = "Failed to update status in database and send WhatsApp message" + str(db_error)
+
+    else:
+        logger.info(f"❎ No lead data found for phone number: {phone_number}")
+        # Send simple message if lead data not found
+        message = "We couldn't find your application details. Please check your mobile number or application ID."
+        await whatsapp_service.send_message(
+            phone_number="+91" + phone_number,
+            message=message
+        )
+        application_status_update_data["application_status"] = message
+        application_status_update_data["remarks"] = "No lead data found for phone number in database & User notified via WhatsApp"
+        
+        # Update the whatsapp record to whatsapp conversation table
+        update_data = {"remarks": application_status_update_data["remarks"],
+            "is_check_application_request": True,
+            "response_to_user": application_status_update_data["application_status"]
+        }
+        
+        from app.services.database_service import database_service
+        update_result = database_service.update_record(
+            table_environment="whatsapp_campaigns",
+            table_name="whatsapp_conversation_test",
+            record_col_name="id",
+            record_id=data.get("record_id", ""),
+            update_data=update_data,
+            environment="orbit"
+        )
+        if update_result:
+            application_status_update_data["remarks"] = "No lead data found for phone number in database, user notified via WhatsApp & Whatsapp record updated in database"
+        return application_status_update_data
+
+    
 def process_message_data(payload: dict, requested_data: dict) -> dict:
     """
     Process the message data and insert the requested data
@@ -456,7 +541,7 @@ def extract_data_from_body(body: dict) -> dict:
     }
 
 @router.post("/whatsapp/gupshup/webhook")
-async def gupshup_whatsapp_webhook(request: Request):
+async def gupshup_whatsapp_webhook(request: dict):
     """
     Webhook endpoint that receives WhatsApp messages from Gupshup
     This endpoint is called automatically by WhatsApp when a message is received
@@ -464,13 +549,13 @@ async def gupshup_whatsapp_webhook(request: Request):
     
     # try:
         # Log request details for debugging
-    content_type = request.headers.get("content-type", "")
-    # content_type = "application/json"
+    # content_type = request.headers.get("content-type", "")
+    content_type = "application/json"
     logger.info(f"Webhook received - Content-Type: {content_type}")
     
     # Get the raw body first
-    raw_body = await request.body() # TODO: Uncomment this while deploying & remove the below line
-    # raw_body = request.get("body", "")
+    # raw_body = await request.body() # TODO: Uncomment this while deploying & remove the below line
+    raw_body = request.get("body", "")
     logger.info(f"Raw body length: {len(raw_body)} bytes")
 
     #-------------------------------------------------------------------------#
@@ -513,12 +598,12 @@ async def gupshup_whatsapp_webhook(request: Request):
     # Try to parse as JSON
     try:
         if content_type.startswith("application/json"):
-            body = await request.json() # TODO: Uncomment this while deploying & remove the below line
-            # body = request.get("body", "")
+            # body = await request.json() # TODO: Uncomment this while deploying & remove the below line
+            body = request.get("body", "")
         else:
             # Try to parse raw body as JSON anyway
-            body_text = raw_body.decode('utf-8') # TODO: Uncomment this while deploying & remove the below line
-            # body_text = raw_body 
+            # body_text = raw_body.decode('utf-8') # TODO: Uncomment this while deploying & remove the below line
+            body_text = raw_body 
             logger.info(f"Raw body text: {body_text[:500]}...")  # Log first 500 chars
             body = json.loads(body_text)
     except json.JSONDecodeError as json_error:
@@ -528,8 +613,8 @@ async def gupshup_whatsapp_webhook(request: Request):
         # Check if it's form data
         if content_type.startswith("application/x-www-form-urlencoded"):
             # Handle form data
-            form_data = await request.form() # TODO: Uncomment this while deploying & remove the below line
-            # form_data = request.get("form", "")
+            # form_data = await request.form() # TODO: Uncomment this while deploying & remove the below line
+            form_data = request.get("form", "")
             logger.info(f"Received form data: {dict(form_data)}")
             return {"status": "error", "message": "Form data not supported, expecting JSON"}
         
@@ -561,19 +646,51 @@ async def gupshup_whatsapp_webhook(request: Request):
                     logger.error(f"Error saving conversation to database: {str(e)}")
                     return {"status": "error", "message": "Error saving conversation to database", "error": str(e)} 
 
-                try:
-                    # Restructure the data from the body
-                    # message_data = extract_data_from_body(body)
-                    # user_text = message_data["user_message"]
+                # First check if the message is an application status check request
+                if is_status_check_request(requested_data.get("user_message", "")):
+                    logger.info(f"✅ Application status check request received")
+                    user_response = await send_application_status_update(data=requested_data)
+                    return {"status": "success", "message": "Application status update sent successfully", "user_response": user_response}
+                
+                # If the message is not an application status check request, then check if it is a campaign message or not
+                whatsapp_window_open, requested_data, whatsapp_user_data = is_campaign_message(requested_data=requested_data)
+                if whatsapp_window_open:
+                    logger.info(f"✅ User Message belogs to the Campaign & Whatsapp window open: {whatsapp_window_open}")
+                    user_response = await generate_user_response(
+                        data=requested_data, 
+                        whatsapp_user_data=whatsapp_user_data
+                    )
+                    logger.info(f"✅ Generate User Response: {user_response}")
+                    pass
+                else:
+                    logger.info(f"✅ No campaign message or application request found. Lets use the AI fallback response.")
 
-                    data = await generate_user_response(data=requested_data)
-                    print("\n\nGenerate User Response: ", data)
-                    print("----------------------------------------------------")
-                except Exception as e:
-                    logger.warning(f"Error generating user response: {str(e)}")
-                    return {"status":"error", "message": "Error generating user response", "error": str(e)}
+                        # TODO: Implement the logic to generate the user response for the non-campaign
+                        # Using the AI fallback response
+                            # user_message = data["user_message"]
+                            # ai_response = "" #generate_ai_response(user_message=user_message)
+                            # ai_response = {"template_id": "0922869a-cd33-4fed-83af-39376d8ccfb5", "template_params": ["Delhi", "Mumbai"]}
+                            # if ai_response:
+                            #     template_id = ai_response.get("template_id", "")
+                            #     template_params = ai_response.get("template_params", [])
 
+                            # #Add the template message based on AI response
+                            # # from app.api.endpoints.gupshup_apis import send_template_message, DemoTemplateMessageRequest
+                            # # requested = DemoTemplateMessageRequest(app_name=app_name, phone_number=data.get("phone", ""), template_id=template_id, template_params=template_params)
+                            # # print(f"✨ 🔍 Requested: {requested}")
+                            # # template_response = await send_template_message(request=requested)
+                            # template_response = ""
+                            # print(f"✨ 🔍 Template response: {template_response}")
+                            # response_to_user = template_response.message if hasattr(template_response, 'message') else "I'm sorry, I didn't understand your message. Please try again."
+                        # TODO: Implement AI fallback response here - for now just adding simple text response
+                        # response_to_user = "Sorry, I didn't understand your message. Please try again. Try with a different message. No record found for the given app name and phone number."
+                        # fallback_trigger = True
+                        # requested = MessageRequest(app_name=app_name, phone_number=data.get("phone", ""), message={"type":"text", "text": response_to_user})
+                        # print(f"✨ 🔍 Requested: {requested}")
+                        # message_response = await send_message(request=requested)
+                        # logger.info(f"\t❌ No record found for the given app name and phone number, adding a fallback response - Retry count: {retry_count}")
 
+                    pass
 
         elif top_level_type == "message-event":
             requested_data = process_message_event_data(payload, requested_data)
@@ -657,3 +774,38 @@ async def verify_webhook(
         return int(hub_challenge)
     else:
         raise HTTPException(status_code=403, detail="Verification failed") 
+
+
+
+
+################################################################################################
+def is_campaign_message(requested_data: dict) -> Tuple[bool, dict, dict]:
+    from app.services.campaign_services import get_campaign_history, calculate_time_difference_hours, get_whatsapp_conversation_history
+    is_campaign_message, current_template_id, app_name, campaign_history_time = get_campaign_history(data=requested_data)
+    logger.info(f"✅ Campaign message found: {is_campaign_message} with template id: {current_template_id} and app name: {app_name} and campaign history time: {campaign_history_time}")
+    
+    whatsapp_window_open = False
+    whatsapp_user_data = {}
+    if is_campaign_message:
+        # Now check if any whatsapp message received from the user in the last 24 hours
+        whatsapp_conversation_history, latest_conversation_id, previous_message = get_whatsapp_conversation_history(mobile_number=requested_data.get("phone", ""), application_name=app_name, session_id="")
+        if whatsapp_conversation_history and isinstance(whatsapp_conversation_history, dict):
+            last_message_time = whatsapp_conversation_history.get("created_at")
+            last_message_time_difference = calculate_time_difference_hours(last_message_time)
+            last_campaign_message_time_difference = calculate_time_difference_hours(campaign_history_time)
+            if last_message_time_difference <= 24 or last_campaign_message_time_difference <= 24:
+                whatsapp_user_data = {"latest_conversation_id": latest_conversation_id, "previous_message": previous_message, "whatsapp_conversation_history": whatsapp_conversation_history,
+                "campaign_history_time": campaign_history_time, "current_template_id": current_template_id, "app_name": app_name, "is_campaign_message": is_campaign_message}
+                whatsapp_window_open = True
+            else:
+                whatsapp_window_open = False
+        else:  # If campaign message is found but not conversation history is found
+            whatsapp_user_data = {"latest_conversation_id": requested_data["record_id"], "previous_message": "", "whatsapp_conversation_history": {}, 
+            "campaign_history_time": campaign_history_time, "current_template_id": current_template_id, "app_name": app_name, "is_campaign_message": is_campaign_message}
+            whatsapp_window_open = True
+
+    # Update the requested data with the whatsapp window open and template id     
+    requested_data["whatsapp_window_open"] = whatsapp_window_open
+    requested_data["template_id"] = current_template_id
+
+    return whatsapp_window_open, requested_data, whatsapp_user_data

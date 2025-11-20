@@ -561,7 +561,6 @@ def validate_app_config(app_name: str) -> dict:
         HTTPException: If app configuration is invalid
     """
     app_config = settings.get_gupshup_config(app_name)
-    print("VALIDATE APP CONFIG:", app_config)
     
     if not app_config["api_key"]:
         raise HTTPException(

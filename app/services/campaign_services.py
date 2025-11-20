@@ -1,5 +1,5 @@
 from typing import Optional, Dict, Any, Tuple, List
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 from fastapi import HTTPException
 from app.services.database_service import database_service
 import logging
@@ -79,23 +79,34 @@ def calculate_time_difference_hours(datetime_string: str) -> float:
 
 
 #--------------------------------------------- Database Operations ---------------------------------------------#
-def get_campaign_history(data: dict) -> Tuple[str, str]:
+def get_campaign_history(data: dict) -> Tuple[bool, str, str, str]:
     # Get campaign history for the user
-    campaign_history = database_service.get_records_from_table(
-        table_environment="whatsapp_campaigns", 
-        table_name="campaign_history", 
-        col_name="app_name", 
-        col_value=data.get("app_name", ""),
-        where_clauses = [
-            {"column": "phone", "operator": "eq", "value": data.get("phone", "")},
-            {"column": "is_active", "operator": "eq", "value": "TRUE"},
-        ]
-    )
+    try:
+        campaign_history = database_service.get_records_from_table(
+            table_environment="whatsapp_campaigns", 
+            table_name="campaign_history", 
+            col_name="app_name", 
+            col_value=data.get("app_name", ""),
+            where_clauses = [
+                {"column": "phone", "operator": "eq", "value": data.get("phone", "")},
+                {"column": "is_active", "operator": "eq", "value": "TRUE"},
+            ],
+            order_by="created_at",
+            ascending=False,
+            limit=1
+        )
 
-    if campaign_history:
-        current_template_id = campaign_history[0]["current_template_id"]
-        app = data["app_name"]
-        return current_template_id, app # Return the current template id and app name
+        if campaign_history:
+            current_template_id = campaign_history[0]["current_template_id"]
+            app = data["app_name"]
+            campaign_history_time = campaign_history[0]["created_at"]
+            return True, current_template_id, app, campaign_history_time # Return the current template id and app name
+        else:
+            logger.error(f"❌ No record found for the given app name and phone number: {data.get('app_name', '')} and {data.get('phone', '')}")
+            return False, None, None, None # Return False and None values
+    except Exception as e:
+        logger.error(f"❌ Error in getting campaign history - get_campaign_history: {str(e)}")
+        return False, None, None, None # Return False and None values
 
 
 def get_template_response_config(application_name: str, template_id: str) -> Optional[Dict]:
@@ -124,28 +135,42 @@ def get_whatsapp_conversation_history(mobile_number: str,application_name: str, 
         ascending=False,
         limit=2
     )
-
-    if len(result) == 2:
+    if result and len(result) == 2:
         return result[1], result[0].get("id", ""), result[0].get("previous_message", "")    # Return the second record as dictionary and the first record id
-    else:
+    elif result and len(result) == 1:
         return None, result[0].get("id", ""), result[0].get("previous_message", "")
+    else: return None, None, None
    
 
-def get_response_config_details(data: dict):
-    # Get the response config details for the current template id
+def get_response_config_details(data: dict) -> list:
+    """ Get the response config details for the current template id """
 
     response_config = data.get("response_config", {})
     
-    if response_config:
-        nodes = [node.get("id","") for node in response_config.get("nodes", [])]
-        return nodes
+    if not isinstance(response_config, dict) or len(response_config) == 0:
+        return []
 
-def get_node_details(id: str, data: dict):
-    # Get the node details for the given node id
+    nodes = []
+    if response_config:
+        for node in response_config.get("nodes", []):
+            if isinstance(node, dict) and node.get("id") != None and node.get("id") != "":
+                nodes.append(node.get("id", ""))
+    return nodes if len(nodes) > 0 else []
+
+def get_node_details(id: str, data: dict) -> dict:
+    """ Get the node details for the given node id """
     nodes = data.get("response_config", {}).get("nodes", [])
+    
+    if not isinstance(nodes, list) or len(nodes) == 0:
+        return {}
+    
     for node in nodes:
+        if not isinstance(node, dict) or not node.get("id"):
+            continue
+            
         if node.get("id") == id:
             return node
+    return {}
 
 #------------------------------------------ Database Operations End --------------------------------------------#
 #---------------------------------------------------------------------------------------------------------------#
@@ -273,7 +298,7 @@ def get_fallback_response(node_data: dict, default_message: str) -> dict:
 #--------------------------------------------------------------------------------------------------------------------#
 
 
-async def generate_user_response(data: dict):
+async def generate_user_response(data: dict, whatsapp_user_data: dict):
 
     # print(f"✨ 🔍 Data: {data}")
 
@@ -282,44 +307,42 @@ async def generate_user_response(data: dict):
     # TODO: 3. Find the past record in the whatsapp_conversation table for the given mobile number and session 
     # TODO: 4. Then implement this node logic for adding new record in the whatsapp_conversation table
     
-
     # Generate user response based on campaign history and template response configuration
-    try:
-        campaign_history = get_campaign_history(data)
-        current_template_id, app_name = campaign_history
-        logger.info(f"✅ Current template id: {current_template_id} and app name: {app_name}")
-    except Exception as e:
-        logger.error(f"Error in getting campaign history: {str(e)}")
-        raise HTTPException(status_code=500, detail=f"Error in getting campaign history: {str(e)}")
+    # campaign_history = get_campaign_history(data)
+    # is_campaign_message, current_template_id, app_name, campaign_history_time = campaign_history
+    # logger.info(f"✅ Campaign message found: {is_campaign_message} with template id: {current_template_id} and app name: {app_name} and campaign history time: {campaign_history_time}")
+
+    if isinstance(whatsapp_user_data, dict):
+        logger.info(f"✅ Whatsapp user data found")
+        latest_conversation_id = whatsapp_user_data.get("latest_conversation_id", "")
+        previous_message = whatsapp_user_data.get("previous_message", "")
+        whatsapp_conversation_history = whatsapp_user_data.get("whatsapp_conversation_history", {})
+        current_template_id = whatsapp_user_data.get("current_template_id", "")
+        app_name = whatsapp_user_data.get("app_name", "")
 
     # Get the template response configuration for the current template id
     try:
         template_response_config = get_template_response_config(application_name=app_name, template_id=current_template_id)
-        # logger.info(f"✅ Template response configuration: {template_response_config}")
+        logger.info(f"✅ Template response configuration found")#{template_response_config}")
     except Exception as e:
-        logger.error(f"Error in getting template response configuration: {str(e)}")
-        raise HTTPException(status_code=500, detail=f"Error in getting template response configuration: {str(e)}")
+        logger.error(f"❌ Error in getting template response configuration: {str(e)}")
+        return {"error": f"Error in getting template response configuration: {str(e)}"}
 
     # OPTIONAL: it can be removed if not needed
     try:
         nodes_data = get_response_config_details(data=template_response_config)
-        logger.info(f"✅ Nodes data:" ) #{nodes_data}")
+        logger.info(f"✅ Nodes data found" ) #{nodes_data}")
     except Exception as e:
-        logger.error(f"Error in getting nodes data: {str(e)}")
-        raise HTTPException(status_code=500, detail=f"Error in getting nodes data: {str(e)}")
+        logger.error(f"❌ Error in getting nodes data: {str(e)}")
+        return {"error": f"Error in getting nodes data: {str(e)}"}
 
-    # Get the whatsapp conversation history
-    try:
-        whatsapp_conversation_history, latest_conversation_id, previous_message = get_whatsapp_conversation_history(mobile_number=data.get("phone", ""), application_name=app_name, session_id="")
-        logger.info(f"✅ Whatsapp latest conversation history:" ) #{whatsapp_conversation_history}")
-    except Exception as e:
-        logger.error(f"Error in getting whatsapp conversation history: {str(e)}")
-        raise HTTPException(status_code=500, detail=f"Error in getting whatsapp conversation history: {str(e)}")
-
-    ## TODO: Add a check here to see if current node & session id is present in conversation history
-    ## If present, then get the response from the conversation history
-    ## If not present, then add a fallback response
-
+    # # Get the whatsapp conversation history
+    # try:
+    #     whatsapp_conversation_history, latest_conversation_id, previous_message = get_whatsapp_conversation_history(mobile_number=data.get("phone", ""), application_name=app_name, session_id="")
+    #     logger.info(f"✅ Whatsapp latest conversation history:" ) #{whatsapp_conversation_history}")
+    # except Exception as e:
+    #     logger.error(f"Error in getting whatsapp conversation history: {str(e)}")
+    #     return {"error": f"Error in getting whatsapp conversation history: {str(e)}"}
 
     # Move to nodes
     if whatsapp_conversation_history and isinstance(whatsapp_conversation_history, dict):
@@ -332,27 +355,47 @@ async def generate_user_response(data: dict):
         next_node_id = ""
         fallback_trigger = ""
         retry_count = 0
+    print("RETRY COUNT:-----------------------------", retry_count)
     
     print(f"➡️‼️ User message: {data['user_message']} ‼️ Current node id: {current_node_id} ‼️ Next node id: {next_node_id} ‼️ Fallback trigger: {fallback_trigger} ‼️ Retry count: {retry_count}")
 
-    if retry_count > 3:
-        # TODO: Add a fallback response
-        logger.info(f"\t❌Retry count is greater than 3, adding a fallback response - Retry count: {retry_count}")
+    if retry_count >= 3:
+        # TODO: Implement AI fallback response here - for now just adding simple text response
+        print("RETRY COUNT IS GREATER THAN 3:-----------------------------", retry_count)
+        response_to_user = "Sorry, I didn't understand your message. Please try again. Try with a different message."
+        fallback_trigger = True
+        retry_count += 1
+        from app.api.endpoints.gupshup_apis import send_message, MessageRequest
+        requested = MessageRequest(app_name=app_name, phone_number=data.get("phone", ""), message={"type":"text", "text": response_to_user})
+        print(f"✨ 🔍 Requested: {requested}")
+        message_response = await send_message(request=requested)
+        print(f"✨ 🔍 Message response: {message_response}")
+        logger.info(f"\t❌ Retry count is greater than 3, adding a fallback response - Retry count: {retry_count}")
+        return {"response_to_user": response_to_user, "fallback_trigger": fallback_trigger}
 
 
     ## ---------------------------------------- NODE LOGIC ----------------------------------------------------##
+    if current_node_id in ["", None, "undefined", "null", "None"] and isinstance(nodes_data, list) and len(nodes_data) > 0:
+        node_details = get_node_details(id=nodes_data[0], data=template_response_config)
+        node_type = node_details.get("type", "")
+        metadata = node_details.get("metadata", {})
+        content = node_details.get("content", "")
+
+        current_node_id = node_details.get("id", "") if isinstance(node_details, dict) and node_details.get("id") != None and node_details.get("id") != "" else ""
+
     # Node Logic 1.1:- for Current Node (If current node id is present in conversation history)
     if current_node_id not in ["", None, "undefined", "null", "None"]:
         current_node_details = get_node_details(id=current_node_id, data=template_response_config)
         logger.info(f"✨Current node details: {current_node_details}")
 
-        # Node Logic 1.2:-Match the user message with the current node message/options
+        # Node Logic 1.2:- Match the user message with the current node message/options
         user_message = data['user_message']
 
         # TODO: Node Logic 1.2.1:- Might need to check the type of response we need for the template, it might be options, text etc
         response_check_type = current_node_details.get("type", "").lower()
+        print(f"✨ 🔍 Response check type: {response_check_type}")
 
-        fallback_message = None
+        fallback_message = ""
         # Node Logic 1.2.1:- Handle multiple node types
         if response_check_type == "list":
             list_response = list_type_node_logic(user_message=user_message, current_node=current_node_details)
@@ -369,9 +412,13 @@ async def generate_user_response(data: dict):
 
             if not next_node_id and not response_to_user:    # No good match found, handle fallback
                 fallback_response = get_fallback_response(node_data=current_node_details, default_message="I'm sorry, I didn't understand your selection. Please choose from the list above.")
-                # print(f"✨ 🔍 Fallback response: {fallback_response}")
+                print(f"✨ 🔍 Fallback response: {fallback_response}")
                 next_node_id = fallback_response.get("next_node_id", "")
                 fallback_message = fallback_response.get("fallback_message", "")
+                fallback_trigger = True
+                if fallback_message == "" and fallback_trigger == True:
+                    fallback_message = "I'm sorry, I didn't understand your selection. Please choose from the list above."
+                    metadata = get_node_details(id=current_node_id, data=template_response_config).get("metadata", {})
                 total_retry_count = fallback_response.get("retry_count", 0)
                 retry_count += 1   # Increment the retry count by 1
 
@@ -390,16 +437,21 @@ async def generate_user_response(data: dict):
 
             if not next_node_id and not response_to_user:    # No good match found, handle fallback
                 fallback_response = get_fallback_response(node_data=current_node_details, default_message="I'm sorry, I didn't understand your selection. Please choose from the list above.")
-                # print(f"🪪‼️ Fallback response: {fallback_response}")
+                print(f"🪪‼️ Fallback response: {fallback_response}")
                 next_node_id = fallback_response.get("next_node_id", "")
                 fallback_message = fallback_response.get("fallback_message", "")
+                fallback_trigger = True
+                if fallback_message == "" and fallback_trigger == True:
+                    fallback_message = "I'm sorry, I didn't understand your selection. Please choose from the above options."
+                    metadata = get_node_details(id=current_node_id, data=template_response_config).get("metadata", {})
                 total_retry_count = fallback_response.get("retry_count", 0)
                 retry_count += 1   # Increment the retry count by 1
 
+        # TODO: Add the logic for text type node
         else:
             print(f"🚧‼️ Invalid metadata info ---->>")
             logger.error(f"Invalid response type found in template, please check and implement the logic for the same - Nodel Logic 1.2.1.1 - {response_check_type}")
-            raise HTTPException(status_code=400, detail=f"Invalid response type found in template, please check and implement the logic for the same - Nodel Logic 1.2.1.1 - {response_check_type}")
+            return {"error": f"Invalid response type found in template, please check and implement the logic for the same - Nodel Logic 1.2.1.1 - {response_check_type}"}
 
         print(f"✨ 🔍 Response to user: {response_to_user}")
         print(f"✨ 🔍 Next node id: {next_node_id}")
@@ -410,15 +462,52 @@ async def generate_user_response(data: dict):
         print(f"✨ 🔍 Fallback trigger: {fallback_trigger}")
        
        # Assign the fallback message to the response to user if no response to user is found
-        if not response_to_user:
-            response_to_user = fallback_message
-        else:
-            retry_count = int(0)
-            fallback_trigger = False
+        # if not response_to_user:
+        #     response_to_user = fallback_message
+        # else:
+        #     retry_count = int(0)   # TODO: Check if this is correct
+        #     fallback_trigger = False
 
-        # breakpoint()
-        # Save the response to the conversation history
-        save_response = database_service.update_record(
+      
+    # TO use metadata we need to check the type, content first then move to metadata
+    content = response_to_user
+
+    from app.api.endpoints.gupshup_apis import send_message, MessageRequest
+    if node_type == "text" and content != "":
+        print("Sending text message to the user")
+        whatsapp_message_data = {"type":"text", "text": content}
+        requested = MessageRequest(app_name=app_name, phone_number=data.get("phone", ""), message=whatsapp_message_data)
+        print(f"✨ 🔍 Requested: {requested}")
+        message_response = await send_message(request=requested)
+        print(f"✨ 🔍 Message response: {message_response}")
+
+    elif node_type == "list" and content != "":
+        print("Sending list message to the user")
+        whatsapp_message_data = generate_list_message_data(message_id=latest_conversation_id, content=content, metadata=metadata, fallback_message=fallback_message, fallback_trigger=fallback_trigger)
+        requested = MessageRequest(app_name=app_name, phone_number=data.get("phone", ""), message=whatsapp_message_data)
+        print(f"✨ 🔍 Requested: {requested}")
+        message_response = await send_message(request=requested)
+        print(f"✨ 🔍 Message response: {message_response}")
+        
+
+    elif node_type == "quick_reply" and content != "":
+        print("Sending quick reply message to the user")
+        whatsapp_message_data = generate_quick_reply_message_data(message_id=latest_conversation_id, content=content,metadata=metadata, fallback_message=fallback_message, fallback_trigger=fallback_trigger)
+        requested = MessageRequest(app_name=app_name, phone_number=data.get("phone", ""), message=whatsapp_message_data)
+        print(f"✨ 🔍 Requested: {requested}")
+        message_response = await send_message(request=requested)
+        print(f"✨ 🔍 Message response: {message_response}")
+    else:
+        print("Invalid node type")
+        return {"error": f"Invalid node type: {node_type}"}
+
+
+    # Combine text for response_to_user based on the node type
+    if  not isinstance(response_to_user, str) or response_to_user is None or response_to_user == "":
+        response_to_user = combine_whatsapp_message_text(whatsapp_message_data)
+
+    # Save the response to the conversation history
+    save_response = database_service.update_record(
             table_environment="whatsapp_campaigns",
             table_name="whatsapp_conversation_test",
             record_col_name="id",
@@ -431,99 +520,101 @@ async def generate_user_response(data: dict):
                 "fallback_trigger": fallback_trigger,
                 "retry_count": retry_count,
                 "node_level": node_level,
-                "previous_message": previous_message
+                "previous_message": previous_message,
+                "is_campaign_message": True,
+                "remarks": "User response saved in conversation history for campaign message"
             }
         )
-        logger.info(f"✅ Saved the response in conversation history")
-        # print(f"✨ 🔍 Save response: {save_response}")
-
+    if save_response:
+        logger.info(f"✅ Saved the response in conversation history : {save_response}")
     else:
-        node_details = get_node_details(id=nodes_data[0], data=template_response_config)
-        node_type = node_details.get("type", "")
-        metadata = node_details.get("metadata", {})
-        content = node_details.get("content", "")
+        return {"error": f"Error in saving response: {save_response}"}
 
-
-        # TODO: Change the logic for fallback response - add AI implemented fallback response
-        if not whatsapp_conversation_history:
-            # Send the current template along with the AI fallback response
-            from app.api.endpoints.gupshup_apis import send_template_message, DemoTemplateMessageRequest
-            requested = DemoTemplateMessageRequest(app_name=app_name, phone_number=data.get("phone", ""), template_id=current_template_id, template_params=['Delhi','Mumbai'], source_name="AI Fallback Response")
-            print(f"✨ 🔍 Requested: {requested}")
-            # template_response = await send_template_message(request=requested)
-            template_response = ""
-            print(f"✨ 🔍 Template response: {template_response}")
-            response_to_user = template_response.message if hasattr(template_response, 'message') else "I'm sorry, I didn't understand your message. Please try again."
-
-            fallback_trigger = True
-            retry_count += 1
-
-            print("CONTENT:", content)
-            print("RESPONSE TO USER:", response_to_user)
-
-            try:
-                save_response = database_service.update_record(
-                    table_environment="whatsapp_campaigns",
-                    table_name="whatsapp_conversation_test",
-                    record_col_name="id",
-                    record_id=latest_conversation_id,
-                    update_data={
-                        "template_id": current_template_id,
-                        "template_name": template_response_config.get("app_name", ""),
-                        "current_node_id": nodes_data[0] if len(nodes_data) > 0 else "",  # Fix the current & next node thing
-                        "response_to_user": response_to_user,
-                        "fallback_trigger": fallback_trigger,
-                        "retry_count": int(retry_count),
-                        "node_level": int(template_response_config.get("response_config", {}).get("nodes", [])[0].get("level", "0")),
-                    }
-                )
-                # print(f"✨ 🔍 Save response: {save_response}")
-                logger.info(f"✅ Saved the response in conversation history")
-            except Exception as e:
-                logger.error(f"Error in saving response: {str(e)}")
-                raise HTTPException(status_code=500, detail=f"Error in saving response: {str(e)}")
-
-    # TODO: Implement the logic to send the response to the user
-    print("-----------------------------------------------------------------------------------------------------------------")
-
-    # TO use metadata we need to check the type, content first then move to metadata
-    print("Type:-", node_type)
-    print("Content:", response_to_user)  # Implement this later
-    content = response_to_user
-    print("Metadata:", metadata)
-
-    from app.api.endpoints.gupshup_apis import send_message, MessageRequest
-    if node_type == "text" and content != "":
-        print("Sending text message to the user")
-        requested = MessageRequest(app_name=app_name, phone_number=data.get("phone", ""), message={"type":"text", "text": content})
-        print(f"✨ 🔍 Requested: {requested}")
-        message_response = await send_message(request=requested)
-        print(f"✨ 🔍 Message response: {message_response}")
-
-    elif node_type == "list" and content != "":
-        print("Sending list message to the user")
-        list_message_data = generate_list_message_data(message_id=latest_conversation_id, content=content,metadata=metadata)
-        requested = MessageRequest(app_name=app_name, phone_number=data.get("phone", ""), message=list_message_data)
-        print(f"✨ 🔍 Requested: {requested}")
-        message_response = await send_message(request=requested)
-        print(f"✨ 🔍 Message response: {message_response}")
-        
-
-    elif node_type == "quick_reply" and content != "":
-        print("Sending quick reply message to the user")
-        quick_reply_message_data = generate_quick_reply_message_data(message_id=latest_conversation_id, content=content,metadata=metadata)
-        requested = MessageRequest(app_name=app_name, phone_number=data.get("phone", ""), message=quick_reply_message_data)
-        print(f"✨ 🔍 Requested: {requested}")
-        message_response = await send_message(request=requested)
-        print(f"✨ 🔍 Message response: {message_response}")
-    else:
-        print("Invalid node type")
 
 
 
 ##################################### Shift Upwards ######################################################
-def generate_list_message_data(message_id, content, metadata):
+
+def combine_whatsapp_message_text(message_data: dict) -> str:
+    """
+    Combine text elements from WhatsApp message dictionary to create response_to_user string
+    
+    Args:
+        message_data: WhatsApp message dictionary (list or quick_reply type)
+        
+    Returns:
+        str: Combined text for response_to_user
+    """
+    if not isinstance(message_data, dict):
+        logger.error(f"❌ Invalid message data: {message_data}")
+        return ""
+    
+    message_type = message_data.get("type", "")
+    combined_text_parts = []
+    
+    if message_type == "list":
+        # Extract title, body, footer
+        title = message_data.get("title", "").strip()
+        body = message_data.get("body", "").strip()
+        footer = message_data.get("footer", "").strip()
+        
+        # Add non-empty parts
+        if title:
+            combined_text_parts.append(title)
+        if body:
+            combined_text_parts.append(body)
+        if footer:
+            combined_text_parts.append(footer)
+            
+        # Extract options text
+        items = message_data.get("items", [])
+        options_text = []
+        for item in items:
+            options = item.get("options", [])
+            for option in options:
+                option_title = option.get("title", "").strip()
+                if option_title:
+                    options_text.append(f"• {option_title}")
+        
+        if options_text:
+            combined_text_parts.append("Options:\n" + "\n".join(options_text))
+            
+    elif message_type == "quick_reply":
+        # Extract content text
+        content = message_data.get("content", {})
+        if isinstance(content, dict):
+            header = content.get("header", "").strip()
+            text = content.get("text", "").strip()
+            caption = content.get("caption", "").strip()
+            
+            if header:
+                combined_text_parts.append(header)
+            if text:
+                combined_text_parts.append(text)
+            if caption:
+                combined_text_parts.append(caption)
+        
+        # Extract options text
+        options = message_data.get("options", [])
+        options_text = []
+        for option in options:
+            option_title = option.get("title", "").strip()
+            if option_title:
+                options_text.append(f"• {option_title}")
+        
+        if options_text:
+            combined_text_parts.append("Options:\n" + "\n".join(options_text))
+    
+    # Join all parts with double newlines for better readability
+    return "\n\n".join(combined_text_parts) if combined_text_parts else ""
+
+
+def generate_list_message_data(message_id, content, metadata, fallback_message, fallback_trigger):
     metadata_sections = metadata.get("sections", [])
+    if fallback_trigger:
+        fallback_message = fallback_message
+    else:
+        fallback_message = ""
 
     items = []
     for section in metadata_sections:
@@ -541,18 +632,23 @@ def generate_list_message_data(message_id, content, metadata):
    
     globalButtons = [{"type": "text", "title": "Choose One"}]
 
-    return {
-        "type": "list", 
+    return {"type": "list", 
         "title": metadata.get("body", ""),
         "body": metadata.get("header", ""), 
-        "footer": metadata.get("footer", ""), 
+        "footer": metadata.get("footer", "") + "\n" + str(fallback_message), 
         "msgid": message_id, 
         "globalButtons": globalButtons, 
         "items": items
     }
 
 
-def generate_quick_reply_message_data(message_id, content, metadata):
+def generate_quick_reply_message_data(message_id, content, metadata, fallback_message, fallback_trigger):
+    if fallback_trigger:
+        fallback_message = fallback_message
+    else:
+        fallback_message = ""
+
+    print(f"✨ 🔍 Fallback message: {fallback_message}")
     metadata_options =metadata.get("options", [])
     options_list = []
     for option in metadata_options:
@@ -566,7 +662,7 @@ def generate_quick_reply_message_data(message_id, content, metadata):
         })
     content_data = {
         "type":"text",
-        "header":content,
+        "header":str(fallback_message) + "\n" + str(content),
         "text":"this is the body",
         "caption":"this is the footer"
     }

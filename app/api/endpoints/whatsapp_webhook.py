@@ -337,7 +337,7 @@ async def send_application_status_update(data: dict):
             "is_check_application_request": True,
             "response_to_user": application_status_update_data["application_status"]
         }
-        
+
         from app.services.database_service import database_service
         update_result = database_service.update_record(
             table_environment="whatsapp_campaigns",
@@ -541,7 +541,7 @@ def extract_data_from_body(body: dict) -> dict:
     }
 
 @router.post("/whatsapp/gupshup/webhook")
-async def gupshup_whatsapp_webhook(request: dict):
+async def gupshup_whatsapp_webhook(request: Request):
     """
     Webhook endpoint that receives WhatsApp messages from Gupshup
     This endpoint is called automatically by WhatsApp when a message is received
@@ -549,13 +549,13 @@ async def gupshup_whatsapp_webhook(request: dict):
     
     # try:
         # Log request details for debugging
-    # content_type = request.headers.get("content-type", "")
-    content_type = "application/json"
+    content_type = request.headers.get("content-type", "")
+    # content_type = "application/json"
     logger.info(f"Webhook received - Content-Type: {content_type}")
     
     # Get the raw body first
-    # raw_body = await request.body() # TODO: Uncomment this while deploying & remove the below line
-    raw_body = request.get("body", "")
+    raw_body = await request.body() # TODO: Uncomment this while deploying & remove the below line
+    # raw_body = request.get("body", "")
     logger.info(f"Raw body length: {len(raw_body)} bytes")
 
     #-------------------------------------------------------------------------#
@@ -598,12 +598,12 @@ async def gupshup_whatsapp_webhook(request: dict):
     # Try to parse as JSON
     try:
         if content_type.startswith("application/json"):
-            # body = await request.json() # TODO: Uncomment this while deploying & remove the below line
-            body = request.get("body", "")
+            body = await request.json() # TODO: Uncomment this while deploying & remove the below line
+            # body = request.get("body", "")
         else:
             # Try to parse raw body as JSON anyway
-            # body_text = raw_body.decode('utf-8') # TODO: Uncomment this while deploying & remove the below line
-            body_text = raw_body 
+            body_text = raw_body.decode('utf-8') # TODO: Uncomment this while deploying & remove the below line
+            # body_text = raw_body 
             logger.info(f"Raw body text: {body_text[:500]}...")  # Log first 500 chars
             body = json.loads(body_text)
     except json.JSONDecodeError as json_error:
@@ -613,8 +613,8 @@ async def gupshup_whatsapp_webhook(request: dict):
         # Check if it's form data
         if content_type.startswith("application/x-www-form-urlencoded"):
             # Handle form data
-            # form_data = await request.form() # TODO: Uncomment this while deploying & remove the below line
-            form_data = request.get("form", "")
+            form_data = await request.form() # TODO: Uncomment this while deploying & remove the below line
+            # form_data = request.get("form", "")
             logger.info(f"Received form data: {dict(form_data)}")
             return {"status": "error", "message": "Form data not supported, expecting JSON"}
         

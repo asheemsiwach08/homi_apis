@@ -126,13 +126,19 @@ pipeline {
         }
 
         stage('Run New Docker Container on Port 5000') {
+            environment {
+        CONTAINER_NAME = 'Asheem-leads_and_gupshup_server'   // :point_left: choose your fixed name
+    }
             steps {
                 withCredentials([usernamePassword(credentialsId: 'aws-credentials', usernameVariable: 'AWS_ACCESS_KEY_ID', passwordVariable: 'AWS_SECRET_ACCESS_KEY')]) {
                     sh '''
+                    if docker ps -a --format '{{.Names}}' | grep -w "${CONTAINER_NAME}" >/dev/null 2>&1; then
+                        docker rm -f "${CONTAINER_NAME}" || true
+                    fi
                         bash -c '
                         export AWS_ACCESS_KEY_ID="$AWS_ACCESS_KEY_ID"
                         export AWS_SECRET_ACCESS_KEY="$AWS_SECRET_ACCESS_KEY"
-                        docker run -d -p 5000:5000 \
+                        docker run -d --name "${CONTAINER_NAME}" -p 5000:5000 \
                             -e AWS_ACCESS_KEY_ID="$AWS_ACCESS_KEY_ID" \
                             -e AWS_SECRET_ACCESS_KEY="$AWS_SECRET_ACCESS_KEY" \
                             ${DOCKER_REGISTRY}/${DOCKER_TAG}

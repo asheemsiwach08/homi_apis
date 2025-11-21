@@ -163,10 +163,8 @@ def get_response_config_details(data: dict) -> list:
     """ Get the response config details for the current template id """
 
     response_config = data.get("response_config", {})
-    print(f"🚩 Response config: {response_config}")
-    
+
     if not isinstance(response_config, dict) or len(response_config) == 0:
-        print(f"🚩 No response config found")
         return []
 
     nodes = []
@@ -529,10 +527,27 @@ async def generate_user_response(data: dict, whatsapp_user_data: dict):
         response_to_user = combine_whatsapp_message_text(whatsapp_message_data)
 
     # Save the message id from the whatsapp message response in conversation history - logic for status update
-    if message_response and isinstance(message_response, dict) and message_response.get("data", {}).get("message_id", ""):
-        message_id = message_response.get("data", {}).get("message_id", "")
-    else:
-        message_id = ""
+    print("Type ------------------>", type(message_response))
+    print("Message response ------------------>", message_response)
+    
+    message_id = ""
+    if message_response and hasattr(message_response, 'success') and message_response.success:
+        # Check if messageId is in the direct data field
+        if hasattr(message_response, 'data') and message_response.data and isinstance(message_response.data, dict):
+            message_id = message_response.data.get("messageId", "")
+            if message_id:
+                logger.info(f"🔷Message id: {message_id} found in the whatsapp message response (direct data)")
+        
+        # Check if messageId is in the gupshup_response data field
+        if not message_id and hasattr(message_response, 'gupshup_response') and message_response.gupshup_response and isinstance(message_response.gupshup_response, dict):
+            gupshup_data = message_response.gupshup_response.get("data", {})
+            if isinstance(gupshup_data, dict):
+                message_id = gupshup_data.get("messageId", "")
+                if message_id:
+                    logger.info(f"🔷Message id: {message_id} found in the whatsapp message response (gupshup_response)")
+    
+    if not message_id:
+        logger.info(f"🔷No message id found in the whatsapp message response")
 
     # Save the response to the conversation history
     logger.info(f"🔷Getting into the save response to conversation history logic")

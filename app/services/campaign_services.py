@@ -11,8 +11,6 @@ def to_utc_dt(ts: Optional[int]) -> datetime:
     Convert provider timestamps (ms or sec) to UTC datetime.
     Accepts None; returns now() in that case to avoid crashes (adjust if you prefer).
     """
-    print(f"🚩 Timestamp: {ts} , type: {type(ts)}")
-    
     # Handle None or empty values
     if ts is None or ts == "" or ts == "None":
         return datetime.now(tz=timezone.utc)
@@ -530,6 +528,12 @@ async def generate_user_response(data: dict, whatsapp_user_data: dict):
     if  not isinstance(response_to_user, str) or response_to_user is None or response_to_user == "":
         response_to_user = combine_whatsapp_message_text(whatsapp_message_data)
 
+    # Save the message id from the whatsapp message response in conversation history - logic for status update
+    if message_response and isinstance(message_response, dict) and message_response.get("data", {}).get("message_id", ""):
+        message_id = message_response.get("data", {}).get("message_id", "")
+    else:
+        message_id = ""
+
     # Save the response to the conversation history
     logger.info(f"🔷Getting into the save response to conversation history logic")
     save_response = database_service.update_record(
@@ -538,6 +542,7 @@ async def generate_user_response(data: dict, whatsapp_user_data: dict):
             record_col_name="id",
             record_id=latest_conversation_id,
             update_data={
+                "wa_id": message_id, # message id - whatsapp message id
                 "template_id": current_template_id,
                 "template_name": template_response_config.get("app_name", ""),
                 "current_node_id": next_node_id,   # Fix the current & next node thing

@@ -146,8 +146,10 @@ def get_response_config_details(data: dict) -> list:
     """ Get the response config details for the current template id """
 
     response_config = data.get("response_config", {})
+    print(f"🚩 Response config: {response_config}")
     
     if not isinstance(response_config, dict) or len(response_config) == 0:
+        print(f"🚩 No response config found")
         return []
 
     nodes = []
@@ -317,15 +319,21 @@ async def generate_user_response(data: dict, whatsapp_user_data: dict):
     # Get the template response configuration for the current template id
     try:
         template_response_config = get_template_response_config(application_name=app_name, template_id=current_template_id)
+        if not isinstance(template_response_config, dict) or len(template_response_config) == 0:
+            logger.warning(f"🚩 No template response configuration found")
+            return {"error": f"No template response configuration found"}
         logger.info(f"✅ Template response configuration found")#{template_response_config}")
     except Exception as e:
         logger.error(f"❌ Error in getting template response configuration: {str(e)}")
         return {"error": f"Error in getting template response configuration: {str(e)}"}
 
-    # OPTIONAL: it can be removed if not needed
+    # Get nodes data from the template response configuration
     try:
         nodes_data = get_response_config_details(data=template_response_config)
-        logger.info(f"✅ Nodes data found {nodes_data}")
+        if not isinstance(nodes_data, list) or len(nodes_data) == 0:
+            logger.warning(f"🚩 No nodes data found in the template response configuration")
+            return {"error": f"No nodes data found in the template response configuration"}
+        logger.info(f"✅ Nodes data found")
     except Exception as e:
         logger.error(f"❌ Error in getting nodes data: {str(e)}")
         return {"error": f"Error in getting nodes data: {str(e)}"}

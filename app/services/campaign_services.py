@@ -208,8 +208,8 @@ def list_type_node_logic(user_message: str, current_node: dict):
                         best_match_score = max_score
                         best_match_row = row
             
-            # Check if we found a good match (threshold: 70)
-            if best_match_score >= 70 and best_match_row:
+            # Check if we found a good match (threshold: 90)
+            if float(best_match_score) >= float(90) and best_match_row:
                 # Get next node ID from nextNodes mapping using row id
                 # level = current_node.get("level", "")
                 next_node_data = current_node.get("nextNodes", {}).get(f"next_0", {})       # TODO: Change this to nextNodeId after testing
@@ -254,8 +254,8 @@ def quick_reply_type_node_logic(template_config, user_message: str, current_node
                     best_match_score = max_score
                     best_match_option = option
 
-            # Check if we found a good match (threshold: 70)
-            if best_match_score >= 70 and best_match_option:
+            # Check if we found a good match (threshold: 90)
+            if float(best_match_score) >= 90 and best_match_option:
                 # Get next node ID from nextNodes mapping using row id
                 print("Best match option ----------->", best_match_option)
                 next_node_data_list = [node for node in template_config.get("response_config", {}).get("nodes", []) if node.get("id") == best_match_option.get("nextNodeId")]  # Selecting the one node with the best match   
@@ -301,12 +301,6 @@ def get_fallback_response(node_data: dict, default_message: str) -> dict:
 async def generate_user_response(data: dict, whatsapp_user_data: dict):
 
     # print(f"✨ 🔍 Data: {data}")
-
-    # TODO: 1. Lets decide some variable first
-    # TODO: 2. Add a check to see if we got the session id in the data or not if not then generate new session id whilie initiating the campaign
-    # TODO: 3. Find the past record in the whatsapp_conversation table for the given mobile number and session 
-    # TODO: 4. Then implement this node logic for adding new record in the whatsapp_conversation table
-    
     # Generate user response based on campaign history and template response configuration
     # campaign_history = get_campaign_history(data)
     # is_campaign_message, current_template_id, app_name, campaign_history_time = campaign_history
@@ -359,7 +353,7 @@ async def generate_user_response(data: dict, whatsapp_user_data: dict):
     
     print(f"➡️‼️ User message: {data['user_message']} ‼️ Current node id: {current_node_id} ‼️ Next node id: {next_node_id} ‼️ Fallback trigger: {fallback_trigger} ‼️ Retry count: {retry_count}")
 
-    if retry_count >= 3:
+    if int(retry_count) >= 3:
         # TODO: Implement AI fallback response here - for now just adding simple text response
         print("RETRY COUNT IS GREATER THAN 3:-----------------------------", retry_count)
         response_to_user = "Sorry, I didn't understand your message. Please try again. Try with a different message."
@@ -374,8 +368,9 @@ async def generate_user_response(data: dict, whatsapp_user_data: dict):
         return {"response_to_user": response_to_user, "fallback_trigger": fallback_trigger}
 
 
-    ## ---------------------------------------- NODE LOGIC ----------------------------------------------------##
+    ## ----------------------------------------------- NODE LOGIC ------------------------------------------------------##
     if current_node_id in ["", None, "undefined", "null", "None"] and isinstance(nodes_data, list) and len(nodes_data) > 0:
+        logger.info(f"🔷Getting into the nodes data logic for new conversation")
         node_details = get_node_details(id=nodes_data[0], data=template_response_config)
         node_type = node_details.get("type", "")
         metadata = node_details.get("metadata", {})
@@ -385,6 +380,7 @@ async def generate_user_response(data: dict, whatsapp_user_data: dict):
 
     # Node Logic 1.1:- for Current Node (If current node id is present in conversation history)
     if current_node_id not in ["", None, "undefined", "null", "None"]:
+        logger.info(f"🔷Getting into the nodes data logic for existing conversation")
         current_node_details = get_node_details(id=current_node_id, data=template_response_config)
         logger.info(f"✨Current node details: {current_node_details}")
 

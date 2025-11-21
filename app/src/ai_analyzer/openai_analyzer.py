@@ -22,7 +22,21 @@ class OpenAIAnalyzer:
         """Initialize OpenAI analyzer."""
         self.openai_config = config.get_openai_config()
         self.client = OpenAI(api_key=self.openai_config['api_key'])
-        
+
+    def analyze_anything(self, prompt: str) -> str:
+
+        try:
+            response = self.client.chat.completions.create(
+                model=self.openai_config['model'],
+                messages=[
+                    {"role": "system", "content": prompt}
+                ]
+            )
+            return response.choices[0].message.content
+        except Exception as e:
+            logger.error(f"Error in analyzing anything: {str(e)}")
+            return None
+
     def analyze_email(self, email_data: Dict[str, Any]) -> List[Dict[str, Any]]:
         """Analyze email content using OpenAI.
         

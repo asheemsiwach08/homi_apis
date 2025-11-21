@@ -12,8 +12,26 @@ def to_utc_dt(ts: Optional[int]) -> datetime:
     Accepts None; returns now() in that case to avoid crashes (adjust if you prefer).
     """
     print(f"🚩 Timestamp: {ts} , type: {type(ts)}")
-    if ts is None:
+    
+    # Handle None or empty values
+    if ts is None or ts == "" or ts == "None":
         return datetime.now(tz=timezone.utc)
+    
+    # Convert string to int if needed
+    try:
+        if isinstance(ts, str):
+            # Handle empty string or invalid string
+            if ts.strip() == "":
+                return datetime.now(tz=timezone.utc)
+            ts = int(ts)
+        elif not isinstance(ts, (int, float)):
+            # If it's not a number type, return current time
+            return datetime.now(tz=timezone.utc)
+    except (ValueError, TypeError):
+        # If conversion fails, return current time
+        logger.warning(f"Invalid timestamp format: {ts}, using current time")
+        return datetime.now(tz=timezone.utc)
+    
     # Heuristic: >10_000_000_000 => looks like ms
     if ts > 10_000_000_000:
         return datetime.fromtimestamp(ts / 1000, tz=timezone.utc)

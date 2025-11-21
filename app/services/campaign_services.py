@@ -405,7 +405,7 @@ async def generate_user_response(data: dict, whatsapp_user_data: dict):
         message_response = await send_message(request=requested)
 
         logger.info(f"❌ Retry count is greater than 3, adding a fallback response - Retry count: {retry_count}")
-        return {"response_to_user": response_to_user, "fallback_trigger": fallback_trigger}
+        pass
 
 
     logger.info(f"🔷 Current node id: {current_node_id}")

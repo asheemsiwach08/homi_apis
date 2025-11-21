@@ -698,6 +698,7 @@ async def gupshup_whatsapp_webhook(request: Request):
 
         elif top_level_type == "message-event":
             requested_data = process_message_event_data(payload, requested_data)
+            print(f"✨ 🔍 Requested data from message event: {requested_data}")
 
             if requested_data:
                 try:
@@ -709,7 +710,7 @@ async def gupshup_whatsapp_webhook(request: Request):
                         update_data=requested_data,
                         environment="orbit"
                     )
-                    requested_data["record_id"] = event_update_result.get("message_id", "")
+                    # requested_data["record_id"] = event_update_result.get("message_id", "")
                 except Exception as e:
                     logger.error(f"Error updating event data to database: {str(e)}")
                     return {"status": "error", "message": "Error updating event data to database", "error": str(e)}
@@ -727,7 +728,7 @@ async def gupshup_whatsapp_webhook(request: Request):
                         update_data=requested_data,
                         environment="orbit"
                     )
-                    requested_data["record_id"] = billing_update_result.get("message_id", "")
+                    # requested_data["record_id"] = billing_update_result.get("message_id", "")
                 except Exception as e:
                     logger.warning(f"Error updating billing data to database: {str(e)}")
                     return {"status": "error", "message": "Error updating billing data to database", "error": str(e)}

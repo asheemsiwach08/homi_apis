@@ -541,7 +541,7 @@ def extract_data_from_body(body: dict) -> dict:
     }
 
 @router.post("/whatsapp/gupshup/webhook")
-async def gupshup_whatsapp_webhook(request: dict):
+async def gupshup_whatsapp_webhook(request: Request):
     """
     Webhook endpoint that receives WhatsApp messages from Gupshup
     This endpoint is called automatically by WhatsApp when a message is received

@@ -11,6 +11,7 @@ def to_utc_dt(ts: Optional[int]) -> datetime:
     Convert provider timestamps (ms or sec) to UTC datetime.
     Accepts None; returns now() in that case to avoid crashes (adjust if you prefer).
     """
+    print(f"🚩 Timestamp: {ts} , type: {type(ts)}")
     if ts is None:
         return datetime.now(tz=timezone.utc)
     # Heuristic: >10_000_000_000 => looks like ms

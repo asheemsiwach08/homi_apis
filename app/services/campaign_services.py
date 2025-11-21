@@ -466,6 +466,7 @@ async def generate_user_response(data: dict, whatsapp_user_data: dict):
 
       
     # TO use metadata we need to check the type, content first then move to metadata
+    logger.info(f"🔷Getting into the send message logic")
     content = response_to_user
 
     from app.api.endpoints.gupshup_apis import send_message, MessageRequest
@@ -503,6 +504,7 @@ async def generate_user_response(data: dict, whatsapp_user_data: dict):
         response_to_user = combine_whatsapp_message_text(whatsapp_message_data)
 
     # Save the response to the conversation history
+    logger.info(f"🔷Getting into the save response to conversation history logic")
     save_response = database_service.update_record(
             table_environment="whatsapp_campaigns",
             table_name="whatsapp_conversation_test",

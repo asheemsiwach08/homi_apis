@@ -325,7 +325,7 @@ async def generate_user_response(data: dict, whatsapp_user_data: dict):
     # OPTIONAL: it can be removed if not needed
     try:
         nodes_data = get_response_config_details(data=template_response_config)
-        logger.info(f"✅ Nodes data found" ) #{nodes_data}")
+        logger.info(f"✅ Nodes data found {nodes_data}")
     except Exception as e:
         logger.error(f"❌ Error in getting nodes data: {str(e)}")
         return {"error": f"Error in getting nodes data: {str(e)}"}
@@ -349,8 +349,7 @@ async def generate_user_response(data: dict, whatsapp_user_data: dict):
         next_node_id = ""
         fallback_trigger = ""
         retry_count = 0
-    print("RETRY COUNT:-----------------------------", retry_count)
-    
+    logger.info(f"🔷Retry count: {retry_count} for the conversation id: {latest_conversation_id}")
     print(f"➡️‼️ User message: {data['user_message']} ‼️ Current node id: {current_node_id} ‼️ Next node id: {next_node_id} ‼️ Fallback trigger: {fallback_trigger} ‼️ Retry count: {retry_count}")
 
     if int(retry_count) >= 3:
@@ -467,6 +466,7 @@ async def generate_user_response(data: dict, whatsapp_user_data: dict):
       
     # TO use metadata we need to check the type, content first then move to metadata
     logger.info(f"🔷Getting into the send message logic")
+    print(f"✨ 🔍 Response to user: {response_to_user}")
     content = response_to_user
 
     from app.api.endpoints.gupshup_apis import send_message, MessageRequest

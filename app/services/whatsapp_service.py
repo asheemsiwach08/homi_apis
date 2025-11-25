@@ -56,7 +56,7 @@ class WhatsAppService:
         """Generate a 6-digit OTP"""
         return str(random.randint(100000, 999999))
 
-    async def send_otp(self, phone_number: str, otp: str) -> dict:
+    async def send_otp(self, phone_number: str, otp: str, template_id: str = None) -> dict:
         """Send OTP via WhatsApp using Gupshup API"""
         headers = {
             'Cache-Control': 'no-cache',
@@ -70,7 +70,7 @@ class WhatsAppService:
             'source': self.source,
             'destination': phone_number,
             'src.name': self.whatsapp_otp_src_name,
-            'template': f'{{"id":"{self.whatsapp_otp_template_id}","params":["{otp}"]}}'
+            'template': f'{{"id":"{template_id if template_id else self.whatsapp_otp_template_id}","params":["{otp}"]}}'
         }
 
         try:

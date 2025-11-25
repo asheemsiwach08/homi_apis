@@ -36,7 +36,7 @@ async def send_otp(request: SendOTPRequest):
 
         consent_request = {
             "phone_number": request.phone_number, 
-            "app_name": request.app_name if request.app_name else "orbit", 
+            "app_name": request.environement if request.environement else "orbit", 
             "template_id": whatspp_otp_template_id if request.user_check else whatsapp_consent_template_id
         }
 
@@ -195,12 +195,11 @@ async def send_consent_request(consent_request):
         template_request = DemoTemplateMessageRequest(
             app_name=consent_request.get("app_name") if consent_request.get("app_name") else "orbit",
             phone_number="+91"+ str(consent_request.get("phone_number")),
-            template_id=consent_request.get("template_id") if consent_request.get("template_id") else "594a8689-00f9-422d-87df-0ba8987d1469",
+            template_id=consent_request.get("template_id") if consent_request.get("template_id") else "2fb0ec1f-2c63-459e-a347-57cc76fc21fb",
             template_params=[user_consent_link]
         )
         
         template_response = await send_template_message(template_request)
-        logger.info("template response", template_response)
 
         database_service.save_whatsapp_conversation(environment="orbit", 
         table_name="user_consent", 

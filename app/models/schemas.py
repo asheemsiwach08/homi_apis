@@ -252,6 +252,8 @@ class TrackApplicationResponse(BaseModel):
 ################################# OTP Schemas #######################################
 
 class SendOTPRequest(BaseModel):
+    environement: Optional[Literal["orbit", "homfinity"]] = "orbit"
+    user_check: Optional[bool] = True
     phone_number: str = Field(..., description="Phone number to send OTP to")
 
 class ResendOTPRequest(BaseModel):
@@ -265,6 +267,19 @@ class OTPResponse(BaseModel):
     success: bool
     message: str
     data: Optional[dict] = None 
+
+################################# Consent Request Schemas #######################################
+
+class ConsentRequestRequest(BaseModel):
+    app_name: Optional[Literal["orbit", "homfinity"]] = "orbit"
+    user_check: Optional[bool] = False
+    phone_number: str = Field(..., description="Phone number to send OTP to")
+
+class ConsentRequestResponse(BaseModel):
+    success: bool = Field(..., description="Success status")
+    message: str = Field(..., description="Message")
+    data: dict = Field(..., description="Data")
+
 
 ################################# WhatsApp Webhook Schemas #######################################
 

@@ -31,13 +31,13 @@ async def send_otp(request: SendOTPRequest):
     
     # Conditional check if the user wants to send consent request
     if not request.user_check:
-        whatspp_otp_template_id = "594a8689-00f9-422d-87df-0ba8987d1469"
-        whatsapp_consent_template_id = "2fb0ec1f-2c63-459e-a347-57cc76fc21fb"
+        whatspp_otp_template_id = "2fb0ec1f-2c63-459e-a347-57cc76fc21fb"
+        whatsapp_consent_template_id = "594a8689-00f9-422d-87df-0ba8987d1469"
 
         consent_request = {
             "phone_number": request.phone_number, 
             "app_name": request.environement if request.environement else "orbit", 
-            "template_id": whatspp_otp_template_id if request.user_check else whatsapp_consent_template_id
+            "template_id": whatsapp_consent_template_id
         }
 
         # Send consent request
@@ -47,7 +47,7 @@ async def send_otp(request: SendOTPRequest):
             consent_message = consent_request_response.get("message", "")
 
         # Send OTP via WhatsApp using normalized phone number
-        result = await whatsapp_service.send_otp(normalized_phone, otp, template_id=whatsapp_consent_template_id)
+        result = await whatsapp_service.send_otp(normalized_phone, otp, template_id=whatspp_otp_template_id)
     
     else:
         consent_message = "no consent request sent"

@@ -62,7 +62,7 @@ async def send_otp(request: SendOTPRequest):
         return OTPResponse(
             success=True,
             message="OTP sent successfully" + ", " + consent_message,
-            data={"phone_number": request.phone_number, "otp": otp}  # Include OTP for testing, Remove it later
+            data={"phone_number": request.phone_number}
         )
     else:
         raise HTTPException(
@@ -102,7 +102,7 @@ async def resend_otp(request: ResendOTPRequest):
         return OTPResponse(
             success=True,
             message="OTP resent successfully",
-            data={"phone_number": request.phone_number, "otp": otp}  # Include OTP for testing, Remove it later
+            data={"phone_number": request.phone_number}
         )
     else:
         raise HTTPException(

@@ -611,9 +611,6 @@ async def send_message(request: MessageRequest):
     if request.source_name:
         data['src.name'] = request.source_name
 
-    print("\n\nData: ", data)
-    print("\n\nHeaders: ", headers)
-    
     result = await send_gupshup_request(settings.GUPSHUP_API_MSG_URL, data, headers)
     
     return BaseGupshupResponse(
@@ -650,9 +647,6 @@ async def send_text_message(request: TextMessageRequest):
     if request.source_name:
         data['src.name'] = request.source_name
 
-    print("\n\nData: ", data)
-    print("\n\nHeaders: ", headers)
-    
     result = await send_gupshup_request(settings.GUPSHUP_API_MSG_URL, data, headers)
     
     return BaseGupshupResponse(

@@ -43,6 +43,8 @@ class TemplateMessageRequest(PhoneNumberRequest):
 
 class TextMessageRequest(PhoneNumberRequest):
     """Request for simple text messages"""
+    app_name: str = Field(..., description="Gupshup app name (e.g., 'homi', 'orbit')")
+    phone_number: str = Field(..., description="Phone number (supports multiple formats)")
     message: str = Field(..., description="Text message to send")
     source_name: Optional[str] = Field(None, description="Custom source name")
 
@@ -577,6 +579,48 @@ def validate_app_config(app_name: str) -> dict:
 
 # ==================== API ENDPOINTS ====================
 
+class MessageRequest(BaseModel):
+    app_name: str = Field(..., description="Gupshup app name (e.g., 'homi', 'orbit')")
+    phone_number: str = Field(..., description="Phone number in any format (will be normalized)")
+    message: dict = Field(..., description="Message data in Gupshup format")
+    source_name: Optional[str] = Field(None, description="Custom source name")
+
+@router.post("/send-message", response_model=BaseGupshupResponse)
+async def send_message(request: MessageRequest):
+    """
+    Send a message of any type via WhatsApp
+    
+    - **app_name**: Gupshup app name (e.g., 'homi', 'orbit')
+    - **phone_number**: Phone number in any format (will be normalized)
+    - **message**: Message data in Gupshup format
+    - **source_name**: Optional custom source name
+    """
+    # Get app-specific configuration
+    app_config = validate_app_config(request.app_name)
+    headers = get_gupshup_headers(app_config)
+    
+    # message ={"type":"text", "text": request["message"]} 
+    
+    data = {
+        'channel': 'whatsapp',
+        'source': app_config["source"],
+        'destination': request.phone_number,
+        'message': json.dumps(request.message)
+    }
+    
+    if request.source_name:
+        data['src.name'] = request.source_name
+
+    result = await send_gupshup_request(settings.GUPSHUP_API_MSG_URL, data, headers)
+    
+    return BaseGupshupResponse(
+        success=result["success"],
+        message="Message sent successfully" if result["success"] else "Failed to send message",
+        data=result["data"],
+        gupshup_response=result
+    )
+
+
 @router.post("/send-text", response_model=BaseGupshupResponse)
 async def send_text_message(request: TextMessageRequest):
     """
@@ -602,7 +646,7 @@ async def send_text_message(request: TextMessageRequest):
     
     if request.source_name:
         data['src.name'] = request.source_name
-    
+
     result = await send_gupshup_request(settings.GUPSHUP_API_MSG_URL, data, headers)
     
     return BaseGupshupResponse(
@@ -612,8 +656,16 @@ async def send_text_message(request: TextMessageRequest):
         gupshup_response=result
     )
 
+
+class DemoTemplateMessageRequest(BaseModel):
+    app_name: str
+    phone_number: str
+    template_id: str
+    template_params: List[str]
+    source_name: Optional[str] = None
+
 @router.post("/send-template", response_model=BaseGupshupResponse)
-async def send_template_message(request: TemplateMessageRequest):
+async def send_template_message(request: DemoTemplateMessageRequest):
     """
     Send a template message via WhatsApp
     

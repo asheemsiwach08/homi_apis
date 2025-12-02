@@ -117,6 +117,7 @@ async def gupshup_whatsapp_webhook(request: Request):
     try: 
         if top_level_type == "message":
             requested_data = process_message_data(payload, requested_data)
+            print(f"✨ 🔍 --------------------------------------->> Requested data from message(gupshup): {requested_data}")
 
             if requested_data:
                 # Save inbound message to the database

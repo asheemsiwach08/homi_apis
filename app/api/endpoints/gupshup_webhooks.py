@@ -187,8 +187,8 @@ async def gupshup_whatsapp_webhook(request: Request):
                     event_update_result = database_service.update_record(
                         table_environment="whatsapp_campaigns",
                         table_name="whatsapp_conversation_test",
-                        record_col_name="wa_id",
-                        record_id=requested_data["wa_id"],
+                        record_col_name="gs_id",
+                        record_id=requested_data["gs_id"],
                         update_data=requested_data,
                         environment="orbit"
                     )
@@ -205,8 +205,8 @@ async def gupshup_whatsapp_webhook(request: Request):
                     billing_update_result = database_service.update_record(
                         table_environment="whatsapp_campaigns",
                         table_name="whatsapp_conversation_test",
-                        record_col_name="wa_id",
-                        record_id=requested_data["wa_id"],
+                        record_col_name="gs_id",
+                        record_id=requested_data["gs_id"],
                         update_data=requested_data,
                         environment="orbit"
                     )
@@ -371,8 +371,9 @@ def process_message_event_data(payload: dict, requested_data: dict) -> dict:
         dict: The requested data
     """
     status = payload.get("type", "")
+    gs_id = payload.get("gsId", "") if "gsId" in payload.keys() else payload.get("id", "")
     wa_id = payload.get("id", "")
-    gs_id = payload.get("gsId", "")
+    # gs_id = payload.get("gsId", "")
     destination = payload.get("dest", "")
     ts = payload.get("payload", {}).get("ts", "")
 
@@ -411,8 +412,8 @@ def process_billing_event_data(payload: dict, requested_data: dict) -> dict:
     billable = ded.get("billable")
     category = ded.get("category")
     policy = ded.get("policy", ded.get("model"))
+    gs_id = refs.get("gsId", "") if "gsId" in refs.keys() else refs.get("id", "")
     wa_id = refs.get("id")
-    gs_id = refs.get("gsId")
     destination = refs.get("destination")
 
     # Pop the data which should not be updated

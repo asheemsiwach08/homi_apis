@@ -234,7 +234,8 @@ async def rm_book_appointment(request:BookAppointmentRequest):
         validate_book_appointment_data(request)
 
         # Prepare data for Application API
-        api_data = {"date": request.date, "time": request.time, "reference_id": request.reference_id} 
+        api_data = {"date": request.date, "time": request.time, "reference_id": request.reference_id, 
+        "assigned_to_user_id": request.assigned_to_user_id, "assigned_to_user_name": request.assigned_to_user_name} 
 
         # Call Basic Application API - Create Lead(CreateAppointmentByBasicUser)
         result = basic_app_service.create_appointment_by_basic_user(api_data)

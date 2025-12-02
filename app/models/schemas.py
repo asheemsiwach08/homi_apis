@@ -23,6 +23,8 @@ class BookAppointmentRequest(BaseModel):
     date: str
     time: str
     reference_id: str
+    assigned_to_user_id: Optional[str] = None
+    assigned_to_user_name: Optional[str] = None
 
 class BookAppointmentResponse(BaseModel):
     basic_application_id: str

@@ -324,15 +324,15 @@ class BasicApplicationService:
                 "assignedTo": "Self",
                 "dueDate": due_date,
                 "visibleTo": "BasicUsers",
-                "assignedToUserId": "dabfb1c0-2ac6-4d9f-90f8-1fbbd4f68108", ##TODO: Hom-i Bot User id
-                "assignedToUserName": "Hom-i", #TODO: Hom-i name
+                "assignedToUserId": lead_data.get("assigned_to_user_id", "dabfb1c0-2ac6-4d9f-90f8-1fbbd4f68108"), ##TODO:(future) make this required
+                "assignedToUserName": lead_data.get("assigned_to_user_name", "Hom-i"), #TODO:(future) make this required
                 "assignedToUserRefCode": "",
                 "spaToTaskAssigneeRoleId": "",
                 "sendupdateviawhatsapp": "",
                 "uploadedDocs": [],
                 "tagIds": [],
                 "createdByTenantName": "Basic Enterprises Private Limited",
-                "createdByUserName": "Hom-i", #TODO: Hom-i name
+                "createdByUserName": lead_data.get("assigned_to_user_name", "Hom-i"), #TODO:(future) make this required-correct created by user name
                 "refId": lead_data.get("reference_id", ""),
                 "customerWAnotificationDirection": "None",
                 "refType": "Application",

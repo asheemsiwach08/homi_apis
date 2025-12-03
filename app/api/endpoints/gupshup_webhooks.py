@@ -384,7 +384,8 @@ def process_message_event_data(payload: dict, requested_data: dict) -> dict:
     requested_data.pop("billing_details")
 
     # Update the requested data
-    # requested_data["phone"] = destination   # keep uncommented 
+    # requested_data["phone"] = destination   # keep uncommented
+    requested_data["response_status"] = status 
     requested_data["wa_id"] = wa_id
     requested_data["gs_id"] = gs_id
     requested_data["event_details"]["event_status"] = status

@@ -547,7 +547,7 @@ async def generate_user_response(data: dict, whatsapp_user_data: dict):
     # Save the message id from the whatsapp message response in conversation history - logic for status update
     message_id = get_message_id(message_response=message_response)
     update_data={
-                "wa_id": message_id, # message id - whatsapp message id
+                "gs_id": message_id, # message id - whatsapp message id
                 "template_id": current_template_id,
                 "template_name": template_response_config.get("app_name", ""),
                 "current_node_id": next_node_id,   # Fix the current & next node thing

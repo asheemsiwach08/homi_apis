@@ -656,10 +656,10 @@ def combine_whatsapp_message_text(message_data: dict) -> str:
 
 def generate_list_message_data(message_id, content, metadata, fallback_message, fallback_trigger):
     metadata_sections = metadata.get("sections", [])
-    if fallback_trigger:
-        fallback_message = fallback_message
-    else:
-        fallback_message = ""
+    # if fallback_trigger:
+    #     fallback_message = fallback_message
+    # else:
+    #     fallback_message = ""
 
     items = []
     for section in metadata_sections:
@@ -680,7 +680,7 @@ def generate_list_message_data(message_id, content, metadata, fallback_message, 
     return {"type": "list", 
         "title": metadata.get("body", ""),
         "body": metadata.get("header", ""), 
-        "footer": metadata.get("footer", "") + "\n" + str(fallback_message), 
+        "footer": metadata.get("footer", ""), 
         "msgid": message_id, 
         "globalButtons": globalButtons, 
         "items": items
@@ -688,10 +688,10 @@ def generate_list_message_data(message_id, content, metadata, fallback_message, 
 
 
 def generate_quick_reply_message_data(message_id, content, metadata, fallback_message, fallback_trigger):
-    if fallback_trigger:
-        fallback_message = fallback_message
-    else:
-        fallback_message = ""
+    # if fallback_trigger:
+    #     fallback_message = fallback_message
+    # else:
+    #     fallback_message = ""
 
     metadata_options =metadata.get("options", [])
     options_list = []
@@ -706,7 +706,7 @@ def generate_quick_reply_message_data(message_id, content, metadata, fallback_me
         })
     content_data = {
         "type":"text",
-        "header":str(fallback_message) + "\n" + str(content),
+        "header":content,
         "text":"this is the body",
         "caption":"this is the footer"
     }

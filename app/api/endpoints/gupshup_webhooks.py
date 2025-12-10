@@ -322,17 +322,19 @@ def process_message_data(payload: dict, requested_data: dict) -> dict:
     Returns:
         dict: The requested data
     """
-    # LIST:-{'id': 'wamid.HBgMOTE3OTg4MzYyMjgzFQIAEhgUM0FGMkQxMzQ1NDdFNDU1MTY4QkYA', 'source': '917988362283', 'type': 'list_reply', 'payload': {'title': 'Goa', 'id': '13622ef4-c533-40b2-b27b-80fb4888fdaa', 'reply': 'Goa 1', 'postbackText': 'Goa', 'description': 'Goa'}, 'sender': {'phone': '917988362283', 'name': 'Asheem Siwach', 'country_code': '91', 'dial_code': '7988362283'}, 'context': {'id': '81e8aa9c-5791-4907-b834-c5c4ebb15b13', 'gsId': '5be79285-a706-42e7-a99f-89a72145ce71', 'forwarded': False, 'frequently_forwarded': False}} 
-    # Text:- {'id': 'wamid.HBgMOTE3OTg4MzYyMjgzFQIAEhgUM0ExMUIxMkY1ODZGNzA5RUE5MTcA', 'source': '917988362283', 'type': 'text', 'payload': {'text': 'Helloo'}, 'sender': {'phone': '917988362283', 'name': 'Asheem Siwach', 'country_code': '91', 'dial_code': '7988362283'}}
-    print("PAYLOAD: **********", payload,"******************")
-    
     msg_type = payload.get("type", "")  # text, image, video, audio, document, location, contact, etc.
-    print("MSG TYPE: ", msg_type)
-    if msg_type =="text":
-        text = payload.get("payload", {}).get("text", "")
-
-    elif msg_type == "list_reply":
-        text = payload.get("payload", {}).get("postbackText", "")
+    logger.info(f"Whatsapp Message type: {msg_type}")
+    
+    try:
+        if msg_type =="text":
+            text = payload.get("payload", {}).get("text", "")
+        elif msg_type == "list_reply":
+            text = payload.get("payload", {}).get("postbackText", "")
+        else:
+            text = payload.get("payload", {}).get("description", "")
+    except Exception as e:
+        logger.warning(f"Error in processing message data: {str(e)}")
+        text = "Non-text message received"
 
     inbound_id = payload.get("id", "")
     sender = payload.get("sender", {})

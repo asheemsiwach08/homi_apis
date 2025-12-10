@@ -417,7 +417,7 @@ class DatabaseService:
             message = basic_api_response.get("message", "")
             is_success = bool(result and result.get("id") and "success" in message.lower())
             
-            logger.info(f"Book Appointment API Success Check - Has Result: {bool(result)}, Message: {message}, API ID: {result.get('id') if result else 'None'}, Success: {is_success}")
+            logger.info(f"Book Appointment API Success Check - Has Result: {bool(result)}, Message: {message}, APP ID: {result.get('id') if result else 'None'}, Success: {is_success}")
             
             if is_success:
                 # Extract data from successful API response (already extracted above)

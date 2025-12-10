@@ -25,6 +25,7 @@ class BookAppointmentRequest(BaseModel):
     reference_id: str
     assigned_to_user_id: Optional[str] = None
     assigned_to_user_name: Optional[str] = None
+    created_by_user_name: Optional[str] = None
 
 class BookAppointmentResponse(BaseModel):
     basic_application_id: str
@@ -156,6 +157,7 @@ class LeadCreateResponse(BaseModel):
     basic_application_id: str
     applicationId:str
     reference_id: str
+    assigned_to_rm: Optional[str] = None
     message: str
 
 ################################# Lead Flash Schemas ##############################################
@@ -226,6 +228,7 @@ class LeadFlashRequest(BaseModel):
 class LeadFlashResponse(BaseModel):
     basic_application_id: str
     reference_id: str
+    assigned_to_rm: Optional[str] = None
     message: str
 
     

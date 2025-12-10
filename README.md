@@ -387,7 +387,9 @@ except Exception as e:
 
 ## API Endpoints
 
-### OTP Operations
+All endpoints use the `/api_v1` prefix and return JSON responses with consistent error handling.
+
+### 🔐 OTP Operations
 
 #### 1. Send OTP
 ```http
@@ -1246,7 +1248,7 @@ Ensure all required environment variables are set:
 
 This project is licensed under the MIT License - see the LICENSE file for details.
 
-##  Support
+## Support
 
 For support and questions:
 - Create an issue in the repository

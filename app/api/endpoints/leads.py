@@ -157,7 +157,6 @@ async def create_lead_api(request: LeadCreateRequest):
         - Comprehensive error handling and audit trails
         - Support for lead modification (upserts based on existing records)
     """
-    print("Environment:", request.environment,"----------------------------------->>>")
     request_id = f"{request.mobile}_{request.pan}"
     logger.info(f"Starting lead creation for {request.firstName} {request.lastName}")
     try:
@@ -205,7 +204,9 @@ async def create_lead_api(request: LeadCreateRequest):
             logger.error(f"CreateFBBByBasicUser API failed: {error_msg}")
             raise HTTPException(status_code=400, detail=f"FBB creation failed: {error_msg}")
      
-
+        # Assigned to RM
+        assigned_to_rm = fbb_user_result.get("result", {}).get("applicationAssignedToRm", "") if fbb_user_result.get("result", {}).get("applicationAssignedToRm", "") else ""
+        
         # Application ID
         application_id = fbb_user_result.get("result", {}).get("id", "")
 
@@ -258,6 +259,7 @@ async def create_lead_api(request: LeadCreateRequest):
             basic_application_id=basic_application_id,
             applicationId=application_id,
             reference_id=reference_id,
+            assigned_to_rm=assigned_to_rm,
             message="Lead Created Successfully."
         )
     
@@ -418,7 +420,7 @@ async def lead_flash_api(request: LeadFlashRequest):
             "projectId": request.projectId or "",
             "creditScoreStatus": request.creditScoreStatus or ""
         }   
-        print("API DATA:", api_data)
+
         # Call Basic Fulfillment API (optional step)
         try:
             basic_app_service.create_fullfilment_using_application_id(api_data)
@@ -441,6 +443,8 @@ async def lead_flash_api(request: LeadFlashRequest):
         # Extract Basic Application ID
         basic_application_id = self_fullfilment_result.get("result", {}).get("basicAppId")
         reference_id = self_fullfilment_result.get("result", {}).get("id","")
+        # Assigned to RM
+        assigned_to_rm = self_fullfilment_result.get("result", {}).get("applicationAssignedToRm", "") if self_fullfilment_result.get("result", {}).get("applicationAssignedToRm", "") else ""
         
         if not basic_application_id:
             logger.error("Failed to extract Basic Application ID from self fulfillment response")
@@ -478,6 +482,7 @@ async def lead_flash_api(request: LeadFlashRequest):
         return LeadFlashResponse(
             basic_application_id=basic_application_id,
             reference_id=reference_id,
+            assigned_to_rm=assigned_to_rm,
             message="Lead Details Added Successfully."
         )
 

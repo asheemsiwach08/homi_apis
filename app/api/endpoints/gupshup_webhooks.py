@@ -322,45 +322,52 @@ def process_message_data(payload: dict, requested_data: dict) -> dict:
     Returns:
         dict: The requested data
     """
+    # LIST:-{'id': 'wamid.HBgMOTE3OTg4MzYyMjgzFQIAEhgUM0FGMkQxMzQ1NDdFNDU1MTY4QkYA', 'source': '917988362283', 'type': 'list_reply', 'payload': {'title': 'Goa', 'id': '13622ef4-c533-40b2-b27b-80fb4888fdaa', 'reply': 'Goa 1', 'postbackText': 'Goa', 'description': 'Goa'}, 'sender': {'phone': '917988362283', 'name': 'Asheem Siwach', 'country_code': '91', 'dial_code': '7988362283'}, 'context': {'id': '81e8aa9c-5791-4907-b834-c5c4ebb15b13', 'gsId': '5be79285-a706-42e7-a99f-89a72145ce71', 'forwarded': False, 'frequently_forwarded': False}} 
+    # Text:- {'id': 'wamid.HBgMOTE3OTg4MzYyMjgzFQIAEhgUM0ExMUIxMkY1ODZGNzA5RUE5MTcA', 'source': '917988362283', 'type': 'text', 'payload': {'text': 'Helloo'}, 'sender': {'phone': '917988362283', 'name': 'Asheem Siwach', 'country_code': '91', 'dial_code': '7988362283'}}
     print("PAYLOAD: **********", payload,"******************")
+    
     msg_type = payload.get("type", "")  # text, image, video, audio, document, location, contact, etc.
     print("MSG TYPE: ", msg_type)
     if msg_type =="text":
         text = payload.get("payload", {}).get("text", "")
-        inbound_id = payload.get("id", "")
-        sender = payload.get("sender", {})
+
+    elif msg_type == "list_reply":
+        text = payload.get("payload", {}).get("postbackText", "")
+
+    inbound_id = payload.get("id", "")
+    sender = payload.get("sender", {})
+
+    requested_data["phone"] = sender.get("phone", None)
+    requested_data["user_message"] = text
+    requested_data["response_to_user"] = ""
+
+    # Pop the data which should not be updated
+    requested_data.pop("billing_details")
+    requested_data.pop("event_details")
+
+    # If message type is text, and text is based on context
+    requested_data["wa_id"] = payload.get("context", {}).get("id", "")
+    requested_data["gs_id"] = payload.get("context", {}).get("gsId", "")
+    requested_data["previous_message"] = payload.get("context", {}).get("postbackText", "")
+    requested_data["app_phone_number"] = payload.get("context", {}).get("from", "")
+
+    # Update the sender details
+    requested_data["sender_details"]["phone"] = sender.get("phone", "")
+    requested_data["sender_details"]["name"] = sender.get("name", "")
+    requested_data["sender_details"]["country_code"] = sender.get("country_code", "")
+    requested_data["sender_details"]["dial_code"] = sender.get("dial_code", "")
     
-        requested_data["phone"] = sender.get("phone", None)
-        requested_data["user_message"] = text
-        requested_data["response_to_user"] = ""
-
-        # Pop the data which should not be updated
-        requested_data.pop("billing_details")
-        requested_data.pop("event_details")
-
-        # If message type is text, and text is based on context
-        requested_data["wa_id"] = payload.get("context", {}).get("id", "")
-        requested_data["gs_id"] = payload.get("context", {}).get("gsId", "")
-        requested_data["previous_message"] = payload.get("context", {}).get("postbackText", "")
-        requested_data["app_phone_number"] = payload.get("context", {}).get("from", "")
-
-        # Update the sender details
-        requested_data["sender_details"]["phone"] = sender.get("phone", "")
-        requested_data["sender_details"]["name"] = sender.get("name", "")
-        requested_data["sender_details"]["country_code"] = sender.get("country_code", "")
-        requested_data["sender_details"]["dial_code"] = sender.get("dial_code", "")
-        
-        requested_data["message_details"]["text"] = text
-        requested_data["message_details"]["inbound_id"] = inbound_id
-        requested_data["message_details"]["created_at"] = to_utc_dt(payload.get("timestamp", None)).isoformat() # Convert the timestamp to UTC datetime and format for database
-        
-        # Set root-level created_at and updated_at for database table
-        timestamp_iso = to_utc_dt(payload.get("timestamp", None)).isoformat()
-        requested_data["created_at"] = timestamp_iso # Convert the timestamp to UTC datetime and format for database
-        requested_data["updated_at"] = timestamp_iso # Set updated_at to same value as created_at for new records
-        
-        requested_data["fallback_trigger"] = False  # Setting it False as this is the msg we received from user
-        requested_data["retry_count"] = 0  # Setting it 0 as this is the first message
+    requested_data["message_details"]["text"] = text
+    requested_data["message_details"]["inbound_id"] = inbound_id
+    requested_data["message_details"]["created_at"] = to_utc_dt(payload.get("timestamp", None)).isoformat() # Convert the timestamp to UTC datetime and format for database
+    
+    # Set root-level created_at and updated_at for database table
+    timestamp_iso = to_utc_dt(payload.get("timestamp", None)).isoformat()
+    requested_data["created_at"] = timestamp_iso # Convert the timestamp to UTC datetime and format for database
+    requested_data["updated_at"] = timestamp_iso # Set updated_at to same value as created_at for new records
+    
+    requested_data["fallback_trigger"] = False  # Setting it False as this is the msg we received from user
+    requested_data["retry_count"] = 0  # Setting it 0 as this is the first message
         
     return requested_data
 

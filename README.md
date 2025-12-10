@@ -387,7 +387,9 @@ except Exception as e:
 
 ## API Endpoints
 
-### OTP Operations
+All endpoints use the `/api_v1` prefix and return JSON responses with consistent error handling.
+
+### 🔐 OTP Operations
 
 #### 1. Send OTP
 ```http

@@ -113,7 +113,7 @@ class BasicApplicationService:
             dob = self._format_date(dob)
         
         return {"annualIncome":lead_data.get("annualIncome", 0),
-                "applicationAssignedToRm": lead_data.get("applicationAssignedToRm", "ecd6e69c-1aac-4966-8e44-1428b0231aec"),
+                "applicationAssignedToRm": lead_data.get("applicationAssignedToRm", ""), #ecd6e69c-1aac-4966-8e44-1428b0231aec
                 "city": lead_data.get("city", ""),
                 "createdFromPemId": lead_data.get("createdFromPemId", ""), 
                 "creditScore": lead_data.get("creditScore", 0),
@@ -332,7 +332,7 @@ class BasicApplicationService:
                 "uploadedDocs": [],
                 "tagIds": [],
                 "createdByTenantName": "Basic Enterprises Private Limited",
-                "createdByUserName": lead_data.get("assigned_to_user_name", "Hom-i"), #TODO:(future) make this required-correct created by user name
+                "createdByUserName": lead_data.get("created_by_user_name", "Hom-i"), #TODO:(future) make this required-correct created by user name
                 "refId": lead_data.get("reference_id", ""),
                 "customerWAnotificationDirection": "None",
                 "refType": "Application",
@@ -454,10 +454,7 @@ class BasicApplicationService:
                 )
             # Get signature headers
             api_url = f"{self.basic_api_url}/api/v1/NewApplication/CreateFBBByBasicUser"
-            print(api_url)
-            print(api_payload)
-            print(self.BASIC_APPLICATION_USER_ID)
-            print(self.BASIC_APPLICATION_API_KEY)
+
             headers = self.generate_signature_headers(
                 api_url, "POST",
                  api_payload,

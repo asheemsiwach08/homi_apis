@@ -514,6 +514,12 @@ async def generate_user_response(data: dict, whatsapp_user_data: dict):
     print(f"✨ 🔍 Response to user: {response_to_user}")
     content = response_to_user
 
+    # Send a fallback message if the fallback trigger is true
+    if fallback_trigger:
+        fallback_message_data = {"type":"text", "text": fallback_message}
+        requested = MessageRequest(app_name=app_name, phone_number=data.get("phone", ""), message=fallback_message_data)
+        await send_message(request=requested)
+
     from app.api.endpoints.gupshup_apis import send_message, MessageRequest
     if node_type == "text" and content != "":
         logger.info(f"🟢 Sending text message to the user")
@@ -543,6 +549,7 @@ async def generate_user_response(data: dict, whatsapp_user_data: dict):
     # Combine text for response_to_user based on the node type
     if  not isinstance(response_to_user, str) or response_to_user is None or response_to_user == "":
         response_to_user = combine_whatsapp_message_text(whatsapp_message_data)
+        response_to_user = f"Fallback Triggerd : {fallback_message}, {response_to_user}" if fallback_trigger else response_to_user
 
     # Save the message id from the whatsapp message response in conversation history - logic for status update
     message_id = get_message_id(message_response=message_response)

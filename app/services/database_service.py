@@ -356,7 +356,7 @@ class DatabaseService:
             if not phone or phone is None or str(phone).strip() == "":
                 raise HTTPException(
                         status_code=400,
-                        detail="❌Cannot save message: phone number is required for saving the conversation"
+                        detail=f"❌Cannot save message: phone number is required for saving the conversation, {message_data}"
                     )
                 
             # Prepare data for database with proper field mapping

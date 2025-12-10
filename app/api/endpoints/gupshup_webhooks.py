@@ -322,7 +322,9 @@ def process_message_data(payload: dict, requested_data: dict) -> dict:
     Returns:
         dict: The requested data
     """
+    print("PAYLOAD: **********", payload,"******************")
     msg_type = payload.get("type", "")  # text, image, video, audio, document, location, contact, etc.
+    print("MSG TYPE: ", msg_type)
     if msg_type =="text":
         text = payload.get("payload", {}).get("text", "")
         inbound_id = payload.get("id", "")

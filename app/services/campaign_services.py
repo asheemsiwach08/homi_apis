@@ -501,26 +501,20 @@ async def generate_user_response(data: dict, whatsapp_user_data: dict):
         print(f"✨ 🔍 Fallback message: {fallback_message}")
         print(f"✨ 🔍 Fallback trigger: {fallback_trigger}")
        
-       # Assign the fallback message to the response to user if no response to user is found
-        # if not response_to_user:
-        #     response_to_user = fallback_message
-        # else:
-        #     retry_count = int(0)   # TODO: Check if this is correct
-        #     fallback_trigger = False
-
-      
+    ################################ User Response Logic Starts ##################################################
     # TO use metadata we need to check the type, content first then move to metadata
     logger.info(f"🔷 Getting into the send message logic")
     print(f"✨ 🔍 Response to user: {response_to_user}")
     content = response_to_user
 
+    from app.api.endpoints.gupshup_apis import send_message, MessageRequest
     # Send a fallback message if the fallback trigger is true
     if fallback_trigger:
         fallback_message_data = {"type":"text", "text": fallback_message}
         requested = MessageRequest(app_name=app_name, phone_number=data.get("phone", ""), message=fallback_message_data)
         await send_message(request=requested)
 
-    from app.api.endpoints.gupshup_apis import send_message, MessageRequest
+    # Send the message to the user
     if node_type == "text" and content != "":
         logger.info(f"🟢 Sending text message to the user")
         whatsapp_message_data = {"type":"text", "text": content}

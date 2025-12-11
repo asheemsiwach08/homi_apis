@@ -648,29 +648,24 @@ async def set_status_read(request: SetStatusReadRequest):
     headers = {"Authorization": headers["apikey"]}
 
     url = f"https://api.gupshup.io/wa/app/{app_config['app_id']}/msg/{request.message_id}/read"
-    
+
     try:
         import requests
         response = requests.put(url, headers=headers)
-        print("Mark Read Response:----",response.text ,"-------------------", response.status_code)
+
         if response.status_code in [200, 202]:
             success = True
             message = "Message read request submitted"
-            data = response.text
         else:
             success = False
             message = f"Failed to submit read request: {response.text}"
-            data = response.text
     except Exception as e:
         success = False
         message = f"Failed to submit read request: {str(e)}"
-        data = {"error": str(e)}
 
     return BaseGupshupResponse(
         success=success,
-        message=message,
-        data=None,
-        gupshup_response=None
+        message=message
     )
     
 class MessageRequest(BaseModel):
@@ -710,6 +705,8 @@ async def send_message(request: MessageRequest):
     return BaseGupshupResponse(
         success=result["success"],
         message="Message sent successfully" if result["success"] else "Failed to send message",
+        data=result["data"],
+        gupshup_response=result
     )
 
 

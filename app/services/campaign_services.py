@@ -199,7 +199,6 @@ def get_node_details(id: str, data: dict) -> dict:
     return {}
 
 def get_message_id(message_response: dict):
-    print(f"🔷Message response to get message id: ------> {message_response}")
     message_id = ""
     if message_response and hasattr(message_response, 'success') and message_response.success:
         # Check if messageId is in the direct data field

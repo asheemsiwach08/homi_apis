@@ -523,6 +523,7 @@ def extract_data_from_body(body: dict) -> dict:
 def is_campaign_message(requested_data: dict) -> Tuple[bool, dict, dict]:
     from app.services.campaign_services import get_campaign_history, calculate_time_difference_hours, get_whatsapp_conversation_history
     is_campaign_message, current_template_id, app_name, campaign_history_time = get_campaign_history(data=requested_data)
+    last_campaign_message_time_difference = calculate_time_difference_hours(campaign_history_time)
     logger.info(f"✅ Campaign message found: {is_campaign_message} with template id: {current_template_id} and app name: {app_name} and campaign history time: {campaign_history_time}")
     
     whatsapp_window_open = False
@@ -534,7 +535,6 @@ def is_campaign_message(requested_data: dict) -> Tuple[bool, dict, dict]:
         if whatsapp_conversation_history and isinstance(whatsapp_conversation_history, dict):
             last_message_time = whatsapp_conversation_history.get("created_at")
             last_message_time_difference = calculate_time_difference_hours(last_message_time)
-            last_campaign_message_time_difference = calculate_time_difference_hours(campaign_history_time)
             
             if last_message_time_difference <= 24 or last_campaign_message_time_difference <= 24:
                 logger.info(f"✅ Found a campaign message in the last 24 hours along with the conversation history")
@@ -545,10 +545,14 @@ def is_campaign_message(requested_data: dict) -> Tuple[bool, dict, dict]:
                 logger.info(f"❌ No campaign message in the last 24 hours found no conversation history")
                 whatsapp_window_open = False
         else:  # If campaign message is found but not conversation history is found
-            logger.info(f"✅ Found a campaign message but no conversation history found")
-            whatsapp_user_data = {"latest_conversation_id": requested_data["record_id"], "previous_message": "", "whatsapp_conversation_history": {}, 
-            "campaign_history_time": campaign_history_time, "current_template_id": current_template_id, "app_name": app_name, "is_campaign_message": is_campaign_message}
-            whatsapp_window_open = True
+            if last_campaign_message_time_difference <= 24:
+                logger.info(f"✅ Found a campaign message but no conversation history found in the last 24 hours")
+                whatsapp_user_data = {"latest_conversation_id": requested_data["record_id"], "previous_message": "", "whatsapp_conversation_history": {}, 
+                "campaign_history_time": campaign_history_time, "current_template_id": current_template_id, "app_name": app_name, "is_campaign_message": is_campaign_message}
+                whatsapp_window_open = True
+            else:
+                logger.info(f"❌ Neither campaign message in the last 24 hours nor conversation history found")
+                whatsapp_window_open = False
 
     # Update the requested data with the whatsapp window open and template id     
     requested_data["whatsapp_window_open"] = whatsapp_window_open

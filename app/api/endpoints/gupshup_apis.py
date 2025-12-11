@@ -547,6 +547,61 @@ async def send_gupshup_request(api_url: str, data: Dict[str, Any], headers: Dict
             "status_code": 500
         }
 
+class MarketingMessageRequest(BaseModel):
+    api_url: str
+    appId: str
+    data: Dict[str, Any]
+
+@router.post("/send-marketing-message")
+async def send_gupshup_marketing_request(request: MarketingMessageRequest):
+    """Generic function to send requests to Gupshup API"""
+
+    headers = {
+        'cache-control': 'no-cache',
+        "accept": "application/json",
+        'content-type': 'application/json',
+        'apikey': "rh3qjmdnats7ctrxqvjitudlo7f73xmm"
+    }
+    api_url = request.api_url+f"/wa/app/{request.appId}/v3/marketing/msg"
+    print("API URL:----",api_url)
+    try:
+        async with httpx.AsyncClient() as client:
+            response = await client.post(
+                api_url,
+                headers=headers,
+                data=json.dumps(request.data),
+                timeout=30.0
+            )
+            print("RESPONSE:----",response.text ,"-------------------")
+            # Gupshup API returns 202 for successful submissions
+            if response.status_code in [200, 202]:
+                try:
+                    response_data = response.json()
+                    return {
+                        "success": True,
+                        "data": response_data if isinstance(response_data, dict) else {"response": str(response_data)},
+                        "status_code": response.status_code
+                    }
+                except json.JSONDecodeError:
+                    return {
+                        "success": True,
+                        "data": {"response": response.text},
+                        "status_code": response.status_code
+                    }
+            else:
+                return {
+                    "success": False,
+                    "data": {"error": response.text},
+                    "status_code": response.status_code
+                }
+                
+    except Exception as e:
+        return {
+            "success": False,
+            "data": {"error": str(e)},
+            "status_code": 500
+        }
+
 def validate_app_config(app_name: str) -> dict:
     """
     Validate and get app configuration
@@ -578,7 +633,42 @@ def validate_app_config(app_name: str) -> dict:
 
 
 # ==================== API ENDPOINTS ====================
+class SetStatusReadRequest(BaseModel):
+    message_id: str = Field(..., description="Gupshup message ID")
+    app_name: str = Field(..., description="Gupshup app name (e.g., 'homi', 'orbit')")
 
+@router.post("/set-status-read", response_model=BaseGupshupResponse)
+async def set_status_read(request: SetStatusReadRequest):
+
+    # Get app-specific configuration
+    app_config = validate_app_config(request.app_name)
+    headers = get_gupshup_headers(app_config)
+
+    url = f"https://api.gupshup.io/wa/app/{app_config['app_id']}/msg/{request.message_id}/read"
+
+    try:
+        import requests
+        response = await requests.put(url, headers=headers)
+        if response.status_code in [200, 202]:
+            success = True
+            message = "Message read successfully"
+            data = response.text
+        else:
+            success = False
+            message = f"Failed to read message: {response.text}"
+            data = response.text
+    except Exception as e:
+        success = False
+        message = f"Failed to read message: {str(e)}"
+        data = {"error": str(e)}
+
+    return BaseGupshupResponse(
+        success=success,
+        message=message,
+        data=data,
+        gupshup_response=response.text
+    )
+    
 class MessageRequest(BaseModel):
     app_name: str = Field(..., description="Gupshup app name (e.g., 'homi', 'orbit')")
     phone_number: str = Field(..., description="Phone number in any format (will be normalized)")
@@ -990,6 +1080,82 @@ async def get_templates_by_app_name(
 ):
     """
     Get WhatsApp templates for a specific Gupshup app from Gupshup API
+    
+    This endpoint fetches templates directly from Gupshup's API based on the provided app name.
+    The API key and app ID are automatically selected based on the app name.
+    
+    Query Parameters:
+    - app_name: Name of the Gupshup app (e.g., 'basichomeloan', 'irabybasic')
+    - template_status: Filter templates by status (default: None)
+    
+    Example: /api_v1/gupshup/templates/by-app?app_name=basichomeloan&template_status=APPROVED
+    """
+    try:
+        # Get app-specific configuration
+        app_config = validate_app_config(app_name)
+        
+        if not app_config["app_id"]:
+            raise HTTPException(
+                status_code=400,
+                detail=f"App ID not configured for app: {app_name}"
+            )
+        
+        # Fetch templates from Gupshup API using app-specific credentials
+        result = await get_templates_from_gupshup(
+            app_config["app_id"], 
+            app_config["api_key"], 
+            template_status
+        )
+        
+        if result["success"]:
+            templates_data = result["data"]
+            
+            # Extract templates from Gupshup response
+            templates = []
+            if isinstance(templates_data, dict):
+                # Handle different possible response structures
+                if "templates" in templates_data:
+                    templates = templates_data["templates"]
+                elif "data" in templates_data:
+                    templates = templates_data["data"]
+                else:
+                    templates = [templates_data]  # Single template response
+            elif isinstance(templates_data, list):
+                templates = templates_data
+            
+            return BaseGupshupResponse(
+                success=True,
+                message=f"Found {len(templates)} templates for app: {app_name}",
+                data={
+                    "app_name": app_name,
+                    "app_id": app_config["app_id"],
+                    "template_status": template_status,
+                    "templates": templates,
+                    "total_count": len(templates)
+                },
+                gupshup_response=templates_data
+            )
+        else:
+            raise HTTPException(
+                status_code=result.get("status_code", 500),
+                detail=f"Failed to fetch templates: {result['error']}"
+            )
+            
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Error fetching templates for app {app_name}: {str(e)}"
+        )
+
+@router.get("/templates/by-app", response_model=BaseGupshupResponse)
+async def get_template_by_template_id(
+    app_name: str, 
+    template_status: Optional[str] = None
+):
+    """
+    Get WhatsApp template for a specific Gupshup app from Gupshup API
     
     This endpoint fetches templates directly from Gupshup's API based on the provided app name.
     The API key and app ID are automatically selected based on the app name.

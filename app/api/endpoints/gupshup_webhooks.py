@@ -119,6 +119,12 @@ async def gupshup_whatsapp_webhook(request: Request):
             requested_data = process_message_data(payload, requested_data)
             print(f"✨ 🔍 --------------------------------------->> Requested data from message(gupshup): {requested_data}")
 
+            # Mark the message as read
+            from app.api.endpoints.gupshup_apis import set_status_read, SetStatusReadRequest
+            requested = SetStatusReadRequest(message_id=requested_data.get("message_details", {}).get("inbound_id", ""), app_name=requested_data["app_name"])
+            response = await set_status_read(request=requested)
+            logger.info(f"✅ Mark message as read: {response.success if response else False}")
+
             if requested_data:
                 # Save inbound message to the database
                 try:

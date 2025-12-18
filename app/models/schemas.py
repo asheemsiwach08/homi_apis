@@ -146,7 +146,7 @@ class LeadCreateRequest(BaseModel):
     customerId: Optional[str] = None
     annualIncome: Optional[float] = None
     createdFromPemId: Optional[str] = None
-    creditScoreTypeId: Optional[str] = "8a52d34-8e34-4b59-9737-bb92e69f6e78"
+    creditScoreTypeId: Optional[str] = "e8a52d34-8e34-4b59-9737-bb92e69f6e78"
     applicationAssignedToRm: Optional[str] = None
     includeCreditScore: Optional[bool] = None
     isLeadPrefilled: Optional[bool] = None

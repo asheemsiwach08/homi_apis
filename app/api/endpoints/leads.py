@@ -396,7 +396,7 @@ async def lead_flash_api(request: LeadFlashRequest):
             "aggrementTypeId": request.aggrementTypeId,
             
             # Credit Information
-            "creditScoreTypeId": request.creditScoreTypeId,
+            "creditScoreTypeId": "e8a52d34-8e34-4b59-9737-bb92e69f6e78",
             "creditScoreTypeName": request.creditScoreTypeName,
             "manualCreditScore": request.manualCreditScore,
             

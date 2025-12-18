@@ -424,6 +424,10 @@ async def lead_flash_api(request: LeadFlashRequest):
         if api_data.get("propertyType") or api_data.get("agreementType") or api_data.get("usageType"):
             api_data["isPropertyIdentified"] = True
 
+        if api_data.get("professionId") == "964ab5e5-9b99-4104-8a79-6394af9bc3c8":
+            api_data["selfCompanyTypeName"] = "Private"
+            api_data["selfCompanyTypeId"] = "714624ae-b86f-4ffc-a710-389d6905ddd9"
+
         # Call Basic Fulfillment API (optional step)
         try:
             basic_app_service.create_fullfilment_using_application_id(api_data)

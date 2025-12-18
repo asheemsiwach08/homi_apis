@@ -446,6 +446,7 @@ class BasicApplicationService:
         """
         try:
             api_payload = self._prepare_FBB_by_basic_user_payload(lead_data)
+            print(f"🔷API Payload: ------> {api_payload}")
             
             if not self.basic_api_url:
                 raise HTTPException(

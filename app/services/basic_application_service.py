@@ -463,6 +463,7 @@ class BasicApplicationService:
                  self.BASIC_APPLICATION_API_KEY)
 
             response = requests.post(api_url, headers=headers, json=api_payload)
+            print(f"🔷Response: ------> {response.json()}")
 
             if response.status_code in [200, 201]:
                 try:

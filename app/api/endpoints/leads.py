@@ -421,6 +421,9 @@ async def lead_flash_api(request: LeadFlashRequest):
             "creditScoreStatus": request.creditScoreStatus or ""
         }   
 
+        if api_data.get("propertyType") or api_data.get("agreementType") or api_data.get("usageType"):
+            api_data["isPropertyIdentified"] = True
+
         # Call Basic Fulfillment API (optional step)
         try:
             basic_app_service.create_fullfilment_using_application_id(api_data)

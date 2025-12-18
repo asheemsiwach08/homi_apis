@@ -68,7 +68,7 @@ class BasicApplicationService:
             Dict: Formatted payload for Basic Application API
         """
         # Format the date properly
-        dob = lead_data.get("dob")
+        dob = lead_data.get("dateOfBirth")
         if dob:
             dob = self._format_date(dob)
         

@@ -45,12 +45,13 @@ class BasicApplicationService:
             if '/' in date_str:
                 day, month, year = date_str.split('/')
                 date_obj = datetime(int(year), int(month), int(day))
+                date_obj = date_obj.strftime("%Y-%m-%d")
             else:
                 # Handle YYYY-MM-DD format
                 date_obj = datetime.fromisoformat(date_str)
-            
+
             # Format to ISO with timezone
-            return date_obj.isoformat() + "Z"
+            return date_obj
         except Exception as e:
             logger.error(f"Error formatting date {date_str}: {e}")
             # If parsing fails, return the original string
@@ -108,7 +109,7 @@ class BasicApplicationService:
             Dict: Formatted payload for Basic Application API
         """
         # Format the date properly
-        dob = lead_data.get("dob")
+        dob = lead_data.get("dateOfBirth")
         if dob:
             dob = self._format_date(dob)
         
@@ -119,7 +120,7 @@ class BasicApplicationService:
                 "creditScore": lead_data.get("creditScore", 0),
                 "creditScoreTypeId": lead_data.get("creditScoreTypeId", ""), 
                 "customerId": lead_data.get("customerId", "234"), 
-                "dateOfBirth": lead_data.get("dateOfBirth", ""),  
+                "dateOfBirth": dob,  
                 "district": lead_data.get("district", ""),
                 "email": lead_data.get("email", ""),
                 "firstName": lead_data.get("firstName", ""),
@@ -150,7 +151,7 @@ class BasicApplicationService:
             Dict: Formatted payload for Basic Application API
         """
         # Format the date properly
-        dob = lead_data.get("dob")
+        dob = lead_data.get("dateOfBirth")
         if dob:
             dob = self._format_date(dob)
         
@@ -158,7 +159,7 @@ class BasicApplicationService:
                 "annualIncome": lead_data.get("annualIncome", 0),
                 "city": lead_data.get("city", ""),
                 "coBorrowerIncome": lead_data.get("coBorrowerIncome", 0),
-                "dateOfBirth": lead_data.get("dateOfBirth", ""),
+                "dateOfBirth": dob,
                 "district": lead_data.get("district", ""),
                 "documents": lead_data.get("documents", []),
                 "email": lead_data.get("email", ""),

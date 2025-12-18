@@ -446,7 +446,6 @@ class BasicApplicationService:
         """
         try:
             api_payload = self._prepare_FBB_by_basic_user_payload(lead_data)
-            print(f"🔷API Payload: ------> {api_payload}")
             
             if not self.basic_api_url:
                 raise HTTPException(
@@ -463,7 +462,6 @@ class BasicApplicationService:
                  self.BASIC_APPLICATION_API_KEY)
 
             response = requests.post(api_url, headers=headers, json=api_payload)
-            print(f"🔷Response: ------> {response.json()}")
 
             if response.status_code in [200, 201]:
                 try:

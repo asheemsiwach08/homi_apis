@@ -32,25 +32,38 @@ class BasicApplicationService:
     
     def _format_date(self, date_str: str) -> str:
         """
-        Format date string to ISO format with timezone
+        Format date string to YYYY-MM-DD format, handling multiple input formats
         
         Args:
-            date_str: Date string in DD/MM/YYYY or YYYY-MM-DD format
+            date_str: Date string in various formats (DD-MM-YYYY, DD/MM/YYYY, YYYY-MM-DD)
             
         Returns:
-            str: ISO formatted date string
+            str: Date string in YYYY-MM-DD format
         """
-        try:
-            # Handle DD/MM/YYYY format
-            if '/' in date_str:
-                day, month, year = date_str.split('/')
-                date_obj = datetime(int(year), int(month), int(day))
-            else:
-                # Handle YYYY-MM-DD format
-                date_obj = datetime.fromisoformat(date_str)
+        if not date_str:
+            return date_str
             
-            # Format to ISO with timezone
-            return date_obj.isoformat() + "Z"
+        try:
+            # List of possible date formats to try
+            date_formats = [
+                "%d-%m-%Y",    # DD-MM-YYYY (most common from frontend)
+                "%d/%m/%Y",    # DD/MM/YYYY
+                "%Y-%m-%d",    # YYYY-MM-DD (ISO format)
+                "%m/%d/%Y",    # MM/DD/YYYY (US format)
+                "%d.%m.%Y",    # DD.MM.YYYY (European format)
+            ]
+            
+            for date_format in date_formats:
+                try:
+                    date_obj = datetime.strptime(date_str, date_format)
+                    return date_obj.strftime("%Y-%m-%d")  # Always return YYYY-MM-DD format
+                except ValueError:
+                    continue
+            
+            # If none of the formats work, try ISO parsing
+            date_obj = datetime.fromisoformat(date_str.replace('Z', '+00:00'))
+            return date_obj.strftime("%Y-%m-%d")
+            
         except Exception as e:
             logger.error(f"Error formatting date {date_str}: {e}")
             # If parsing fails, return the original string
@@ -67,13 +80,13 @@ class BasicApplicationService:
             Dict: Formatted payload for Basic Application API
         """
         # Format the date properly
-        dob = lead_data.get("dob")
+        dob = lead_data.get("dateOfBirth")
         if dob:
-            dob = self._format_date(dob)
+            formatted_dob = self._format_date(dob)
         
         return {
             "gender": lead_data.get("gender", "Male"),
-            "dateOfBirth": dob,
+            "dateOfBirth": formatted_dob,
             "annualIncome": 0,  # Use the same value as working curl
             "id": str(uuid.uuid4()),  # Generate random GUID
             "loanType": self.loan_type_mapping.get(lead_data.get("loan_type", ""), "HL"),
@@ -108,9 +121,9 @@ class BasicApplicationService:
             Dict: Formatted payload for Basic Application API
         """
         # Format the date properly
-        dob = lead_data.get("dob")
+        dob = lead_data.get("dateOfBirth")
         if dob:
-            dob = self._format_date(dob)
+            formatted_dob = self._format_date(dob)
         
         return {"annualIncome":lead_data.get("annualIncome", 0),
                 "applicationAssignedToRm": lead_data.get("applicationAssignedToRm", ""), #ecd6e69c-1aac-4966-8e44-1428b0231aec
@@ -119,7 +132,7 @@ class BasicApplicationService:
                 "creditScore": lead_data.get("creditScore", 0),
                 "creditScoreTypeId": lead_data.get("creditScoreTypeId", ""), 
                 "customerId": lead_data.get("customerId", "234"), 
-                "dateOfBirth": lead_data.get("dateOfBirth", ""),  
+                "dateOfBirth": formatted_dob,  
                 "district": lead_data.get("district", ""),
                 "email": lead_data.get("email", ""),
                 "firstName": lead_data.get("firstName", ""),
@@ -150,15 +163,15 @@ class BasicApplicationService:
             Dict: Formatted payload for Basic Application API
         """
         # Format the date properly
-        dob = lead_data.get("dob")
+        dob = lead_data.get("dateOfBirth")
         if dob:
-            dob = self._format_date(dob)
+            formatted_dob = self._format_date(dob)
         
         return {
                 "annualIncome": lead_data.get("annualIncome", 0),
                 "city": lead_data.get("city", ""),
                 "coBorrowerIncome": lead_data.get("coBorrowerIncome", 0),
-                "dateOfBirth": lead_data.get("dateOfBirth", ""),
+                "dateOfBirth": formatted_dob,
                 "district": lead_data.get("district", ""),
                 "documents": lead_data.get("documents", []),
                 "email": lead_data.get("email", ""),
@@ -445,7 +458,9 @@ class BasicApplicationService:
             HTTPException: If API call fails
         """
         try:
+            print("Payload first:", lead_data)
             api_payload = self._prepare_FBB_by_basic_user_payload(lead_data)
+            print("Payload changed:", api_payload)
             
             if not self.basic_api_url:
                 raise HTTPException(

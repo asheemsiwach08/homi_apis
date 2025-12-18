@@ -157,6 +157,7 @@ async def create_lead_api(request: LeadCreateRequest):
         - Comprehensive error handling and audit trails
         - Support for lead modification (upserts based on existing records)
     """
+    # request.creditScoreTypeId = "e8a52d34-8e34-4b59-9737-bb92e69f6e78"
     request_id = f"{request.mobile}_{request.pan}"
     logger.info(f"Starting lead creation for {request.firstName} {request.lastName}")
     try:
@@ -185,7 +186,7 @@ async def create_lead_api(request: LeadCreateRequest):
             "annualIncome": request.annualIncome,
             "applicationAssignedToRm": request.applicationAssignedToRm,
             "createdFromPemId": request.createdFromPemId,
-            "creditScoreTypeId": request.creditScoreTypeId,
+            "creditScoreTypeId": "e8a52d34-8e34-4b59-9737-bb92e69f6e78",  
             "customerId": request.customerId,
             "includeCreditScore": request.includeCreditScore,
             "isLeadPrefilled": request.isLeadPrefilled,
@@ -395,7 +396,7 @@ async def lead_flash_api(request: LeadFlashRequest):
             "aggrementTypeId": request.aggrementTypeId,
             
             # Credit Information
-            "creditScoreTypeId": request.creditScoreTypeId,
+            "creditScoreTypeId": "e8a52d34-8e34-4b59-9737-bb92e69f6e78",
             "creditScoreTypeName": request.creditScoreTypeName,
             "manualCreditScore": request.manualCreditScore,
             
@@ -420,6 +421,16 @@ async def lead_flash_api(request: LeadFlashRequest):
             "projectId": request.projectId or "",
             "creditScoreStatus": request.creditScoreStatus or ""
         }   
+
+        # TODO: Temporary logic to identify property and profession details (Need to be removed later)
+        if api_data.get("propertyType") or api_data.get("agreementType") or api_data.get("usageType"):
+            api_data["isPropertyIdentified"] = True
+
+        if api_data.get("professionId") == "964ab5e5-9b99-4104-8a79-6394af9bc3c8":
+            api_data["selfCompanyTypeName"] = "Private"
+            api_data["selfCompanyTypeId"] = "714624ae-b86f-4ffc-a710-389d6905ddd9"
+            api_data["salaryCreditModeId"] = None
+            api_data["salaryCreditModeName"] = None
 
         # Call Basic Fulfillment API (optional step)
         try:

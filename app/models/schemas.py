@@ -142,11 +142,11 @@ class LeadCreateRequest(BaseModel):
     loanTenure: int
     loanAmountReq: float 
     dateOfBirth: str
-    creditScore: int
+    creditScore: Optional[int] = 700
     customerId: Optional[str] = None
     annualIncome: Optional[float] = None
     createdFromPemId: Optional[str] = None
-    creditScoreTypeId: Optional[str] = None
+    creditScoreTypeId: Optional[str] = "e8a52d34-8e34-4b59-9737-bb92e69f6e78"
     applicationAssignedToRm: Optional[str] = None
     includeCreditScore: Optional[bool] = None
     isLeadPrefilled: Optional[bool] = None

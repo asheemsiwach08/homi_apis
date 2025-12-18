@@ -446,7 +446,9 @@ class BasicApplicationService:
             HTTPException: If API call fails
         """
         try:
+            print("Payload first:", lead_data)
             api_payload = self._prepare_FBB_by_basic_user_payload(lead_data)
+            print("Payload changed:", api_payload)
             
             if not self.basic_api_url:
                 raise HTTPException(

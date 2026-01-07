@@ -496,7 +496,7 @@ class MailClient:
         """
         message_id = email_data.get("message_id", None)
         if not message_id:
-            return f"no_id_{hash(email_data.get("subject", ""))}"
+            return f"no_id_{hash(email_data.get('subject', ''))}"
 
         # Check References to find the root
         references = self._extract_references(email_data)
@@ -510,7 +510,7 @@ class MailClient:
 
         # Verify this root exists in our email list
         for email in all_emails:
-            if email.get("message_id") == root_id:
+            if email.get('message_id') == root_id:
                 print(f"✅ Found root message ID: {root_id}")
                 return root_id
             else:

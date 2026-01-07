@@ -127,10 +127,10 @@ async def start_live_monitoring(config: LiveMonitoringConfig) -> Dict[str, Any]:
     except Exception as e:
         email_processing_service.send_email(
             email_data={
-                "subject": f"Live disbursement monitoring failed | Started at:{monitoring_state["started_at"].isoformat()} | Ended at: {datetime.now().isoformat()}", 
-                "content": f"Issue in Live Disbursements Service: \nService Started at: {monitoring_state["started_at"].isoformat()} \nService Ended at: {datetime.now().isoformat()} \n\nError: "+str(e)+"\n\nPlease check the logs for more details."
+                "subject": f"Live disbursement monitoring failed | Started at:{monitoring_state['started_at'].isoformat()} | Ended at: {datetime.now().isoformat()}", 
+                "content": f"Issue in Live Disbursements Service: \nService Started at: {monitoring_state['started_at'].isoformat()} \nService Ended at: {datetime.now().isoformat()} \n\nError: "+str(e)+"\n\nPlease check the logs for more details."
             })
-        logger.error(f"Issue in Live Disbursements Service: \nService Started at: {monitoring_state["started_at"].isoformat()} \nService Ended at: {datetime.now().isoformat()} \n\nError: {str(e)}")
+        logger.error(f"Issue in Live Disbursements Service: \nService Started at: {monitoring_state['started_at'].isoformat()} \nService Ended at: {datetime.now().isoformat()} \n\nError: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
 
 
@@ -156,8 +156,8 @@ async def stop_live_monitoring() -> Dict[str, Any]:
         
         logger.info("Live disbursement monitoring stopped")
 
-        subject = f"Live disbursement monitoring stopped | Started at:{monitoring_state["started_at"].isoformat()} | Ended at: {datetime.now().isoformat()}"
-        content = f"Live Disbursements Service: \nService Started at: {monitoring_state["started_at"].isoformat()} \nService Ended at: {datetime.now().isoformat()} \n\nService stopped successfully."
+        subject = f"Live disbursement monitoring stopped | Started at:{monitoring_state['started_at'].isoformat()} | Ended at: {datetime.now().isoformat()}"
+        content = f"Live Disbursements Service: \nService Started at: {monitoring_state['started_at'].isoformat()} \nService Ended at: {datetime.now().isoformat()} \n\nService stopped successfully."
 
         # Send email to the recipient emails
         email_processing_service.send_email(email_data={"subject": subject, "content": content})

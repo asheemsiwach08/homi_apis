@@ -573,14 +573,14 @@ class OpenAIAnalyzer:
             disbursement['pdd'] = 'Not found'
             disbursement['otc'] = 'Not found'
         finally:
-            if confirmation_outcome["disbursement_amount"] and confirmation_outcome["disbursement_status"] and confirmation_outcome["pdd"] and confirmation_outcome["otc"]:
+            if confirmation_outcome["disbursement_amount"] and confirmation_outcome["pdd"] and confirmation_outcome["otc"]:
                 confirmation_outcome["dataFound"] = True
             else:
                 confirmation_outcome["dataFound"] = False
 
-            # Disbursement status validation check
-            if confirmation_outcome["disbursement_status"] == True and confirmation_outcome["pdd"] == True and confirmation_outcome["otc"] == True:
-                confirmation_outcome["disbursement_status"] = 'Disbursement Confirmed'
+            # # Disbursement status validation check
+            # if confirmation_outcome["disbursement_status"] == True and confirmation_outcome["pdd"] == True and confirmation_outcome["otc"] == True:
+            #     confirmation_outcome["disbursement_status"] = True
             
             disbursement['dataFound'] = confirmation_outcome["dataFound"]
             disbursement['confirmation_outcome'] = confirmation_outcome

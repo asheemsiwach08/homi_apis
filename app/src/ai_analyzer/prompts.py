@@ -176,9 +176,7 @@ Email Content:
 
 OBJECTIVE:
 Extract the **most recent customer disbursement information** from the email.
-
 Create **one JSON record per customer disbursement**.
-
 ---
 
 EXTRACTION RULES (STRICT):
@@ -201,23 +199,38 @@ EXTRACTION RULES (STRICT):
    - "Disbursement Confirmation Rejected"
    - "Awaiting Banker Confirmation"
 
-5. PDD Status (STRICT ENUM):
-   Use **ONLY ONE** of the following values:
-   - "PDD Confirmation Received"
-   - "PDD Not Confirmed"
-   - "PDD Confirmation Rejected"
-   - "Awaiting Banker Confirmation"
+5.PDD:
+   - Evaluate the PDD remarks/status received from the banker.
+      -Use **ONLY ONE** of the following values:
+         - "PDD Confirmation Received"
+         - "PDD Not Confirmed"
+         - "PDD Confirmation Rejected"
+         - "Awaiting Banker Confirmation"
+      - If the text contains any one of the following values (case-insensitive, partial match allowed):
+         - confirmed, cleared, completed, verified, yes, true, ok, pdd
+         - Then set PDD = "PDD Confirmation Received".
+      - else set PDD = "PDD Not Confirmed".
+
+6. OTC:
+   - Evaluate the OTC remarks/status received from the banker.
+      - Use **ONLY ONE** of the following values:
+         - "OTC Confirmation Received"
+         - "OTC Not Confirmed"
+         - "OTC Confirmation Rejected"
+         - "Awaiting Banker Confirmation"
+      - If the text contains any one of the following values (case-insensitive, partial match allowed):
+         - confirmed, cleared, completed, verified, yes, true, ok, otc
+         - Then set OTC = "OTC Confirmation Received".
+      - else set OTC = "OTC Not Confirmed".
 
 6. Missing Data Handling:
    - Use **empty string ""** or **"Not found"** for missing values.
    - **NEVER reuse the same default value across multiple records**.
-
 ---
 
 CRITICAL IDENTIFIER EXTRACTION RULES
 
 ### BASIC APPLICATION ID (basicAppId) — MANDATORY SEARCH
-
 Search aggressively for **any application identifier** using the following:
 
 #### Common Terms:
@@ -229,27 +242,8 @@ Search aggressively for **any application identifier** using the following:
 - Application No
 - App No
 - Application Ref
-- Bank Reference
-- Bank Ref No
-- Ref No
-- Reference Number
-- Application Code
 - Basic App No
-- Basic Reference
-
-#### Variations:
-- "App ID:"
-- "Application ID:"
-- "Appl ID:"
-- "Basic App:"
-- "Application No:"
-- "Ref:"
-- "Reference:"
-- "App Ref:"
-- "Basic Ref:"
-- "Application#"
-- "App#"
-- "Basic App#"
+- Basic App
 
 #### Example Patterns:
 - Application ID: BHL123456
@@ -279,7 +273,6 @@ Search aggressively for **any application identifier** using the following:
 - If **basicAppId is NOT found**, use **empty string ""**
 - DO NOT invent or reuse placeholder values
 - DO NOT use "APP001", "UNKNOWN", or similar defaults
-
 ---
 
 DISBURSEMENT ID (disbursementId) — MANDATORY SEARCH
@@ -295,10 +288,12 @@ Apply the same strict rules as basicAppId:
 - Use empty string "" if not found
 - Do NOT reuse default values across records
 
+**DISBURSEMENT STATUS** (if received from banker) else check if Disbursement Amount is greater than 0 then set to "Disbursement Confirmation Received" else set to "Disbursement Not Confirmed"
 ---
 
 FAILURE CONDITION:
 If **no basic application information is found at all**:
+- If Disbursement Amount is greater than 0, pdd is cleared, otc is cleared then by default Disbursement Status should be "Disbursement Confirmation Received"
 - Set **all fields** to "Not found"
 - Set `"dataFound": false`
 
@@ -313,7 +308,8 @@ OUTPUT FORMAT (JSON — ONE OBJECT PER DISBURSEMENT):
   "disbursementAmount": 500000,
   "disbursementStatus": "Disbursement Confirmation Received",
   "pdd": "PDD Confirmation Received",
-  "applicationProductType": "HL",
-  "dataFound": true
-}}
-"""
+  "otc": "OTC Confirmation Received",
+   "applicationProductType": "HL", 
+   "dataFound": true
+  }}
+  """

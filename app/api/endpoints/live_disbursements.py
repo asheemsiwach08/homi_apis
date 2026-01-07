@@ -350,6 +350,7 @@ async def perform_email_check(config: LiveMonitoringConfig) -> Dict[str, Any]:
                     if disbursements:
                         # Add processing timestamp and live metadata
                         for disbursement in disbursements:
+                            print(f"🔹🔹🔹 Disbursement before validation check: {disbursement}")
                             disbursement = ai_analyzer.confirm_disbursement(disbursement)  # Confirm the disbursement status
                             # print("🔹🔹🔹 Disbursement: ", disbursement)
                             # print(f"🔹🔹🔹{100*'-'}🔹🔹🔹")
@@ -474,7 +475,10 @@ async def perform_email_check(config: LiveMonitoringConfig) -> Dict[str, Any]:
 
         # Save all stats to supabase
         try:
-            database_service.save_record_to_supabase(record=result, table_name="live_disbursement_stats", environment="orbit")
+            if result.get('new_emails_processed') > 0:
+                database_service.save_record_to_supabase(record=result, table_name="live_disbursement_stats", environment="orbit")
+            else:
+                logger.info("No disbursements found to save to supabase")
         except Exception as e:
             logger.info(f"Error saving stats to supabase: {str(e)}")
 

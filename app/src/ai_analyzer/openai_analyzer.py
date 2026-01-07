@@ -577,6 +577,11 @@ class OpenAIAnalyzer:
                 confirmation_outcome["dataFound"] = True
             else:
                 confirmation_outcome["dataFound"] = False
+
+            # Disbursement status validation check
+            if confirmation_outcome["disbursement_status"] == True and confirmation_outcome["pdd"] == True and confirmation_outcome["otc"] == True:
+                confirmation_outcome["disbursement_status"] = 'Disbursement Confirmed'
+            
             disbursement['dataFound'] = confirmation_outcome["dataFound"]
             disbursement['confirmation_outcome'] = confirmation_outcome
             return disbursement

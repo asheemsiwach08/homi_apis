@@ -528,12 +528,14 @@ class OpenAIAnalyzer:
                         confirmation_outcome["disbursement_status"] = True
                     elif disbursement.get('disbursementStatus').lower() in ['disbursement not confirmed','not confirmed', 'not cleared', 'not completed', 'not verified', 'not found' ]:
                         disbursement['disbursementStatus'] = 'Disbursement Not Confirmed'
-                    elif disbursement.get('disbursementStatus').lower() in ['disbursement confirmation rejected','rejected', 'not cleared', 'not completed', 'not verified', 'not', 'false', 'no' ]:
+                    elif disbursement.get('disbursementStatus').lower() in ['disbursement confirmation rejected','rejected', 'not', 'false', 'no' ]:
                         disbursement['disbursementStatus'] = 'Disbursement Confirmation Rejected'
+                        confirmation_outcome["disbursement_status"] = True
                     elif disbursement.get('disbursementStatus').lower() in ['awaiting banker confirmation','awaiting confirmation', 'awaiting clearance', 'awaiting completion', 'awaiting verification', 'pending', 'nil']:
                         disbursement['disbursementStatus'] = 'Awaiting Banker Confirmation'
                     else:
                         disbursement['disbursementStatus'] = 'Disbursement Not Confirmed'
+                        confirmation_outcome["disbursement_status"] = True
                 else:
                     disbursement['disbursementStatus'] = 'Disbursement Not Confirmed'
 
@@ -543,8 +545,9 @@ class OpenAIAnalyzer:
                         confirmation_outcome["pdd"] = True
                     elif disbursement.get('pdd').lower() in ['pdd not confirmed','not confirmed', 'not cleared', 'not completed', 'not verified', 'nil' ]:
                         disbursement['pdd'] = 'PDD Not Confirmed'
-                    elif disbursement.get('pdd').lower() in ['pdd confirmation rejected','rejected', 'not cleared', 'not cleared by bank', 'not completed', 'not verified', 'not', 'false', 'no' ]:
+                    elif disbursement.get('pdd').lower() in ['pdd confirmation rejected','rejected', 'not', 'false', 'no' ]:
                         disbursement['pdd'] = 'PDD Confirmation Rejected'
+                        confirmation_outcome["pdd"] = True
                     else:
                         disbursement['pdd'] = 'PDD Not Confirmed'
                 else:
@@ -556,8 +559,9 @@ class OpenAIAnalyzer:
                         confirmation_outcome["otc"] = True
                     elif disbursement.get('otc').lower() in ['otc not confirmed','not confirmed', 'not cleared', 'not completed', 'not verified', 'nil' ]:
                         disbursement['otc'] = 'OTC Not Confirmed'
-                    elif disbursement.get('otc').lower() in ['otc confirmation rejected','rejected', 'not cleared', 'not cleared by bank', 'not completed', 'not verified', 'not', 'false', 'no' ]:
+                    elif disbursement.get('otc').lower() in ['otc confirmation rejected','rejected', 'not', 'false', 'no' ]:
                         disbursement['otc'] = 'OTC Confirmation Rejected'
+                        confirmation_outcome["otc"] = True
                     else:
                         disbursement['otc'] = 'OTC Not Confirmed'
                 else:

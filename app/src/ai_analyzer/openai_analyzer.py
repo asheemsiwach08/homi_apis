@@ -578,6 +578,7 @@ class OpenAIAnalyzer:
             else:
                 confirmation_outcome["dataFound"] = False
             disbursement['dataFound'] = confirmation_outcome["dataFound"]
+            disbursement['confirmation_outcome'] = confirmation_outcome
             return disbursement
     
     def _create_error_result(self, email_data: Dict[str, Any], error_message: str) -> Dict[str, Any]:

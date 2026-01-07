@@ -351,8 +351,8 @@ async def perform_email_check(config: LiveMonitoringConfig) -> Dict[str, Any]:
                         # Add processing timestamp and live metadata
                         for disbursement in disbursements:
                             disbursement = ai_analyzer.confirm_disbursement(disbursement)  # Confirm the disbursement status
-                            print("🔹🔹🔹 Disbursement: ", disbursement)
-                            print(f"🔹🔹🔹{100*'-'}🔹🔹🔹")
+                            # print("🔹🔹🔹 Disbursement: ", disbursement)
+                            # print(f"🔹🔹🔹{100*'-'}🔹🔹🔹")
                             disbursement["processed_at"] = datetime.now()
                             disbursement["processing_type"] = "live"
                             disbursement["monitoring_session"] = monitoring_state["started_at"]
@@ -389,6 +389,9 @@ async def perform_email_check(config: LiveMonitoringConfig) -> Dict[str, Any]:
                                     logger.error(f"Failed to generate PDF for the disbursement: {disbursement.get('basicAppId')}")
                                     print(f"❌ Failed to generate PDF for the disbursement: {disbursement.get('basicAppId')}")
                                     print(f"🔹🔹🔹{100*'-'}🔹🔹🔹")
+
+                            else:
+                                logger.info(f"🔸Disbursement data not found for the disbursement: {disbursement.get('basicAppId')}, Record Details: {disbursement}")
        
                 except Exception as e:
                     error_msg = f"Error analyzing email {i+1} with AI Analyzer: {str(e)}"
@@ -890,6 +893,8 @@ def save_pdf_and_update_disbursement_proof(disbursement: Dict, pdf_bytes: bytes)
         disbursement_proof_url = None
         logger.warning("Error in generating signed url for the disbursement proof.`")
 
+    print(f"🔹🔹🔹 Disbursement proof url: {disbursement_proof_url}")  #TODO: Remove this after testing
+
     # Send the disbursement proof to Basic Application API
     if disbursement_proof_url:
         try:
@@ -902,6 +907,7 @@ def save_pdf_and_update_disbursement_proof(disbursement: Dict, pdf_bytes: bytes)
             })
             if update_disbursement_proof_response:
                 logger.info(f"✅ Disbursement proof sent to Basic Application API")
+                print(f"🔹🔹🔹 Disbursement proof sent to Basic Application API: {update_disbursement_proof_response}")
                 upload_outcome["disbursement_proof_sent"] = 1
             
             return True, upload_outcome

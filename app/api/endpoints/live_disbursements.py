@@ -726,7 +726,7 @@ def check_live_disbursements_health() -> Dict[str, Any]:
         unhealthy_components = []
         for unhealthy_component in health_status["components"]:
             if health_status["components"][unhealthy_component]["status"] == "unhealthy":
-                unhealthy_component = f"{unhealthy_component}: {health_status["components"][unhealthy_component]["details"]}"
+                unhealthy_component = f"{unhealthy_component}: {health_status['components'][unhealthy_component]['details']}"
                 unhealthy_components.append(unhealthy_component)
         
         if unhealthy_components:

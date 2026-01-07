@@ -120,17 +120,17 @@ async def start_live_monitoring(config: LiveMonitoringConfig) -> Dict[str, Any]:
     except HTTPException:
         email_processing_service.send_email(
             email_data={
-                "subject": "Live disbursement monitoring failed", 
-                "content": "Live disbursement monitoring failed: "+str(e)
+                "subject": f"Live disbursement monitoring failed | Started at:{monitoring_state["started_at"].isoformat()} | Ended at: {datetime.now().isoformat()}", 
+                "content": f"Issue in Live Disbursements Service: \nService Started at: {monitoring_state["started_at"].isoformat()} \nService Ended at: {datetime.now().isoformat()} \n\nError: "+str(e)+"\n\nPlease check the logs for more details."
             })
         raise
     except Exception as e:
         email_processing_service.send_email(
             email_data={
-                "subject": "Live disbursement monitoring failed", 
-                "content": "Failed to start live monitoring: "+str(e)
+                "subject": f"Live disbursement monitoring failed | Started at:{monitoring_state["started_at"].isoformat()} | Ended at: {datetime.now().isoformat()}", 
+                "content": f"Issue in Live Disbursements Service: \nService Started at: {monitoring_state["started_at"].isoformat()} \nService Ended at: {datetime.now().isoformat()} \n\nError: "+str(e)+"\n\nPlease check the logs for more details."
             })
-        logger.error(f"Failed to start live monitoring: {str(e)}")
+        logger.error(f"Issue in Live Disbursements Service: \nService Started at: {monitoring_state["started_at"].isoformat()} \nService Ended at: {datetime.now().isoformat()} \n\nError: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
 
 
@@ -155,6 +155,12 @@ async def stop_live_monitoring() -> Dict[str, Any]:
             monitoring_state["thread"].join(timeout=5.0)
         
         logger.info("Live disbursement monitoring stopped")
+
+        subject = f"Live disbursement monitoring stopped | Started at:{monitoring_state["started_at"].isoformat()} | Ended at: {datetime.now().isoformat()}"
+        content = f"Live Disbursements Service: \nService Started at: {monitoring_state["started_at"].isoformat()} \nService Ended at: {datetime.now().isoformat()} \n\nService stopped successfully."
+
+        # Send email to the recipient emails
+        email_processing_service.send_email(email_data={"subject": subject, "content": content})
         
         return {
             "success": True,

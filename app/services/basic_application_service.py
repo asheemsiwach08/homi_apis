@@ -351,7 +351,23 @@ class BasicApplicationService:
                 "refType": "Application",
                 "type": "Task"
             }
-
+    
+    def _prepare_send_disbursement_proof_payload(self, data: Dict) -> Dict:
+        """
+        Prepare send disbursement proof payload for Basic Application API
+        
+        Args:
+            data: Data from request
+            
+        Returns:
+            Dict: Formatted payload for Basic Application API
+        """
+        return [{
+            "basicDisbursementId": data.get("basicDisbursementId", ""),
+            "homiDisbursementRemarks": data.get("disbursementRemarks", ""),
+            "homiPDDRemarks": data.get("pddRemarks", ""),
+            "disbursementProofUrl": data.get("disbursementProofUrl", ""),
+        }]
   
     def normalize_url(self, url):
         parsed = urlparse(url)
@@ -458,9 +474,7 @@ class BasicApplicationService:
             HTTPException: If API call fails
         """
         try:
-            print("Payload first:", lead_data)
             api_payload = self._prepare_FBB_by_basic_user_payload(lead_data)
-            print("Payload changed:", api_payload)
             
             if not self.basic_api_url:
                 raise HTTPException(
@@ -778,4 +792,167 @@ class BasicApplicationService:
             raise
         except Exception as e:
             raise HTTPException(status_code=500, detail=f"Error calling Basic Application API: {str(e)}")
-    
+
+    def send_disbursement_proof(self, data: Dict) -> Dict:
+        """
+        Send disbursement proof to Basic Application API
+        
+        Args:
+            data: Data from request
+            
+        Returns:
+            Dict: Response from Basic Application API
+        """
+        try:
+            api_payload = self._prepare_send_disbursement_proof_payload(data)
+
+            if not self.basic_api_url:
+                raise HTTPException(
+                    status_code=500,
+                    detail="Basic Application API URL not configured"
+                )
+
+            # Get signature headers
+            api_url = f"{self.basic_api_url}/api/v1/Disbursement/HomiDisbursementProofUpdate"
+            headers = self.generate_signature_headers(
+                api_url, "PUT",
+                 api_payload,
+                 self.BASIC_APPLICATION_USER_ID,
+                 self.BASIC_APPLICATION_API_KEY)
+                
+            response = requests.put(api_url, headers=headers, json=api_payload)
+
+            print("RESPONSE: ", response.json())
+
+            if response.status_code in [200, 201]:
+                try:
+                    # Check if response has content before parsing JSON
+                    if response.text.strip():
+                        return response.json()
+                    else:
+                        raise HTTPException(
+                            status_code=400,
+                            detail="Empty response received from Basic Application API- HomiDisbursementProofUpdate"
+                        )
+                except json.JSONDecodeError as json_error:
+                    logger.error(f"JSON parsing error: {json_error}")
+                    logger.error(f"Response text: {response.text}")
+                    raise HTTPException(
+                        status_code=400,
+                        detail=f"Invalid JSON response from Basic Application API: {response.text}"
+                    )
+            else:
+                raise HTTPException(
+                    status_code=400, 
+                    detail=f"Failed to send disbursement proof in Basic Application API(HomiDisbursementProofUpdate): {response.text}"
+                )
+                    
+        except HTTPException:
+            raise
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=f"Error calling Basic Application API: {str(e)}")
+
+
+    def generate_presignedS3_url(self, key_value: str) -> Dict:
+        """
+        Generate presigned S3 URL for disbursement proof
+        
+        Args:
+            key_value: Key value from request
+            
+        Returns:
+            Dict: Response from Basic Application API
+        """
+        try:
+
+            if not self.basic_api_url:
+                raise HTTPException(
+                    status_code=500,
+                    detail="Basic Application API URL not configured"
+                )
+
+            # Get signature headers
+            api_url = f"{self.basic_api_url}/api/v1/Documents/GeneratePreSignedFromS3Key?Key={key_value}"
+            from app.services.params_signature import get_signature_headers
+            headers = get_signature_headers(api_url, "POST")
+
+            response = requests.post(api_url, headers=headers)
+
+            if response.status_code in [200, 201]:
+                try:
+                    # Check if response has content before parsing JSON
+                    if response.text.strip():
+                        return response.json()
+                    else:
+                        raise HTTPException(
+                            status_code=400,
+                            detail="Empty response received from Basic Application API- GeneratePreSignedFromS3Key"
+                        )
+                except json.JSONDecodeError as json_error:
+                    logger.error(f"JSON parsing error: {json_error}")
+                    logger.error(f"Response text: {response.text}")
+                    raise HTTPException(
+                        status_code=400,
+                        detail=f"Invalid JSON response from Basic Application API: {response.text}"
+                    )
+            else:
+                raise HTTPException(
+                    status_code=400, 
+                    detail=f"Failed to generate presigned S3 URL in Basic Application API(GeneratePreSignedFromS3Key): {response.text}"
+                )
+        except HTTPException:
+            raise
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=f"Error calling Basic Application API: {str(e)}")
+
+    def direct_upload(self, data: Dict) -> Dict:
+        """
+        Direct upload to S3 using presigned URL
+        
+        Args:
+            data: Dictionary containing:
+                - URL: Presigned S3 URL
+                - HEADERS: Headers to send with the request
+                - BODY: Binary data (bytes) to upload
+                
+        Returns:
+            Dict: Response with status and details
+        """
+        try:
+            url = data.get("URL")
+            headers = data.get("HEADERS", {})
+            body = data.get("BODY")
+            
+            if not url:
+                raise HTTPException(status_code=400, detail="URL is required for S3 upload")
+            if body is None:
+                raise HTTPException(status_code=400, detail="BODY (binary data) is required for S3 upload")
+            
+            # Ensure Content-Type is set for PDF if not already in headers
+            if isinstance(body, bytes) and "Content-Type" not in headers:
+                headers["Content-Type"] = "application/pdf"
+            
+            # Upload binary data directly to S3
+            response = requests.put(url, headers=headers, data=body)
+            
+            if response.status_code in [200, 204]:
+                return {
+                    "success": True,
+                    "status_code": response.status_code,
+                    "message": "File uploaded successfully to S3",
+                    "url": url
+                }
+            else:
+                # S3 returns XML error messages
+                error_detail = response.text if response.text else f"HTTP {response.status_code}"
+                logger.error(f"S3 upload failed: {error_detail}")
+                raise HTTPException(
+                    status_code=response.status_code,
+                    detail=f"Failed to upload file to S3: {error_detail}"
+                )
+                
+        except HTTPException:
+            raise
+        except Exception as e:
+            logger.error(f"Error uploading to S3: {str(e)}")
+            raise HTTPException(status_code=500, detail=f"Error uploading to S3: {str(e)}")

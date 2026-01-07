@@ -3,11 +3,13 @@ Comprehensive text extraction module for various file types.
 Supports PDF, images (PNG, JPEG, JPG), CSV, Excel, Word documents, and text files.
 """
 
+import re
 import io
 import csv
 import logging
-from typing import Optional, Union, Dict, Any
 from pathlib import Path
+from typing import Optional, Union, Dict, Any
+from difflib import SequenceMatcher
 
 # PDF processing
 import PyPDF2
@@ -274,3 +276,328 @@ def extract_all_attachment_texts(attachments: list) -> str:
         extracted_texts.append(f"--- {filename} ---\n{extracted_text}\n")
     
     return "\n".join(extracted_texts) 
+
+def extract_keywords(text: str) -> str:
+    """Extract keywords from a text string.
+    Args:
+        text: Text string
+        
+    Returns:
+        Keywords as string
+    """
+    # text = text.lower().strip()
+    words = re.findall(r'[a-z]+', text, re.IGNORECASE)
+    stop_words = {'the', 'of', 'a', 'an', 'and', 'or', 'but', 'in', 'on', 'at', 'to', 'for', 'is', 'are', 'was', 'were'}
+    keywords = [word for word in words if word not in stop_words]
+    return " ".join(keywords)
+
+def match_subject_keywords(subject1: str, subject2: str, threshold: float = 0.5) -> bool:
+    """Match subject keywords using sequence similarity.
+    Args:
+        subject1: First subject string
+        subject2: Second subject string
+        threshold: Similarity threshold (default: 0.5)
+        
+    Returns:
+        True if subjects are similar, False otherwise
+    """
+    keywords1 = extract_keywords(subject1)
+    keywords2 = extract_keywords(subject2)
+
+    if not keywords1 or not keywords2:
+        return False
+    similarity = SequenceMatcher(None, keywords1, keywords2).ratio()
+    return similarity >= threshold
+
+
+def gather_pdf_content(email: dict) -> tuple[str, dict]:
+    """Gather PDF content from an email.
+    Args:
+        email: Email dictionary with 'sender', 'date', 'subject', and 'content'
+        
+    Returns:
+        PDF content as string, Email dictionary with 'sender', 'date', 'subject', and 'content'
+    """
+    import html
+    try:
+        content = email['content']
+        # Remove HTML tags
+        content = re.sub(r'<[^>]+>', '', content)
+        # Decode HTML entities
+        content = html.unescape(content)
+        filtered_content = re.sub(r'[^a-z0-9]+', '', content, re.IGNORECASE)
+        filtered_content = " ".join(filtered_content.split()).strip()
+        
+        pdf_content = f"""
+        From: {email['sender']}
+        To: disbursement@basichomeloan.com
+        
+        Date: {email['date']}
+        
+        Subject: {email['subject']}
+
+        Content:
+        {filtered_content.strip()}
+        --------------------------------
+        """
+        return pdf_content, {"from": email['sender'], "to": "disbursement@basichomeloan.com", "date": email['date'], "subject": email['subject'], "content": filtered_content.strip()}
+
+    except Exception as e:
+        logger.error(f"Error gathering PDF content: {str(e)}")
+        return "", {"from": "", "to": "", "date": "", "subject": "", "content": ""}
+
+
+from reportlab.lib.pagesizes import A4
+from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer
+from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+from reportlab.lib.units import inch
+from reportlab.lib.colors import HexColor
+
+def escape_html(text):
+    """Escape HTML special characters"""
+    if not text:
+        return ""
+    return (str(text)
+            .replace("&", "&amp;")
+            .replace("<", "&lt;")
+            .replace(">", "&gt;")
+            .replace('"', "&quot;")
+            .replace("'", "&#39;"))
+
+def email_string_to_pdf(email_text: dict, output_path: str = None) -> tuple[bool, bytes]:
+    """Convert email text to PDF.
+    Args:
+        email_text: Email dictionary with 'from', 'to', 'date', 'subject', and 'content'
+        output_path: Optional path to save the PDF file. If None, PDF is only returned as bytes.
+    Returns:
+        tuple[bool, bytes]: Tuple containing success status and PDF content as binary data (blob)
+    """
+    try:
+        # Bytes to store content
+        buffer = io.BytesIO()
+        
+        pdf = SimpleDocTemplate(
+            buffer, 
+            pagesize=A4,
+            rightMargin=72,
+            leftMargin=72,
+            topMargin=72,
+            bottomMargin=72
+        )
+
+        styles = getSampleStyleSheet()
+        elements = []
+
+        # Create custom styles
+        header_style = ParagraphStyle(
+            'CustomHeader',
+            parent=styles['Heading1'],
+            fontSize=10,
+            textColor=HexColor('#2C3E50'),
+            spaceAfter=6,
+            fontName='Helvetica-Bold'
+        )
+        
+        label_style = ParagraphStyle(
+            'CustomLabel',
+            parent=styles['Normal'],
+            fontSize=8,
+            textColor=HexColor('#7F8C8D'),
+            fontName='Helvetica-Bold',
+            spaceAfter=4
+        )
+        
+        value_style = ParagraphStyle(
+            'CustomValue',
+            parent=styles['Normal'],
+            fontSize=8,
+            textColor=HexColor('#2C3E50'),
+            spaceAfter=12,
+            leftIndent=20
+        )
+        
+        subject_style = ParagraphStyle(
+            'CustomSubject',
+            parent=styles['Title'],
+            fontSize=12,
+            textColor=HexColor('#34495E'),
+            spaceAfter=20,
+            fontName='Helvetica-Bold'
+        )
+        
+        content_style = ParagraphStyle(
+            'CustomContent',
+            parent=styles['BodyText'],
+            fontSize=8,
+            textColor=HexColor('#2C3E50'),
+            leading=16,
+            spaceAfter=12,
+            leftIndent=0,
+            rightIndent=0
+        )
+        
+        date_style = ParagraphStyle(
+            'CustomDate',
+            parent=styles['Italic'],
+            fontSize=7,
+            textColor=HexColor('#95A5A6'),
+            spaceAfter=20
+        )
+
+        # Add title/header
+        elements.append(Spacer(1, 0.2*inch))
+        
+        # From field
+        from_value = escape_html(email_text.get("from", ""))
+        if from_value:
+            elements.append(Paragraph(f"<b>From:</b> {from_value}", label_style))
+            # elements.append(Paragraph(from_value, value_style))
+        
+        # To field
+        to_value = escape_html(email_text.get("to", ""))
+        if to_value:
+            elements.append(Paragraph(f"<b>To:</b> :{to_value}", label_style))
+            # elements.append(Paragraph(to_value, value_style))
+        
+        # Date field
+        date_value = escape_html(email_text.get("date", ""))
+        if date_value:
+            elements.append(Paragraph(f"<b>Date:</b> {date_value}", label_style))
+            # elements.append(Paragraph(date_value, date_style))
+        
+        # Subject field
+        subject_value = escape_html(email_text.get("subject", ""))
+        if subject_value:
+            elements.append(Paragraph(subject_value, subject_style))
+            # elements.append(Spacer(1, 0.2*inch))
+        
+        # Content field - preserve line breaks
+        content_value = escape_html(email_text.get("content", ""))
+        if content_value:
+            # Replace newlines with <br/> tags for proper line breaks in PDF
+            content_value = content_value.replace('\n', '<br/>')
+            # Split into paragraphs if there are double newlines
+            paragraphs = content_value.split('<br/><br/>')
+            for para in paragraphs:
+                if para.strip():
+                    elements.append(Paragraph(para.strip(), content_style))
+                    elements.append(Spacer(1, 0.1*inch))
+
+        # Build PDF in memory
+        pdf.build(elements)
+        
+        # Get PDF bytes from buffer
+        pdf_bytes = buffer.getvalue()
+        buffer.close()
+        
+        # Optionally save to file if output_path is provided
+        if output_path:
+            with open(output_path, 'wb') as f:
+                f.write(pdf_bytes)
+
+        return True, pdf_bytes 
+
+    except Exception as e:
+        logger.error(f"Error converting email text to PDF: {str(e)}")
+        return False, None
+
+# Email content correction functions
+def correct_email_links(string: str) -> str:
+
+    string = re.sub(r"https?://\S+|www\.\S+", "", string)  # Clear the links
+    email_list = re.findall(r"<[a-zA-Z0-9.]+@[a-zA-Z0-9.]+[^>]+>", string)
+
+    for email in email_list:
+        string = string.replace(email, "mailto:"+email.replace("<","").replace(">","").replace("mailto:",","))
+    return string
+
+def correct_symbols_from_string(string: str) -> str:
+
+    string = re.sub(r"[<>*]", " ", string)
+    return string
+
+def clean_email_content(text: str) -> str:
+    """
+    Clean and format email content by correcting links, symbols, and organizing thread parts.
+    
+    Args:
+        text: Raw email content string to clean
+        
+    Returns:
+        Cleaned and formatted email content string
+        
+    Raises:
+        ValueError: If input is not a string or is None
+    """
+    # Input validation
+    if text is None:
+        raise ValueError("Input text cannot be None")
+    
+    if not isinstance(text, str):
+        raise ValueError(f"Input must be a string, got {type(text).__name__}")
+    
+    # Handle empty string
+    if not text.strip():
+        return ""
+    
+    try:
+        # Apply email link and symbol corrections
+        text = correct_email_links(string=text)
+        
+        text = correct_symbols_from_string(string=text)
+        
+    except Exception as e:
+        print(f"Warning: Error during email content correction: {e}")
+        # Continue with original text if corrections fail
+    
+    try:
+        # Split text into lines
+        splitted_text = text.split("\n")
+    except Exception as e:
+        print(f"Error: Failed to split text into lines: {e}")
+        return text  # Return processed text if splitting fails
+    
+    # Build cleaned text
+    cleaned_text = ""
+    parts = 1
+    
+    try:
+        for line in splitted_text:
+            # Skip empty lines
+            if not line.strip():
+                continue
+            
+            lowered_line = line.strip().lower()
+            
+            # Check for email thread markers
+            if "from:" in lowered_line:
+                cleaned_text += "\n" + f"Part-{parts} of Thread: \n" + line.strip()
+                parts += 1
+            elif len(lowered_line) <= 80:
+                # Check if line contains non-alphanumeric characters (symbols, punctuation, etc.)
+                filtered_symbol_text = re.findall(r"[^a-zA-Z0-9\s]", line)
+                if len(filtered_symbol_text) > 0:
+                    cleaned_text += "\n" + line.strip()
+    except Exception as e:
+        print(f"Error: Failed during line processing: {e}")
+        # Return what we have so far
+        return cleaned_text if cleaned_text else text
+    
+    # Return cleaned text, or original if cleaning resulted in empty string
+    return cleaned_text.strip() if cleaned_text.strip() else text.strip()
+
+# Subject validation pattern
+SUBJECT_PATTERN = re.compile(
+    r"""^
+    .+?\s\(basic\ home\ loan\)\s–\s
+    disbursement\ confirmation\ request\s\|\s
+    .+?\s\|\s
+    .+?\s\|\s
+    .+?
+    $""",
+    re.VERBOSE
+)
+
+def is_valid_subject(subject: str) -> bool:
+    return bool(SUBJECT_PATTERN.match(subject))
+

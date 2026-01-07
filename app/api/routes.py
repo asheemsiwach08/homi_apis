@@ -2,14 +2,14 @@ from fastapi import APIRouter
 from app.api.endpoints import (
     track_leads, otp, whatsapp_webhook, 
     historical_disbursements, live_disbursements,
-    leads, basicverify_approval, gupshup_apis, gupshup_webhooks
+    leads, basicverify_approval, gupshup_apis, gupshup_webhooks, health
 )
 
 # Create main API router
 api_router = APIRouter()
 
 # Include all endpoint routers
-# api_router.include_router(health.router)
+api_router.include_router(health.router)
 api_router.include_router(otp.router)
 api_router.include_router(leads.router)
 api_router.include_router(track_leads.router) 

@@ -75,6 +75,9 @@ coverage.xml
 # Jupyter Notebook
 .ipynb_checkpoints
 
+# Testing folder
+.testing/
+
 # pyenv
 .python-version
 

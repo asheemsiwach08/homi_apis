@@ -1071,9 +1071,23 @@ Content-Type: application/json
 - **Background processing** for live monitoring
 - **Comprehensive logging** and error handling
 
+#### 3. Live Disbursements Health Check (Dedicated Endpoint)
+```http
+GET /api_v1/live_disbursements_health
+```
+
+**Note:** This endpoint provides the same health check as included in the main `/api_v1/health` endpoint. Use this if you only need live disbursements health status.
+
+**Response:** Same format as the `live_disbursements` section in the main health endpoint.
+
+**Component Status Values:**
+- `healthy`: Component is working correctly
+- `unhealthy`: Component has issues but may still function
+- `error`: Component encountered an error during health check
+
 ### Health Check & Environment Status
 
-#### Health Status
+#### Comprehensive Health Check
 ```http
 GET /api_v1/health
 ```
@@ -1083,6 +1097,8 @@ GET /api_v1/health
 {
     "status": "healthy",
     "timestamp": "2024-01-15T10:30:00Z",
+    "service": "HOM-i WhatsApp OTP, Lead Creation & Status API",
+    "version": "1.0.0",
     "database_environments": {
         "orbit": {"available": true, "error": null},
         "homfinity": {"available": true, "error": null}
@@ -1100,9 +1116,66 @@ GET /api_v1/health
             "whatsapp_messages": "orbit",
             "otp_storage": "homfinity"
         }
+    },
+    "live_disbursements": {
+        "overall_status": "healthy",
+        "components": {
+            "database": {
+                "status": "healthy",
+                "details": {
+                    "orbit_available": true,
+                    "homfinity_available": true,
+                    "default_client_available": true,
+                    "default_environment": "orbit"
+                }
+            },
+            "email_client": {
+                "status": "healthy",
+                "details": {
+                    "gmail_available": false,
+                    "zoho_available": true
+                }
+            },
+            "ai_analyzer": {
+                "status": "healthy",
+                "details": {
+                    "configured": true,
+                    "model": "gpt-4",
+                    "client_initialized": true
+                }
+            },
+            "basic_application_service": {
+                "status": "healthy",
+                "details": {
+                    "api_url_configured": true,
+                    "user_id_configured": true,
+                    "api_key_configured": true,
+                    "agent_user_id_configured": true,
+                    "agent_api_key_configured": true
+                }
+            },
+            "monitoring": {
+                "status": "healthy",
+                "details": {
+                    "is_running": false,
+                    "started_at": null,
+                    "last_check": null,
+                    "thread_alive": false,
+                    "emails_processed": 0,
+                    "disbursements_found": 0,
+                    "error_count": 0
+                }
+            }
+        }
     }
 }
 ```
+
+**Status Codes:**
+- **200**: Service is healthy or degraded (some components may be unhealthy)
+- **503**: Service is unhealthy (critical components are down)
+
+**Note:** The main health endpoint (`/api_v1/health`) now includes comprehensive health checks for live disbursements service. You can also use the dedicated endpoint (`/api_v1/live_disbursements_health`) for live disbursements-specific health checks.
 
 ### Multi-Environment Database Operations
 
@@ -1217,7 +1290,8 @@ This creates:
 
 ### Debug Endpoints
 
-<!-- - **Health Check**: `GET /api_v1/health` -->
+- **Comprehensive Health Check**: `GET /api_v1/health` - Overall API health status including database environments, live disbursements service, and all dependencies
+- **Live Disbursements Health Check**: `GET /api_v1/live_disbursements_health` - Dedicated endpoint for live disbursements service health (also included in main health endpoint)
 - **WhatsApp Service**: Check logs for WhatsApp service initialization
 - **Database Service**: Check logs for database connection status
 

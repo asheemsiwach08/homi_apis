@@ -9,8 +9,8 @@ from typing import List, Dict, Any
 from app.config.config import config
 from app.src.ai_analyzer import OpenAIAnalyzer
 from app.src.email_processor import ZohoMailClient
-from app.src.api_client import BasicApplicationService
-from app.src.sheets_integration import GoogleSheetsClient
+# from app.src.api_client import BasicApplicationService
+# from app.src.sheets_integration import GoogleSheetsClient
 
 logger = logging.getLogger(__name__)
 
@@ -22,20 +22,21 @@ class EmailProcessingService:
         """Initialize the processing service with all required clients."""
         self.zoho_client = ZohoMailClient()
         self.ai_analyzer = OpenAIAnalyzer()
-        self.basic_api_client = BasicApplicationService()
-        self.sheets_client = GoogleSheetsClient()
+        # self.basic_api_client = BasicApplicationService()
+        # self.sheets_client = GoogleSheetsClient()
         
-        # Initialize Google Sheets authentication
-        if not self.sheets_client.authenticate():
-            logger.error("Failed to authenticate with Google Sheets")
-        else:
-            logger.info("Google Sheets authentication successful")
+        # # Initialize Google Sheets authentication
+        # if not self.sheets_client.authenticate():
+        #     logger.error("Failed to authenticate with Google Sheets")
+        # else:
+        #     logger.info("Google Sheets authentication successful")
         
         # Configuration
         app_config = config.get_app_config()
         self.processing_delay = float(app_config.get('processing_delay', 1.0))
         self.max_retries = int(app_config.get('max_retries', 3))
         self.batch_size = int(app_config.get('batch_size', 10))
+        self.alert_email_config = config.get_alert_email_config()
         
         logger.info("Email processing service initialized")
     
@@ -213,106 +214,150 @@ class EmailProcessingService:
             result['errors'].append(error_msg)
             return result
     
-    def _verify_with_basic_api(self, bank_app_id: str) -> Dict[str, Any]:
-        """
-        Verify disbursement data with Basic Application API.
+    # def _verify_with_basic_api(self, bank_app_id: str) -> Dict[str, Any]:
+    #     """
+    #     Verify disbursement data with Basic Application API.
         
-        Args:
-            bank_app_id: Bank application ID to verify
+    #     Args:
+    #         bank_app_id: Bank application ID to verify
             
-        Returns:
-            API verification data or empty dict if failed
-        """
-        try:
-            for attempt in range(self.max_retries):
-                try:
-                    api_data = self.basic_api_client.verify_application(bank_app_id)
-                    if api_data:
-                        logger.debug(f"API verification successful for {bank_app_id}")
-                        return api_data
-                    else:
-                        logger.warning(f"No data returned from API for {bank_app_id}")
-                        return {}
-                except Exception as e:
-                    if attempt < self.max_retries - 1:
-                        logger.warning(f"API verification attempt {attempt + 1} failed for {bank_app_id}: {str(e)}")
-                    else:
-                        logger.error(f"API verification failed after {self.max_retries} attempts for {bank_app_id}: {str(e)}")
+    #     Returns:
+    #         API verification data or empty dict if failed
+    #     """
+    #     try:
+    #         for attempt in range(self.max_retries):
+    #             try:
+    #                 api_data = self.basic_api_client.verify_application(bank_app_id)
+    #                 if api_data:
+    #                     logger.debug(f"API verification successful for {bank_app_id}")
+    #                     return api_data
+    #                 else:
+    #                     logger.warning(f"No data returned from API for {bank_app_id}")
+    #                     return {}
+    #             except Exception as e:
+    #                 if attempt < self.max_retries - 1:
+    #                     logger.warning(f"API verification attempt {attempt + 1} failed for {bank_app_id}: {str(e)}")
+    #                 else:
+    #                     logger.error(f"API verification failed after {self.max_retries} attempts for {bank_app_id}: {str(e)}")
             
-            return {}
+    #         return {}
             
-        except Exception as e:
-            logger.error(f"Error in API verification for {bank_app_id}: {str(e)}")
-            return {}
+    #     except Exception as e:
+    #         logger.error(f"Error in API verification for {bank_app_id}: {str(e)}")
+    #         return {}
     
-    def _update_google_sheets(self, disbursement_data: Dict[str, Any]) -> bool:
-        """
-        Update Google Sheets with disbursement data.
+    # def _update_google_sheets(self, disbursement_data: Dict[str, Any]) -> bool:
+    #     """
+    #     Update Google Sheets with disbursement data.
         
-        Args:
-            disbursement_data: Disbursement information to add
+    #     Args:
+    #         disbursement_data: Disbursement information to add
             
-        Returns:
-            True if update was successful
-        """
-        try:
-            # The append_bank_application_data method expects a list of applications
-            result = self.sheets_client.append_bank_application_data([disbursement_data])
+    #     Returns:
+    #         True if update was successful
+    #     """
+    #     try:
+    #         # The append_bank_application_data method expects a list of applications
+    #         result = self.sheets_client.append_bank_application_data([disbursement_data])
             
-            # Check if the update was successful
-            if result.get('new_records', 0) > 0:
-                logger.info(f"Successfully added new record to Google Sheets: {disbursement_data.get('bankAppId')}")
-                return True
-            elif result.get('duplicates_skipped', 0) > 0:
-                logger.info(f"Duplicate record skipped in Google Sheets: {disbursement_data.get('bankAppId')}")
-                return True  # Consider as successful since data already exists
-            else:
-                logger.warning(f"No records were added to Google Sheets for: {disbursement_data.get('bankAppId')}")
-                return False
+    #         # Check if the update was successful
+    #         if result.get('new_records', 0) > 0:
+    #             logger.info(f"Successfully added new record to Google Sheets: {disbursement_data.get('bankAppId')}")
+    #             return True
+    #         elif result.get('duplicates_skipped', 0) > 0:
+    #             logger.info(f"Duplicate record skipped in Google Sheets: {disbursement_data.get('bankAppId')}")
+    #             return True  # Consider as successful since data already exists
+    #         else:
+    #             logger.warning(f"No records were added to Google Sheets for: {disbursement_data.get('bankAppId')}")
+    #             return False
             
-        except Exception as e:
-            logger.error(f"Error updating Google Sheets: {str(e)}")
-            return False
+    #     except Exception as e:
+    #         logger.error(f"Error updating Google Sheets: {str(e)}")
+    #         return False
     
-    def get_service_status(self) -> Dict[str, Any]:
-        """
-        Get the current status of all service components.
+    # def get_service_status(self) -> Dict[str, Any]:
+    #     """
+    #     Get the current status of all service components.
         
+    #     Returns:
+    #         Status information for all components
+    #     """
+    #     status = {
+    #         'timestamp': datetime.now().isoformat(),
+    #         'zoho_connection': False,
+    #         'openai_configured': False,
+    #         'basic_api_configured': False,
+    #         'sheets_configured': False
+    #     }
+        
+    #     try:
+    #         # Check Zoho connection
+    #         status['zoho_connection'] = self.zoho_client.check_connection()
+    #     except:
+    #         pass
+        
+    #     try:
+    #         # Check OpenAI configuration
+    #         status['openai_configured'] = bool(self.ai_analyzer.openai_config.get('api_key'))
+    #     except:
+    #         pass
+        
+    #     try:
+    #         # Check Basic API configuration
+    #         basic_config = config.get_basic_application_config()
+    #         status['basic_api_configured'] = bool(basic_config.get('api_token'))
+    #     except:
+    #         pass
+        
+    #     try:
+    #         # Check Google Sheets configuration
+    #         sheets_config = config.get_sheets_config()
+    #         status['sheets_configured'] = bool(sheets_config.get('spreadsheet_id'))
+    #     except:
+    #         pass
+        
+    #     return status 
+
+    def send_email(self, email_data: Dict[str, Any]):
+        """
+        Send email to the recipient.
+        Args:
+            email_data: Email data dictionary
         Returns:
-            Status information for all components
+            Dictionary containing the result of the email sending operation
         """
-        status = {
-            'timestamp': datetime.now().isoformat(),
-            'zoho_connection': False,
-            'openai_configured': False,
-            'basic_api_configured': False,
-            'sheets_configured': False
-        }
-        
+        import smtplib
+        from email.mime.text import MIMEText
+        from email.mime.multipart import MIMEMultipart
+
         try:
-            # Check Zoho connection
-            status['zoho_connection'] = self.zoho_client.check_connection()
-        except:
-            pass
-        
-        try:
-            # Check OpenAI configuration
-            status['openai_configured'] = bool(self.ai_analyzer.openai_config.get('api_key'))
-        except:
-            pass
-        
-        try:
-            # Check Basic API configuration
-            basic_config = config.get_basic_application_config()
-            status['basic_api_configured'] = bool(basic_config.get('api_token'))
-        except:
-            pass
-        
-        try:
-            # Check Google Sheets configuration
-            sheets_config = config.get_sheets_config()
-            status['sheets_configured'] = bool(sheets_config.get('spreadsheet_id'))
-        except:
-            pass
-        
-        return status 
+            # Email configuration - Update these with your SMTP settings
+            smtp_server = self.alert_email_config.get('smtp_server')
+            smtp_port = self.alert_email_config.get('smtp_port')
+            sender_email = self.alert_email_config.get('sender_email')
+            sender_password = self.alert_email_config.get('sender_password')
+            recipient_emails = self.alert_email_config.get('recipient_emails')
+
+            # Create message
+            msg = MIMEMultipart()
+            msg['From'] = sender_email
+            msg['To'] = recipient_emails
+            msg['Subject'] = email_data.get('subject', 'No Subject')
+            
+            # Email body
+            body = email_data.get('content', 'No content')
+            
+            msg.attach(MIMEText(body, 'plain'))
+            
+            # Send email
+            with smtplib.SMTP(smtp_server, smtp_port) as server:
+                server.starttls()
+                server.login(sender_email, sender_password)
+                server.send_message(msg)
+                
+            logger.info(f"Admin notified via email: {recipient_emails}")
+        except Exception as e:
+            logger.info(f"Admin notified via email: {recipient_emails} Error sending email: {str(e)}")
+
+
+email_processing_service = EmailProcessingService()

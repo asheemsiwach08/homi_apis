@@ -139,39 +139,58 @@ class EmailParser:
         
         return extracted_data
     
-    def _clean_content(self, content: str) -> str:
+    def _clean_content(self, text: str) -> str:
         """Clean and normalize email content.
         
         Args:
-            content: Raw email content
+            text: Raw email content
             
         Returns:
             Cleaned content string
         """
-        if not content:
+        if not text:
             return ""
+
+        # 1. Remove URLs (http, https, www)
+        text = re.sub(
+            r"(https?://\S+|www\.\S+)",
+            "",
+            text,
+            flags=re.IGNORECASE
+        )
+
+        # 2. Remove leftover angle-bracket links like <http://...>
+        text = re.sub(r"<\s*>", "", text)
+
+        # 3. Normalize whitespace
+        # Replace multiple spaces/tabs with a single space
+        text = re.sub(r"[ \t]+", " ", text)
+
+        # Replace multiple newlines with max two (keeps paragraph breaks)
+        text = re.sub(r"\n{3,}", "\n\n", text)
+
+        # 4. Trim lines
+        text = "\n".join(line.strip() for line in text.splitlines())
+
+        # 5. Final trim
+        return text.strip()
+
         
-        # Remove HTML tags
-        content = re.sub(r'<[^>]+>', '', content)
+        # # Remove common email signatures
+        # signature_patterns = [
+        #     r'--\s*\n.*',
+        #     r'Best regards,.*',
+        #     r'Sincerely,.*',
+        #     r'Thank you,.*'
+        # ]
         
-        # Remove extra whitespace
-        content = re.sub(r'\s+', ' ', content)
-        
-        # Remove common email signatures
-        signature_patterns = [
-            r'--\s*\n.*',
-            r'Best regards,.*',
-            r'Sincerely,.*',
-            r'Thank you,.*'
-        ]
-        
-        for pattern in signature_patterns:
-            content = re.sub(pattern, '', content, flags=re.DOTALL | re.IGNORECASE)
+        # for pattern in signature_patterns:
+        #     content = re.sub(pattern, '', content, flags=re.DOTALL | re.IGNORECASE)
         
         # Strip leading/trailing whitespace
-        content = content.strip()
+        # content = content.strip()
         
-        return content
+        # return content
     
     def extract_application_id(self, content: str) -> Optional[str]:
         """Extract the most likely application ID from content.

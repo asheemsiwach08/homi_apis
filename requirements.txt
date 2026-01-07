@@ -25,6 +25,8 @@ PyPDF2
 python-docx
 openpyxl
 pandas
+reportlab
+boto3
 
 # Image text extraction (OCR)
 Pillow

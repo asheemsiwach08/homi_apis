@@ -137,10 +137,10 @@ def ai_basic_verification(ai_data, basic_data):
             else:
                 items_verified['basicAppId'] = ""
             
-            if ai_item.get('basicDisbId') == basic_item_data.get('basicDisbId'):
-                items_verified['basicDisbId'] = ai_item.get('basicDisbId')
+            if ai_item.get('disbursementId') == basic_item_data.get('disbursementId'):
+                items_verified['disbursementId'] = ai_item.get('disbursementId')
             else:
-                items_verified['basicDisbId'] = ""
+                items_verified['disbursementId'] = ""
             
             if ai_item.get('appBankName') == basic_item_data.get('appBankName'):
                 items_verified['appBankName'] = ai_item.get('appBankName')

@@ -192,14 +192,14 @@ class BankApplication(BaseModel):
     # Application IDs
     bankAppId: str = Field(default="Not found")
     basicAppId: str = Field(default="Not found")
-    basicDisbId: str = Field(default="Not found")
+    disbursementId: str = Field(default="Not found")
     
     # Bank Information
     appBankName: str = Field(default="Not found")
     
     # Status Information
-    disbursementStage: str = Field(default="Not Disbursed")
-    # disbursementStatus: str = Field(default="VerifiedByAI")
+    disbursementStatus: str = Field(default="Not Disbursed")
+    # disbursementStage: str = Field(default="VerifiedByAI")
     
     # Contact Information
     primaryborrowerMobile: str = Field(default="Not found")
@@ -218,6 +218,31 @@ class BankApplication(BaseModel):
     # Data Validation
     dataFound: bool = Field(default=False)
 
+class LatestBankApplication(BaseModel):
+    """Model class for bank application data."""
+        
+    # Dates
+    disbursedDate: str = Field(default="Not found")
+    
+    # Financial Information
+    disbursementAmount: float = Field(default=0)
+    loanSanctionAmount: float = Field(default=0)
+
+    # Application IDs
+    basicAppId: str = Field(default="Not found")
+    disbursementId: str = Field(default="Not found")
+    
+    # Status Information
+    disbursementStatus: str = Field(default="Not found")
+    pdd: str = Field(default="Not found")  # PDD - Post Disbursement Document
+    otc: str = Field(default="Not found")  # OTC - One Time Charge
+    
+    # Product Information
+    applicationProductType: str = Field(default="Not found")
+    
+    # Data Validation
+    dataFound: bool = Field(default=False)
+
 class BankThreadApplications(BaseModel):
     """Model class for bank application thread data."""
-    disbursements: List[BankApplication]
+    disbursements: List[LatestBankApplication]

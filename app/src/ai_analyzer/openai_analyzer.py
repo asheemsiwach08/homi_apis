@@ -55,9 +55,10 @@ class OpenAIAnalyzer:
             else:
                 # This is individual email data, use individual email analysis
                 prompt = self._prepare_analysis_prompt(email_data)
+                # print("PROMPT: ", prompt)
                 logger.info("Using individual email analysis for single email")
             
-            logger.debug(f"Email analysis prompt length: {len(prompt)} characters")
+            logger.info(f"Email analysis prompt length: {len(prompt)} characters")
             
             # Call OpenAI API
             response = self.client.beta.chat.completions.parse(
@@ -79,7 +80,7 @@ class OpenAIAnalyzer:
 
             # Initialize analysis result with disbursements data
             analysis_result = {
-                "disbursementStatus": "VerifiedByAI",
+                "disbursementStage": "VerifiedByAI",
                 'email_thread_id': email_data.get('thread_id', ''),
                 'email_subject': str(email_data.get('conversation_details', {}).get('subjects', '')),
                 'email_sender': str(email_data.get('conversation_details', {}).get('senders', '')),
@@ -142,116 +143,19 @@ class OpenAIAnalyzer:
         subject = email_data.get('subject', '')
         content = email_data.get('content', '')
         sender = email_data.get('sender', '')
-        attachments = email_data.get('attachments', [])
-        attachments_text = ""
-        if attachments:
-            # Extract text from all attachments using the comprehensive text extractor
-            attachments_text = extract_all_attachment_texts(attachments)
+        # attachments = email_data.get('attachments', [])
+        # attachments_text = ""
+        # if attachments:
+        #     # Extract text from all attachments using the comprehensive text extractor
+        #     attachments_text = extract_all_attachment_texts(attachments)
         
-        # Prepare attachment section
-        attachment_section = ""
-        if attachments_text:
-            attachment_section = f"Attachment Content:\n{attachments_text}"
+        # # Prepare attachment section
+        # attachment_section = ""
+        # if attachments_text:
+        #     attachment_section = f"Attachment Content:\n{attachments_text}"
                    
-        prompt = f"""
-                    IMPORTANT CONTEXT: You are analyzing emails from Basic Enterprises Pvt Ltd, which is an intermediary/agent firm that processes loan applications between banks and customers. Basic Enterprises is NOT a bank and should NEVER be used as the bank name.
-
-                    Please analyze the following email and extract customer disbursement information:
-
-                    Email Subject: {subject}
-                    Email Sender: {sender}
-                    Email Content:
-                    {content}
-
-                    {attachment_section}
-
-                    EXTRACTION RULES:
-                    1. Extract CUSTOMER information only (not banker/agent details from email headers)
-                    2. For bank name (appBankName), extract the actual lending bank (like HDFC Bank, ICICI Bank, SBI, etc.)
-                    3. DO NOT use "Basic Enterprises" or any intermediary/agent names as bank name
-                    4. Convert Indian currency: 1 lakh = 100,000, 1 crore = 10,000,000
-                    5. Create separate records for each customer disbursement
-                    6. Use 'Disbursed', 'Pending', or 'No Status' for disbursementStage
-                    7. **CRITICAL: Use empty string '' or 'Not found' for missing data - NEVER repeat the same default value across multiple records**
-                    8. **NAME SPLITTING RULES**: 
-                       - For individual customers: Split full names into firstName and lastName
-                       - firstName = First/given names, lastName = Family/surname 
-                       - Examples: "RAJESH KUMAR" → firstName: "RAJESH", lastName: "KUMAR"
-                       - Examples: "PRIYA SHARMA GUPTA" → firstName: "PRIYA SHARMA", lastName: "GUPTA"
-                       - Examples: "DR. AMIT SINGH" → firstName: "AMIT", lastName: "SINGH"
-                       - For companies: Put full company name in firstName, leave lastName empty
-                       - Examples: "ABC Enterprises Pvt Ltd" → firstName: "ABC Enterprises Pvt Ltd", lastName: ""
-                    9. **BANK APPLICATION ID (bankAppId) EXTRACTION CRITICAL RULES**:
-                       - Look for ALL variations of bank application identifiers:
-                       - **Common Terms**: "Bank App ID", "Bank Application ID", "Application ID", "App ID", "Application Number", "Application No", "Application Ref", "Bank Reference", "Bank Ref No", "Ref No", "Reference Number", "Application Code", "App No", "Bank App No"
-                       - **Variations**: "App ID:", "Application ID:", "Appl ID:", "Bank App:", "Application No:", "Ref:", "Reference:", "App Ref:", "Bank Ref:", "Application#", "App#"
-                       - **Patterns to Look For**:
-                         * "Application ID: BHL123456789"
-                         * "Bank App ID: HDFC2024001234"
-                         * "App ID: APP789456123"
-                         * "Application Number: BKA987654321"
-                         * "Bank Reference: REF456789123"
-                         * "Application Code: AC123456"
-                         * "App No: 202400123456"
-                         * "Bank App No: BA567890123"
-                         * "Reference: BHL/2024/001234"
-                       - **In Tables**: Look for columns labeled "Application ID", "App ID", "Bank App ID", "Application Number", "Reference"
-                       - **Format Recognition**: Usually alphanumeric codes with 6-20 characters, may include bank/company prefixes
-                       - **Context Clues**: Usually appears near customer names, loan amounts, or disbursement details
-                       - **CRITICAL**: If no bankAppId found, use empty string "" - DO NOT use repeated default values like "APP001" or "UNKNOWN"
-                    10. **LOAN ACCOUNT NUMBER (LAN) EXTRACTION CRITICAL RULES**:
-                       - Look for ALL variations of loan account numbers in emails
-                       - **Common Terms**: "LAN", "Loan Account Number", "Loan Account No", "Loan A/C No", "Account Number", "Loan Number", "L.A.N", "LAN ID", "LAN Number", "Loan A/C", "Account No"
-                       - **Variations**: "LAN:", "LAN-", "LAN #", "LAN No:", "Loan A/C:", "A/C No:", "Account No:", "Loan ID:", "Reference No:", "Loan Ref:", "Account ID:"
-                       - **Patterns to Look For**:
-                         * "LAN: 0PVL2506000005110837"
-                         * "Loan Account Number: ABC123456789"
-                         * "LAN ID: XYZ987654321"
-                         * "Account No: 1234567890123456"
-                         * "Loan A/C No: HDFC0001234567"
-                         * "Reference: REF123456789"
-                         * "Loan Number: LN789456123"
-                         * "Account ID: ACC456789123"
-                       - **In Tables**: Look for columns labeled "LAN", "Account No", "Loan Account", "A/C Number", "Loan A/C No"
-                       - **Format Recognition**: Usually 10-20 digit alphanumeric codes, may include bank prefixes
-                       - **Priority**: Use actual LAN over application numbers when both are present
-                       - **CRITICAL**: If no loanAccountNumber found, use empty string "" - DO NOT use repeated default values like "LAN001" or "UNKNOWN"
-
-                    Extract information in this JSON format:
-                    {{
-                        "bankerEmail": "email@example.com",
-                        "firstName": "John",
-                        "lastName": "Doe",
-                        "loanAccountNumber": "123456789",
-                        "disbursedOn": "2024-01-15",
-                        "disbursedCreatedOn": "2024-01-15",
-                        "sanctionDate": "2024-01-15",
-                        "disbursementAmount": 500000,
-                        "loanSanctionAmount": 500000,
-                        "bankAppId": "234234",
-                        "basicAppId": "A123456",
-                        "basicDisbId": "123123",
-                        "appBankName": "HDFC Bank",
-                        "disbursementStage": "Disbursed",
-                        "disbursementStatus": "VerifiedByAI",
-                        "primaryborrowerMobile": "+919876543210",
-                        "pdd": "cleared",
-                        "otc": "cleared",
-                        "sourcingChannel": "Direct",
-                        "sourcingcode": "DIR001",
-                        "applicationProductType": "HL",
-                        "dataFound": true
-                    }}
-
-                    **CRITICAL NOTES**: 
-                    1. The bankAppId field is essential - look for Application ID, Bank App ID, App ID, Application Number, Bank Reference, or any application identifier variations!
-                    2. The loanAccountNumber field is essential - look for LAN, Account No, A/C No, LAN ID, Reference No, or any loan identifier variations!
-                    3. **NEVER use repeated default values** - if bankAppId or loanAccountNumber not found, use empty string "" for each individual record
-                    4. **DO NOT use placeholder values** like "APP001", "LAN001", "UNKNOWN", "DEFAULT" across multiple records
-                    5. Each record must have unique bankAppId and loanAccountNumber when available, or empty string when not found
-
-                    If no bank application information is found, set all fields to "Not found" and dataFound to false.
-            """
+        from .prompts import latest_single_email_prompt,previous_single_email_prompt,latest_single_email_prompt2
+        prompt = latest_single_email_prompt2.format(subject=subject, sender=sender, content=content)
         return prompt
     
 
@@ -282,16 +186,16 @@ class OpenAIAnalyzer:
         # Get the email data for the thread
         raw_emails = email_data.get('raw_emails', [])
 
-        # Get all attachments from all raw emails
-        all_attachments = []
-        for raw_email in raw_emails:
-            attachments = raw_email.get("attachments", [])
-            all_attachments.extend(attachments)
+        # # Get all attachments from all raw emails
+        # all_attachments = []
+        # for raw_email in raw_emails:
+        #     attachments = raw_email.get("attachments", [])
+        #     all_attachments.extend(attachments)
 
-        attachments_text = ""
-        if all_attachments: 
-            # Extract text from all attachments using the comprehensive text extractor
-            attachments_text = extract_all_attachment_texts(all_attachments)
+        # attachments_text = ""
+        # if all_attachments: 
+        #     # Extract text from all attachments using the comprehensive text extractor
+        #     attachments_text = extract_all_attachment_texts(all_attachments)
                    
     
         prompt = f"""
@@ -304,9 +208,6 @@ class OpenAIAnalyzer:
 
                 ### Conversation Summary
                 {conversation_summary}
-
-                ### Attachment Content
-                {attachments_text if attachments_text else "No attachments"}
 
                 ### Instructions:
                 1. **Company Context**: Basic Enterprises Pvt Ltd is the intermediary/agent firm that processes loan applications between banks and customers. Basic Enterprises is NOT a bank and should NEVER be used as bank name (appBankName). Extract the actual lending bank/financial institution name (like HDFC Bank, ICICI Bank, SBI, etc.).
@@ -435,7 +336,7 @@ class OpenAIAnalyzer:
                    - **CRITICAL - NO REPEATED DEFAULTS**: Never use the same default value across multiple records
                      * DO NOT use: "APP001", "LAN001", "UNKNOWN", "DEFAULT", "NOT_FOUND" for multiple records
                      * DO use: Empty string "" for each record individually when data not found
-                   - **For disbursementStage**: Use ONLY these exact values: "Disbursed", "Pending", "No Status" - do not create new status values
+                   - **For disbursementStatus**: Use ONLY these exact values: "Disbursed", "Pending", "No Status" - do not create new status values
                    - **For dates**: Use YYYY-MM-DD format or leave empty if not found
                    - **For amounts**: Always use numbers without commas (e.g., 2300000, not 23,00,000)
                    - **For bankAppId**: Extract actual application IDs or use "" - never repeat placeholder values
@@ -462,9 +363,9 @@ class OpenAIAnalyzer:
                         "loanSanctionAmount": 500000,
                         "bankAppId": "BANK001",
                         "basicAppId": "BASIC001",
-                        "basicDisbId": "DISB001",
+                        "disbursementId": "BASIC001_D3",
                         "appBankName": "Example Bank",
-                        "disbursementStage": "Disbursed",
+                        "disbursementStatus": "Disbursed",
                         "primaryborrowerMobile": "+919876543210",
                         "pdd": "cleared",
                         "otc": "cleared",
@@ -477,7 +378,7 @@ class OpenAIAnalyzer:
                 ]
 
                 5. If no disbursement or bank application details are found, return a single record with all fields as "Not found" and **"dataFound": false**.
-                6. **IMPORTANT**: Use only "Disbursed", "Pending", or "No Status" for disbursementStage field.
+                6. **IMPORTANT**: Use only "Disbursed", "Pending", or "No Status" for disbursementStatus field.
                 7. **IMPORTANT**: For any missing information, use empty string "" or "Not found" - never use "Not specified", "N/A", "Unknown".
                 8. **CRITICAL**: Never use repeated placeholder values like "APP001", "LAN001", "UNKNOWN" across multiple records - use empty string "" for missing data.
                 9. **CRITICAL**: Each record must have unique bankAppId and loanAccountNumber when available, or empty string "" when not found.
@@ -526,7 +427,7 @@ class OpenAIAnalyzer:
                 - "Thanks, Vikash" in signature → This is email participant, NOT customer
                 
                 **Data Formatting Examples:**
-                - disbursementStage: "Disbursed" (if completed), "Pending" (if waiting), "No Status" (if unclear)
+                - disbursementStatus: "Disbursed" (if completed), "Pending" (if waiting), "No Status" (if unclear)
                 - Missing data: "" or "Not found" (NEVER "Not specified", "N/A", "Unknown")
                 - Dates: "2024-01-15" or "" (if not found)
                 - Phone: "+919876543210" or "" (if not found)
@@ -600,7 +501,80 @@ class OpenAIAnalyzer:
                 ### Start your analysis now:
                 """
         return prompt
-    
+
+        
+    def confirm_disbursement(self, disbursement: Dict[str, Any]) -> Dict[str, Any]:
+        """Confirm the disbursement status based on the email content.
+        
+        Args:
+            disbursement: Dictionary containing disbursement information
+            
+        Returns:
+            Dictionary containing confirmed disbursement information
+        """
+        confirmation_outcome = {"disbursement_amount": False, "disbursement_status": False, "pdd": False, "otc": False, "dataFound": False}
+        try:
+            if not float(disbursement.get("disbursementAmount")) > 0:
+                confirmation_outcome["disbursement_amount"] = False
+            else:
+                confirmation_outcome["disbursement_amount"] = True
+
+                basic_app_id = disbursement.get('disbursementId').split('_')[0] if "_" in disbursement.get('disbursementId') else "Not found"
+                disbursement['basicAppId'] = basic_app_id   # Update basicAppId in the disbursement dictionary
+
+                if disbursement.get('disbursementStatus'):
+                    if disbursement.get('disbursementStatus').lower() in ['disbursement confirmation received','confirmed', 'cleared', 'completed', 'verified', 'yes', 'true' ]:
+                        disbursement['disbursementStatus'] = 'Disbursement Confirmation Received'
+                        confirmation_outcome["disbursement_status"] = True
+                    elif disbursement.get('disbursementStatus').lower() in ['disbursement not confirmed','not confirmed', 'not cleared', 'not completed', 'not verified', 'not found' ]:
+                        disbursement['disbursementStatus'] = 'Disbursement Not Confirmed'
+                    elif disbursement.get('disbursementStatus').lower() in ['disbursement confirmation rejected','rejected', 'not cleared', 'not completed', 'not verified', 'not', 'false', 'no' ]:
+                        disbursement['disbursementStatus'] = 'Disbursement Confirmation Rejected'
+                    elif disbursement.get('disbursementStatus').lower() in ['awaiting banker confirmation','awaiting confirmation', 'awaiting clearance', 'awaiting completion', 'awaiting verification', 'pending', 'nil']:
+                        disbursement['disbursementStatus'] = 'Awaiting Banker Confirmation'
+                    else:
+                        disbursement['disbursementStatus'] = 'Disbursement Not Confirmed'
+                else:
+                    disbursement['disbursementStatus'] = 'Disbursement Not Confirmed'
+
+                if disbursement.get('pdd'):
+                    if disbursement.get('pdd').lower() in ['pdd confirmation received','confirmed', 'cleared', 'cleared by bank', 'completed', 'verified', 'yes', 'true' ]:
+                        disbursement['pdd'] = 'PDD Confirmation Received'
+                        confirmation_outcome["pdd"] = True
+                    elif disbursement.get('pdd').lower() in ['pdd not confirmed','not confirmed', 'not cleared', 'not completed', 'not verified', 'nil' ]:
+                        disbursement['pdd'] = 'PDD Not Confirmed'
+                    elif disbursement.get('pdd').lower() in ['pdd confirmation rejected','rejected', 'not cleared', 'not cleared by bank', 'not completed', 'not verified', 'not', 'false', 'no' ]:
+                        disbursement['pdd'] = 'PDD Confirmation Rejected'
+                    else:
+                        disbursement['pdd'] = 'PDD Not Confirmed'
+                else:
+                    disbursement['pdd'] = 'PDD Not Confirmed'
+
+                if disbursement.get('otc'):
+                    if disbursement.get('otc').lower() in ['otc confirmation received','confirmed', 'cleared', 'cleared by bank', 'completed', 'verified', 'yes', 'true' ]:
+                        disbursement['otc'] = 'OTC Confirmation Received'
+                        confirmation_outcome["otc"] = True
+                    elif disbursement.get('otc').lower() in ['otc not confirmed','not confirmed', 'not cleared', 'not completed', 'not verified', 'nil' ]:
+                        disbursement['otc'] = 'OTC Not Confirmed'
+                    elif disbursement.get('otc').lower() in ['otc confirmation rejected','rejected', 'not cleared', 'not cleared by bank', 'not completed', 'not verified', 'not', 'false', 'no' ]:
+                        disbursement['otc'] = 'OTC Confirmation Rejected'
+                    else:
+                        disbursement['otc'] = 'OTC Not Confirmed'
+                else:
+                    disbursement['otc'] = 'OTC Not Confirmed'
+        except Exception as e:
+            logger.error(f"❌ Error confirming disbursement {str(e)} - {disbursement}")
+            confirmation_outcome["dataFound"] = False
+            disbursement['disbursementStatus'] = 'Not found'
+            disbursement['pdd'] = 'Not found'
+            disbursement['otc'] = 'Not found'
+        finally:
+            if confirmation_outcome["disbursement_amount"] and confirmation_outcome["disbursement_status"] and confirmation_outcome["pdd"] and confirmation_outcome["otc"]:
+                confirmation_outcome["dataFound"] = True
+            else:
+                confirmation_outcome["dataFound"] = False
+            disbursement['dataFound'] = confirmation_outcome["dataFound"]
+            return disbursement
     
     def _create_error_result(self, email_data: Dict[str, Any], error_message: str) -> Dict[str, Any]:
         """Create error result when analysis fails.

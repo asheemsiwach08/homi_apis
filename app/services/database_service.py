@@ -159,6 +159,28 @@ class DatabaseService:
         target_environment = table_environment_mapping.get(table_name, self.environment)
         return self.get_client(target_environment)
 
+    def save_record_to_supabase(self, table_name: str, record: Dict, environment: str = None) -> Dict:
+        """
+        Save record to Supabase database
+        
+        Args:
+            table_name: Name of the table
+            record: Dictionary containing the record to save
+            environment: Optional environment override
+        """
+        # Get appropriate client for this operation
+        client = self.get_client_for_table(table_name) if environment is None else self.get_client(environment)
+
+        if not record or not isinstance(record, dict):
+            raise HTTPException(status_code=400, detail="Record is required and must be a dictionary")
+
+        try:
+            result = client.table(table_name).insert(record).execute()
+            return result.data
+        except Exception as e:
+            logger.warning(f"Error saving record to Supabase: {str(e)}")
+            return None
+
     # Generic method to get records from any table
     def get_records_from_table(self, table_environment: str, table_name: str, col_name: str, col_value: str, 
                              environment: str = None, where_clauses: Optional[List[Dict[str, str]]] = None,
@@ -1288,14 +1310,17 @@ class DatabaseService:
         Returns:
             Dict: Validation result with is_valid and reason
         """
-        # Check condition 1: Either loanAccountNumber OR bankAppId must be present
-        loan_account_number = record.get('loanAccountNumber', '').strip()
+        # Check condition 1: TODO: Recorrect this
+        # Either loanAccountNumber OR bankAppId must be present
         bank_app_id = record.get('bankAppId', '').strip()
-        
-        if not loan_account_number and not bank_app_id:
+        basic_app_id = record.get('basicAppId', '').strip()
+        loan_account_number = record.get('loanAccountNumber', '').strip()
+        basic_disbursement_id = record.get('disbursementId', '').strip()
+
+        if not loan_account_number and not bank_app_id and not basic_disbursement_id:
             return {
                 'is_valid': False,
-                'reason': 'Neither loanAccountNumber nor bankAppId is present'
+                'reason': 'Neither loanAccountNumber nor bankAppId nor disbursementId present in the record'
             }
         
         # Check condition 2: disbursementAmount must be present and not 0
@@ -1342,23 +1367,33 @@ class DatabaseService:
     def _check_disbursement_duplicate(self, record: Dict, client) -> bool:
         """Check if a disbursement record already exists."""
         try:
-            loan_account = record.get('loanAccountNumber', '').strip()
             bank_app_id = record.get('bankAppId', '').strip()
+            basic_app_id = record.get('basicAppId', '').strip()
+            loan_account_number = record.get('loanAccountNumber', '').strip()
+            basic_disbursement_id = record.get('disbursementId', '').strip()
+            # loan_account = record.get('loanAccountNumber', '').strip()
+            # bank_app_id = record.get('bankAppId', '').strip()
             
-            if not loan_account and not bank_app_id:
+            if not loan_account_number and not bank_app_id and not basic_disbursement_id:
                 return False
             
             query = client.table("disbursements").select("id")
             
             # Check by loan account number first
-            if loan_account and loan_account != 'Not found':
-                result = query.eq("loan_account_number", loan_account).execute()
+            if loan_account_number and loan_account_number != 'Not found':
+                result = query.eq("loan_account_number", loan_account_number).execute()
                 if result.data:
                     return True
             
             # Check by bank app ID if loan account not found
             if bank_app_id and bank_app_id != 'Not found':
                 result = query.eq("bank_app_id", bank_app_id).execute()
+                if result.data:
+                    return True
+            
+            # Check by basic disbursement ID if loan account not found
+            if basic_disbursement_id and basic_disbursement_id != 'Not found':
+                result = query.eq("basic_disbursement_id", basic_disbursement_id).execute()
                 if result.data:
                     return True
             
@@ -1450,10 +1485,10 @@ class DatabaseService:
             "loan_sanction_amount": safe_numeric_conversion(record.get("loanSanctionAmount")),
             "bank_app_id": record.get("bankAppId", "").strip() or None,
             "basic_app_id": record.get("basicAppId", "").strip() or None,
-            "basic_disb_id": record.get("basicDisbId", "").strip() or None,
+            "basic_disbursement_id": record.get("disbursementId", "").strip() or None,
             "app_bank_name": record.get("appBankName", "").strip() or None,
-            "disbursement_stage": record.get("disbursementStage", "").strip() or None,
-            "disbursement_status": record.get("disbursementStatus", "").strip() or "VerifiedByAI",
+            "disbursement_stage": record.get("disbursementStage", "").strip() or "VerifiedByAI",
+            "disbursement_status": record.get("disbursementStatus", "").strip() or None,
             "primary_borrower_mobile": record.get("primaryBorrowerMobile", "").strip() or None,
             "pdd": record.get("pdd", "").strip() or None,
             "otc": record.get("otc", "").strip() or None,

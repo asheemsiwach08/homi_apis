@@ -32,6 +32,7 @@ class Config:
         """
         return os.getenv(key, default)
     
+    # TODO: Remove this method once Gmail is implemented and working
     def get_zoho_config(self) -> Dict[str, Any]:
         """Get Zoho Mail configuration."""
         return {
@@ -45,6 +46,31 @@ class Config:
             'months_back': int(self.get('EMAIL_MONTHS_BACK', '3')),
             'start_months_back': int(self.get('EMAIL_START_MONTHS_BACK', '4')),
             'end_months_back': int(self.get('EMAIL_END_MONTHS_BACK', '3'))
+        }
+
+    def get_gmail_config(self) -> Dict[str, Any]:
+        """Get Zoho Mail configuration."""
+        return {
+            'email': self.get('GMAIL_ADDRESS'),
+            'password': self.get('GMAIL_PASSWORD'),
+            'imap_server': self.get('GMAIL_IMAP_SERVER', 'imap.gmail.com'),
+            'imap_port': int(self.get('GMAIL_IMAP_PORT', '993')),
+            'folder': self.get('EMAIL_FOLDER', 'INBOX'),
+            'search_criteria': self.get('EMAIL_SEARCH_CRITERIA', 'ALL'),
+            'max_emails_per_batch': int(self.get('MAX_EMAILS_PER_BATCH', '50')),
+            'months_back': int(self.get('EMAIL_MONTHS_BACK', '3')),
+            'start_months_back': int(self.get('EMAIL_START_MONTHS_BACK', '4')),
+            'end_months_back': int(self.get('EMAIL_END_MONTHS_BACK', '3'))
+        }
+
+    def get_alert_email_config(self) -> Dict[str, Any]:
+        """Get alert email configuration."""
+        return {
+            'sender_email': self.get('ALERT_EMAIL_SENDER_ADDRESS'),
+            'sender_password': self.get('ALERT_EMAIL_PASSWORD'),
+            'smtp_server': self.get('ALERT_EMAIL_SMTP_SERVER', 'smtp.gmail.com'),
+            'smtp_port': int(self.get('ALERT_IMAP_SMTP_PORT', '587')),
+            'recipient_emails': self.get('ALERT_EMAIL_RECEIVER_ADDRESS')
         }
     
     def get_openai_config(self) -> Dict[str, Any]:
@@ -69,19 +95,28 @@ class Config:
             }
         }
     
-    def get_sheets_config(self) -> Dict[str, Any]:
-        """Get Google Sheets configuration."""
+    def get_amazon_s3_config(self) -> Dict[str, Any]:
+        """Get Amazon S3 configuration."""
         return {
-            'credentials_file': self.get('GOOGLE_CREDENTIALS_FILE') or self.get('GOOGLE_SHEETS_CREDENTIALS_FILE'),
-            'spreadsheet_id': self.get('GOOGLE_SPREADSHEET_ID') or self.get('GOOGLE_SHEETS_SPREADSHEET_ID', '1BxiMVs0XRA5nFMdKvBdBZjgmUUqptlbs74OgvE2upms'),
-            'range': self.get('GOOGLE_WORKSHEET_NAME') or self.get('GOOGLE_SHEETS_RANGE', 'Sheet1!A:Z'),
-            'update_batch_size': int(self.get('SHEETS_UPDATE_BATCH_SIZE', '10')),
-            # Support for separate historical and live sheets
-            'historical_spreadsheet_id': self.get('GOOGLE_HISTORICAL_SPREADSHEET_ID'),
-            'historical_worksheet_name': self.get('GOOGLE_HISTORICAL_WORKSHEET_NAME', 'Historical_Disbursements'),
-            'live_spreadsheet_id': self.get('GOOGLE_LIVE_SPREADSHEET_ID'),
-            'live_worksheet_name': self.get('GOOGLE_LIVE_WORKSHEET_NAME', 'Live_Disbursements'),
+            'bucket_name': self.get('S3_BUCKET'),
+            'access_key_id': self.get('AWS_ACCESS_KEY_ID'),
+            'secret_access_key': self.get('AWS_SECRET_ACCESS_KEY'),
+            'region_name': self.get('AWS_REGION')
         }
+    
+    # def get_sheets_config(self) -> Dict[str, Any]:
+    #     """Get Google Sheets configuration."""
+    #     return {
+    #         'credentials_file': self.get('GOOGLE_CREDENTIALS_FILE') or self.get('GOOGLE_SHEETS_CREDENTIALS_FILE'),
+    #         'spreadsheet_id': self.get('GOOGLE_SPREADSHEET_ID') or self.get('GOOGLE_SHEETS_SPREADSHEET_ID', '1BxiMVs0XRA5nFMdKvBdBZjgmUUqptlbs74OgvE2upms'),
+    #         'range': self.get('GOOGLE_WORKSHEET_NAME') or self.get('GOOGLE_SHEETS_RANGE', 'Sheet1!A:Z'),
+    #         'update_batch_size': int(self.get('SHEETS_UPDATE_BATCH_SIZE', '10')),
+    #         # Support for separate historical and live sheets
+    #         'historical_spreadsheet_id': self.get('GOOGLE_HISTORICAL_SPREADSHEET_ID'),
+    #         'historical_worksheet_name': self.get('GOOGLE_HISTORICAL_WORKSHEET_NAME', 'Historical_Disbursements'),
+    #         'live_spreadsheet_id': self.get('GOOGLE_LIVE_SPREADSHEET_ID'),
+    #         'live_worksheet_name': self.get('GOOGLE_LIVE_WORKSHEET_NAME', 'Live_Disbursements'),
+    #     }
     
     def get_app_config(self) -> Dict[str, Any]:
         """Get application configuration."""
@@ -104,9 +139,9 @@ class Config:
             ('OPENAI_API_KEY', 'OpenAI API key'),
             ('BASIC_API_BASE_URL', 'Basic API base URL'),
             ('BASIC_API_TOKEN', 'Basic API token'),
-            ('BASIC_APPLICATION_USER_ID', 'Basic application user ID'),
-            ('GOOGLE_SHEETS_CREDENTIALS_FILE', 'Google Sheets credentials file'),
-            ('GOOGLE_SHEETS_SPREADSHEET_ID', 'Google Sheets spreadsheet ID')
+            ('BASIC_APPLICATION_USER_ID', 'Basic application user ID')
+            # ('GOOGLE_SHEETS_CREDENTIALS_FILE', 'Google Sheets credentials file'),
+            # ('GOOGLE_SHEETS_SPREADSHEET_ID', 'Google Sheets spreadsheet ID')
         ]
         
         missing_configs = []

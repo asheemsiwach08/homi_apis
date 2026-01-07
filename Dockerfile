@@ -41,8 +41,8 @@ USER appuser
 EXPOSE 5000
 
 # # Health check
-HEALTHCHECK --interval=600s --timeout=20s --start-period=10s --retries=3 \
-    CMD curl -f http://localhost:5000/api_v1/health || exit 1
+# HEALTHCHECK --interval=600s --timeout=20s --start-period=10s --retries=3 \
+#     CMD curl -f http://localhost:5000/api_v1/health || exit 1
 
 # Run the application on port 5000
 CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "5000"] 

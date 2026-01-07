@@ -120,8 +120,8 @@ async def start_live_monitoring(config: LiveMonitoringConfig) -> Dict[str, Any]:
     except HTTPException:
         email_processing_service.send_email(
             email_data={
-                "subject": f"Live disbursement monitoring failed | Started at:{monitoring_state["started_at"].isoformat()} | Ended at: {datetime.now().isoformat()}", 
-                "content": f"Issue in Live Disbursements Service: \nService Started at: {monitoring_state["started_at"].isoformat()} \nService Ended at: {datetime.now().isoformat()} \n\nError: "+str(e)+"\n\nPlease check the logs for more details."
+                "subject": f"Live disbursement monitoring failed | Started at:{monitoring_state['started_at'].isoformat()} | Ended at: {datetime.now().isoformat()}", 
+                "content": f"Issue in Live Disbursements Service: \nService Started at: {monitoring_state['started_at'].isoformat()} \nService Ended at: {datetime.now().isoformat()} \n\nError: "+str(e)+"\n\nPlease check the logs for more details."
             })
         raise
     except Exception as e:

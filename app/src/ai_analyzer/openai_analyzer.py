@@ -512,7 +512,7 @@ class OpenAIAnalyzer:
         Returns:
             Dictionary containing confirmed disbursement information
         """
-        confirmation_outcome = {"disbursement_amount": False, "disbursement_status": False, "pdd": False, "otc": False, "dataFound": False, "final_status": False}
+        confirmation_outcome = {"disbursement_amount": False, "disbursement_status": False, "pdd": False, "otc": False, "dataFound": False, "final_status": False, "disbursement_id_valid": True}
         try:
             if not float(disbursement.get("disbursementAmount")) > 0:
                 confirmation_outcome["disbursement_amount"] = False
@@ -521,6 +521,7 @@ class OpenAIAnalyzer:
 
                 if "_" not in disbursement.get('disbursementId'):
                     logger.warning(f"❌ Disbursement ID is not valid: {disbursement.get('disbursementId')}")
+                    confirmation_outcome["disbursement_id_valid"] = False
                     confirmation_outcome["dataFound"] = False
                     return disbursement
 

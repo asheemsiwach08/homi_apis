@@ -352,6 +352,9 @@ async def perform_email_check(config: LiveMonitoringConfig) -> Dict[str, Any]:
                         for disbursement in disbursements:
                             print(f"🔹🔹🔹 Disbursement before validation check: {disbursement}")
                             disbursement = ai_analyzer.confirm_disbursement(disbursement)  # Confirm the disbursement status
+
+                            # Disbursement validation check
+
                             # print("🔹🔹🔹 Disbursement: ", disbursement)
                             # print(f"🔹🔹🔹{100*'-'}🔹🔹🔹")
                             disbursement["processed_at"] = datetime.now()
@@ -392,7 +395,11 @@ async def perform_email_check(config: LiveMonitoringConfig) -> Dict[str, Any]:
                                     print(f"🔹🔹🔹{100*'-'}🔹🔹🔹")
 
                             else:
-                                logger.info(f"🔸Disbursement data not found for the disbursement: {disbursement.get('basicAppId')}, Record Details: {disbursement}")
+                                if disbursement.get('disbursement_id_valid') == True:
+                                    new_disbursements.append(disbursement)
+                                    logger.info(f"✅ Added the disbursement to the new disbursements list")
+                                else:
+                                    logger.info(f"❌ Disbursement ID is not valid: {disbursement.get('basicAppId')}")
        
                 except Exception as e:
                     error_msg = f"Error analyzing email {i+1} with AI Analyzer: {str(e)}"

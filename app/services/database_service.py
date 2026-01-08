@@ -1196,6 +1196,12 @@ class DatabaseService:
                         # Check for duplicates based on loan_account_number and bank_app_id
                         is_duplicate, ai_disbursement_id = self._check_disbursement_duplicate(record, client)
 
+                        # Final status check
+                        is_final_status = self._check_disbursement_final_status(record, client)
+                        if is_final_status:
+                            logger.info(f"✅ Final status is already completed, skipping the record: {record.get('disbursementId')}")
+                            continue
+
                         # Prepare record for database insertion
                         db_record = self._prepare_disbursement_record(record, is_duplicate)
                         
@@ -1209,7 +1215,8 @@ class DatabaseService:
                                 "disbursement_status": record.get('disbursementStatus', ''), 
                                 "pdd": record.get('pdd', ''), 
                                 "otc": record.get('otc', ''), 
-                                "ai_disbursement_id":ai_disbursement_id
+                                "ai_disbursement_id":ai_disbursement_id,
+                                "final_status": "Completed" if record.get('confirmation_outcome', {}).get('final_status', False) else "Pending"
                             }
                             # Update the record with the duplicate status
                             result = client.table("ai_disbursements").update(update_data).eq("ai_disbursement_id", ai_disbursement_id).execute()
@@ -1407,6 +1414,28 @@ class DatabaseService:
             logger.warning(f"❌ Error checking disbursement duplicate: {str(e)}")
             return False, ""
 
+    def _check_disbursement_final_status(self, record: Dict, client) -> bool:
+        """Check the final status of a disbursement record."""
+        try:
+            final_status = record.get('confirmation_outcome', {}).get('final_status', False)
+            
+            query = client.table("ai_disbursements").select("ai_disbursement_id")
+
+            # Check by basic disbursement ID if loan account not found
+            if final_status:
+                result = query.eq("final_status", "Pending").limit(1).execute()
+                if result.data:
+                    return False
+                else:
+                    return True
+            
+            return False
+            
+        except Exception as e:
+            logger.warning(f"❌ Error checking disbursement final status: {str(e)}")
+            return False
+
+
     def _generate_ai_disbursement_id(self) -> str:
         """Generate a unique ID using UUID."""
         import uuid
@@ -1513,6 +1542,7 @@ class DatabaseService:
             "source_email_id": record.get("sourceEmailId", "").strip() or None,
             # "is_duplicate": is_duplicate,
             "record_updated": True if is_duplicate else False,
+            "final_status": "Completed" if record.get('confirmation_outcome', {}).get('final_status', False) else "Pending",
             "manual_review_required": True,
             # "processed_at": datetime.now().isoformat(),
             "created_at": datetime.now().isoformat(),

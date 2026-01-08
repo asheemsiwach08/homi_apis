@@ -512,12 +512,17 @@ class OpenAIAnalyzer:
         Returns:
             Dictionary containing confirmed disbursement information
         """
-        confirmation_outcome = {"disbursement_amount": False, "disbursement_status": False, "pdd": False, "otc": False, "dataFound": False}
+        confirmation_outcome = {"disbursement_amount": False, "disbursement_status": False, "pdd": False, "otc": False, "dataFound": False, "final_status": False}
         try:
             if not float(disbursement.get("disbursementAmount")) > 0:
                 confirmation_outcome["disbursement_amount"] = False
             else:
                 confirmation_outcome["disbursement_amount"] = True
+
+                if "_" not in disbursement.get('disbursementId'):
+                    logger.warning(f"❌ Disbursement ID is not valid: {disbursement.get('disbursementId')}")
+                    confirmation_outcome["dataFound"] = False
+                    return disbursement
 
                 basic_app_id = disbursement.get('disbursementId').split('_')[0] if "_" in disbursement.get('disbursementId') else "Not found"
                 disbursement['basicAppId'] = basic_app_id   # Update basicAppId in the disbursement dictionary
@@ -581,6 +586,11 @@ class OpenAIAnalyzer:
             # # Disbursement status validation check
             # if confirmation_outcome["disbursement_status"] == True and confirmation_outcome["pdd"] == True and confirmation_outcome["otc"] == True:
             #     confirmation_outcome["disbursement_status"] = True
+
+            if confirmation_outcome["disbursement_status"] == True and confirmation_outcome["pdd"] == True and confirmation_outcome["otc"] == True:
+                confirmation_outcome["final_status"] = True
+            else:
+                confirmation_outcome["final_status"] = False
             
             disbursement['dataFound'] = confirmation_outcome["dataFound"]
             disbursement['confirmation_outcome'] = confirmation_outcome

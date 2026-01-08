@@ -1422,14 +1422,12 @@ class DatabaseService:
             query = client.table("ai_disbursements").select("ai_disbursement_id")
 
             # Check by basic disbursement ID if loan account not found
-            if final_status:
-                result = query.eq("final_status", "Pending").limit(1).execute()
-                if result.data:
-                    return False
-                else:
-                    return True
             
-            return False
+            result = query.eq("final_status", "Completed").limit(1).execute()
+            if result.data:
+                return True
+            else:
+                return False
             
         except Exception as e:
             logger.warning(f"❌ Error checking disbursement final status: {str(e)}")

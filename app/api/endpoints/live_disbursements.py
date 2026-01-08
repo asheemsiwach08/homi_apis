@@ -117,7 +117,7 @@ async def start_live_monitoring(config: LiveMonitoringConfig) -> Dict[str, Any]:
             "started_at": monitoring_state["started_at"].isoformat()
         }
         
-    except HTTPException:
+    except HTTPException as e:
         email_processing_service.send_email(
             email_data={
                 "subject": f"Live disbursement monitoring failed | Started at:{monitoring_state['started_at'].isoformat()} | Ended at: {datetime.now().isoformat()}", 
@@ -352,9 +352,6 @@ async def perform_email_check(config: LiveMonitoringConfig) -> Dict[str, Any]:
                         for disbursement in disbursements:
                             print(f"🔹🔹🔹 Disbursement before validation check: {disbursement}")
                             disbursement = ai_analyzer.confirm_disbursement(disbursement)  # Confirm the disbursement status
-
-                            # Disbursement validation check
-
                             # print("🔹🔹🔹 Disbursement: ", disbursement)
                             # print(f"🔹🔹🔹{100*'-'}🔹🔹🔹")
                             disbursement["processed_at"] = datetime.now()
@@ -395,11 +392,11 @@ async def perform_email_check(config: LiveMonitoringConfig) -> Dict[str, Any]:
                                     print(f"🔹🔹🔹{100*'-'}🔹🔹🔹")
 
                             else:
-                                if disbursement.get('disbursement_id_valid') == True:
+                                if disbursement.get('confirmation_outcome', {}).get('disbursement_id_valid') == True:
                                     new_disbursements.append(disbursement)
                                     logger.info(f"✅ Added the disbursement to the new disbursements list")
                                 else:
-                                    logger.info(f"❌ Disbursement ID is not valid: {disbursement.get('basicAppId')}")
+                                    logger.info(f"❌ Disbursement ID is not valid: {disbursement.get('disbursementId')}")
        
                 except Exception as e:
                     error_msg = f"Error analyzing email {i+1} with AI Analyzer: {str(e)}"

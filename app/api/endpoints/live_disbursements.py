@@ -368,7 +368,7 @@ async def perform_email_check(config: LiveMonitoringConfig) -> Dict[str, Any]:
                                 unique_basic_app_ids.add(disbursement.get('basicAppId'))
                                 print(f"🔹🔹🔹{100*'-'}🔹🔹🔹")
                                 new_disbursements.append(disbursement)
-                                logger.info(f"✅ Added the disbursement to the new disbursements list: {disbursement}")
+                                logger.info(f"✅ Added the disbursement to the new disbursements list")
 
                                 # Also generate PDF content for the email which have passed all validations
                                 from app.src.data_processing.text_extractor import gather_pdf_content, email_string_to_pdf
@@ -377,13 +377,13 @@ async def perform_email_check(config: LiveMonitoringConfig) -> Dict[str, Any]:
                                 
                                 if is_pdf_generated:
                                     upload_and_update_outcome["pdf_generated"] = upload_and_update_outcome["pdf_generated"] + 1
-                                    logger.info(f"PDF generated successfully for the disbursement: {disbursement.get('basicAppId')}")
+                                    logger.info(f"✅ sPDF generated successfully for the disbursement: {disbursement.get('basicAppId')}")
                                     
                                     # Update the pdf, status and record the outcome
                                     pdf_upload_status, pdf_upload_outcome = save_pdf_and_update_disbursement_proof(disbursement=disbursement, pdf_bytes=pdf_bytes)
                                     upload_and_update_outcome["s3_uploaded"] = upload_and_update_outcome["s3_uploaded"] + pdf_upload_outcome["s3_uploaded"]
                                     upload_and_update_outcome["disbursement_proof_sent"] = upload_and_update_outcome["disbursement_proof_sent"] + pdf_upload_outcome["disbursement_proof_sent"]
-                                    logger.info(f"PDF upload and update outcome: {upload_and_update_outcome}")
+                                    logger.info(f"✅ PDF upload and update outcome: {upload_and_update_outcome}")
                                     print("🔹🔹🔹 PDF to Generate: ", pdf_to_generate)
                                     print(f"🔹🔹🔹{100*'-'}🔹🔹🔹")
                                 else:
@@ -423,10 +423,10 @@ async def perform_email_check(config: LiveMonitoringConfig) -> Dict[str, Any]:
                 save_stats = database_service.save_disbursement_data(new_disbursements)
                 supabase_new_disbursements = save_stats.get('new_disbursements', [])
                 supabase_saved = save_stats.get('new_records', 0)
-                supabase_duplicates = save_stats.get('duplicates_skipped', 0)
+                supabase_records_updated = save_stats.get('records_updated', 0)
                 supabase_errors = save_stats.get('errors', 0)
 
-                logger.info(f"Supabase save: {supabase_saved} new, {supabase_duplicates} duplicates, {supabase_errors} errors")
+                logger.info(f"Supabase save: {supabase_saved} new, {supabase_records_updated} records updated, {supabase_errors} errors")
                 
                 if save_stats.get('error_details'):
                     monitoring_state["errors"].extend([
@@ -467,7 +467,7 @@ async def perform_email_check(config: LiveMonitoringConfig) -> Dict[str, Any]:
             "s3_uploaded": upload_and_update_outcome["s3_uploaded"] if 'upload_and_update_outcome' in locals() else 0,
             "disbursement_proof_sent": upload_and_update_outcome["disbursement_proof_sent"] if 'upload_and_update_outcome' in locals() else 0,
             "supabase_saved": supabase_saved if 'supabase_saved' in locals() else 0,
-            "supabase_duplicates": supabase_duplicates if 'supabase_duplicates' in locals() else 0,
+            "supabase_records_updated": supabase_records_updated if 'supabase_records_updated' in locals() else 0,
             "supabase_errors": supabase_errors if 'supabase_errors' in locals() else 0,
             "check_duration": float((datetime.now() - check_start).total_seconds()),
             "total_processed_emails": len(monitoring_state["processed_email_ids"])
@@ -480,14 +480,14 @@ async def perform_email_check(config: LiveMonitoringConfig) -> Dict[str, Any]:
             else:
                 logger.info("No disbursements found to save to supabase")
         except Exception as e:
-            logger.info(f"Error saving stats to supabase: {str(e)}")
+            logger.info(f"❌ Error saving stats to supabase: {str(e)}")
 
         
-        logger.info(f"Email check completed: {result}")
+        logger.info(f"✅ Email check completed: {result}")
         return result
         
     except Exception as e:
-        error_msg = f"Email check failed: {str(e)}"
+        error_msg = f"❌ Email check failed: {str(e)}"
         monitoring_state["errors"].append({
             "timestamp": datetime.now().isoformat(),
             "error": error_msg
@@ -886,7 +886,7 @@ def save_pdf_and_update_disbursement_proof(disbursement: Dict, pdf_bytes: bytes)
     if upload_file_response:
         upload_outcome["s3_uploaded"] = 1
         presigned_s3_url = s3_service.generate_presigned_url(key=key)
-        logger.info(f"✅ Signed url generated successfully for the disbursement: {disbursement.get('basicAppId')}: {presigned_s3_url.split('?')[0]}")
+        logger.info(f"✅ Signed url generated successfully for the disbursement: {disbursement.get('basicAppId')}")
 
         if presigned_s3_url and presigned_s3_url.startswith("https://"):
             upload_outcome["presigned_s3_url"] = 1
@@ -896,8 +896,6 @@ def save_pdf_and_update_disbursement_proof(disbursement: Dict, pdf_bytes: bytes)
     else:
         disbursement_proof_url = None
         logger.warning("Error in generating signed url for the disbursement proof.`")
-
-    print(f"🔹🔹🔹 Disbursement proof url: {disbursement_proof_url}")  #TODO: Remove this after testing
 
     # Send the disbursement proof to Basic Application API
     if disbursement_proof_url:
@@ -910,8 +908,8 @@ def save_pdf_and_update_disbursement_proof(disbursement: Dict, pdf_bytes: bytes)
                 "disbursementProofUrl":disbursement_proof_url
             })
             if update_disbursement_proof_response:
-                logger.info(f"✅ Disbursement proof sent to Basic Application API")
-                print(f"🔹🔹🔹 Disbursement proof sent to Basic Application API: {update_disbursement_proof_response}")
+                logger.info(f"✅ Disbursement proof sent to Basic Application API: {update_disbursement_proof_response.get('result')[0].get('status')}")
+                print(f"🔹🔹🔹Proof Sent: {update_disbursement_proof_response}")
                 upload_outcome["disbursement_proof_sent"] = 1
             
             return True, upload_outcome

@@ -822,8 +822,6 @@ class BasicApplicationService:
                 
             response = requests.put(api_url, headers=headers, json=api_payload)
 
-            print("RESPONSE: ", response.json())
-
             if response.status_code in [200, 201]:
                 try:
                     # Check if response has content before parsing JSON

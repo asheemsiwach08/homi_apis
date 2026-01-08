@@ -1166,12 +1166,12 @@ class DatabaseService:
             Dict: Save operation statistics
         """
         # Get appropriate client for this operation
-        client = self.get_client_for_table("disbursements") if environment is None else self.get_client(environment)
+        client = self.get_client_for_table("ai_disbursements") if environment is None else self.get_client(environment)
         
         stats = {
             'total_processed': 0,
             'new_records': 0,
-            'duplicates_skipped': 0,
+            'records_updated': 0,
             'validation_failed': 0,
             'errors': 0,
             'error_details': [],
@@ -1194,15 +1194,35 @@ class DatabaseService:
                         continue
                     else:
                         # Check for duplicates based on loan_account_number and bank_app_id
-                        is_duplicate = self._check_disbursement_duplicate(record, client)
-                        
+                        is_duplicate, ai_disbursement_id = self._check_disbursement_duplicate(record, client)
+
                         # Prepare record for database insertion
                         db_record = self._prepare_disbursement_record(record, is_duplicate)
                         
-                        if is_duplicate and not record.get('force_save', False):
-                            logger.info(f"Skipping duplicate disbursement: {record.get('loanAccountNumber', 'N/A')}")
-                            stats['duplicates_skipped'] += 1
-                            continue
+                        if is_duplicate and ai_disbursement_id != "":  #record.get('force_save', False)
+                            logger.info(f"✅ Duplicate disbursement found, updating the record with ID: {ai_disbursement_id}")
+                            
+                            # Update the record for update query
+                            update_data = {
+                                "updated_at": datetime.now().isoformat(), 
+                                "record_updated": True, 
+                                "disbursement_status": record.get('disbursementStatus', ''), 
+                                "pdd": record.get('pdd', ''), 
+                                "otc": record.get('otc', ''), 
+                                "ai_disbursement_id":ai_disbursement_id
+                            }
+                            # Update the record with the duplicate status
+                            result = client.table("ai_disbursements").update(update_data).eq("ai_disbursement_id", ai_disbursement_id).execute()
+                            if result.data:
+                                stats['records_updated'] += 1
+                                logger.info(f"✅ Disbursement record updated successfully with ID: {ai_disbursement_id}")
+                                continue
+                            else:
+                                stats['errors'] += 1
+                                error_msg = f"❌ Failed to update disbursement record with ID: {ai_disbursement_id}"
+                                stats['error_details'].append(error_msg)
+                                logger.error(error_msg)
+                                continue
                         
                         # Insert into database
                         try:
@@ -1212,38 +1232,38 @@ class DatabaseService:
                             # Validate record structure before insertion
                             clean_record = self._clean_record_for_supabase(db_record)
                             
-                            result = client.table("disbursements").insert(clean_record).execute()
+                            result = client.table("ai_disbursements").insert(clean_record).execute()
                             
                             if result.data:
                                 stats['new_records'] += 1
                                 stats['new_disbursements'].append(clean_record)
-                                logger.info(f"Saved disbursement record: {clean_record.get('loan_account_number', 'N/A')}")
+                                logger.info(f"✅ Saved disbursement record with ID: {clean_record.get('ai_disbursement_id')}")
                             else:
                                 stats['errors'] += 1
-                                error_msg = f"No data returned for record: {record.get('loanAccountNumber', 'N/A')}"
+                                error_msg = f"❌ No data returned for record with ID: {clean_record.get('ai_disbursement_id')}"
                                 stats['error_details'].append(error_msg)
                                 logger.warning(error_msg)
                                 
                         except Exception as insert_error:
                             stats['errors'] += 1
-                            error_msg = f"Database insertion failed for record {record.get('loanAccountNumber', 'N/A')}: {str(insert_error)}"
+                            error_msg = f"❌ Database insertion failed for record with ID: {clean_record.get('ai_disbursement_id')}: {str(insert_error)}"
                             stats['error_details'].append(error_msg)
                             logger.error(error_msg)
                             # Log the problematic record for debugging
-                            logger.error(f"Problematic record data: {db_record}")
+                            logger.error(f"Problematic record data with ID: {clean_record.get('ai_disbursement_id')}: {db_record}")
                             
                 except Exception as e:
                     stats['errors'] += 1
-                    error_msg = f"Error saving disbursement record: {str(e)}"
+                    error_msg = f"❌ Error saving disbursement record: {str(e)}"
                     stats['error_details'].append(error_msg)
                     logger.error(error_msg)
                     continue
             
-            logger.info(f"Disbursement save completed: {stats['new_records']} new, {stats['duplicates_skipped']} duplicates, {stats['validation_failed']} validation failures, {stats['errors']} errors")
+            logger.info(f"✅ Disbursement save completed: {stats['new_records']} new, {stats['records_updated']} records updated, {stats['validation_failed']} validation failures, {stats['errors']} errors")
             return stats
             
         except Exception as e:
-            logger.error(f"Error in save_disbursement_data: {str(e)}")
+            logger.error(f"❌ Error in save_disbursement_data: {str(e)}")
             raise HTTPException(status_code=500, detail=f"Database error: {str(e)}")
     
     # def get_disbursements(self, filters: Dict = None, limit: int = 100, offset: int = 0) -> Dict:
@@ -1364,47 +1384,31 @@ class DatabaseService:
             'reason': 'All validation checks passed'
         }
 
-    def _check_disbursement_duplicate(self, record: Dict, client) -> bool:
+    def _check_disbursement_duplicate(self, record: Dict, client) -> tuple[bool, str]:
         """Check if a disbursement record already exists."""
         try:
-            bank_app_id = record.get('bankAppId', '').strip()
-            basic_app_id = record.get('basicAppId', '').strip()
-            loan_account_number = record.get('loanAccountNumber', '').strip()
             basic_disbursement_id = record.get('disbursementId', '').strip()
-            # loan_account = record.get('loanAccountNumber', '').strip()
-            # bank_app_id = record.get('bankAppId', '').strip()
+
+            if not basic_disbursement_id or basic_disbursement_id in ['Not found', '']:
+                return False, ""
             
-            if not loan_account_number and not bank_app_id and not basic_disbursement_id:
-                return False
-            
-            query = client.table("disbursements").select("id")
-            
-            # Check by loan account number first
-            if loan_account_number and loan_account_number != 'Not found':
-                result = query.eq("loan_account_number", loan_account_number).execute()
-                if result.data:
-                    return True
-            
-            # Check by bank app ID if loan account not found
-            if bank_app_id and bank_app_id != 'Not found':
-                result = query.eq("bank_app_id", bank_app_id).execute()
-                if result.data:
-                    return True
-            
+            query = client.table("ai_disbursements").select("ai_disbursement_id")
+
             # Check by basic disbursement ID if loan account not found
             if basic_disbursement_id and basic_disbursement_id != 'Not found':
                 result = query.eq("basic_disbursement_id", basic_disbursement_id).execute()
                 if result.data:
-                    return True
+                    ai_disbursement_id = result.data[0].get("ai_disbursement_id")
+                    return True, ai_disbursement_id
             
-            return False
+            return False, ""
             
         except Exception as e:
-            logger.warning(f"Error checking disbursement duplicate: {str(e)}")
-            return False
+            logger.warning(f"❌ Error checking disbursement duplicate: {str(e)}")
+            return False, ""
 
     def _generate_ai_disbursement_id(self) -> str:
-        """Generate a unique AI disbursement ID using UUID."""
+        """Generate a unique ID using UUID."""
         import uuid
         return str(uuid.uuid4())
 
@@ -1419,42 +1423,47 @@ class DatabaseService:
                 return None
             
             date_str = str(date_str).strip()
-            
-            try:
-                # Handle various date formats
-                # DD-MM-YYYY or DD/MM/YYYY
-                if re.match(r'\d{1,2}[-/]\d{1,2}[-/]\d{4}', date_str):
-                    # Parse DD-MM-YYYY or DD/MM/YYYY
-                    date_str = date_str.replace('/', '-')
-                    day, month, year = date_str.split('-')
-                    parsed_date = datetime(int(year), int(month), int(day))
-                    return parsed_date.strftime('%Y-%m-%d')
-                
-                # YYYY-MM-DD (already correct format)
-                elif re.match(r'\d{4}-\d{1,2}-\d{1,2}', date_str):
-                    # Validate and reformat for consistency
-                    parsed_date = datetime.strptime(date_str, '%Y-%m-%d')
-                    return parsed_date.strftime('%Y-%m-%d')
-                
-                # MM/DD/YYYY
-                elif re.match(r'\d{1,2}/\d{1,2}/\d{4}', date_str):
-                    parsed_date = datetime.strptime(date_str, '%m/%d/%Y')
-                    return parsed_date.strftime('%Y-%m-%d')
 
-                # DD/MM/YYYY
-                elif re.match(r'\d{1,2}/\d{1,2}/\d{4}', date_str):
-                    parsed_date = datetime.strptime(date_str, '%d/%m/%Y')
-                    return parsed_date.strftime('%Y-%m-%d')
-                
-                # Try ISO format parsing as fallback
-                else:
-                    parsed_date = datetime.fromisoformat(date_str.replace('Z', '+00:00'))
-                    return parsed_date.strftime('%Y-%m-%d')
+            try:
+                from dateutil import parser
+                parsed_date = parser.parse(date_str).strftime('%Y-%m-%d')
+                return parsed_date
+            except Exception as e:
+                try:
+                    # Handle various date formats
+                    # DD-MM-YYYY or DD/MM/YYYY
+                    if re.match(r'\d{1,2}[-/]\d{1,2}[-/]\d{4}', date_str):
+                        # Parse DD-MM-YYYY or DD/MM/YYYY
+                        date_str = date_str.replace('/', '-')
+                        day, month, year = date_str.split('-')
+                        parsed_date = datetime(int(year), int(month), int(day))
+                        return parsed_date.strftime('%Y-%m-%d')
                     
-            except (ValueError, AttributeError) as e:
-                logger.warning(f"Could not parse date '{date_str}': {e}. Setting to None.")
-                return None
-        
+                    # YYYY-MM-DD (already correct format)
+                    elif re.match(r'\d{4}-\d{1,2}-\d{1,2}', date_str):
+                        # Validate and reformat for consistency
+                        parsed_date = datetime.strptime(date_str, '%Y-%m-%d')
+                        return parsed_date.strftime('%Y-%m-%d')
+                    
+                    # MM/DD/YYYY
+                    elif re.match(r'\d{1,2}/\d{1,2}/\d{4}', date_str):
+                        parsed_date = datetime.strptime(date_str, '%m/%d/%Y')
+                        return parsed_date.strftime('%Y-%m-%d')
+
+                    # DD/MM/YYYY
+                    elif re.match(r'\d{1,2}/\d{1,2}/\d{4}', date_str):
+                        parsed_date = datetime.strptime(date_str, '%d/%m/%Y')
+                        return parsed_date.strftime('%Y-%m-%d')
+                    
+                    # Try ISO format parsing as fallback
+                    else:
+                        parsed_date = datetime.fromisoformat(date_str.replace('Z', '+00:00'))
+                        return parsed_date.strftime('%Y-%m-%d')
+                        
+                except (ValueError, AttributeError) as e:
+                    logger.warning(f"❌ Could not parse date '{date_str}': {e}. Setting to None.")
+                    return None
+            
         def safe_numeric_conversion(value, default=None):
             """Safely convert numeric values to proper types."""
             if value is None or value == "":
@@ -1469,7 +1478,7 @@ class DatabaseService:
                     return float(cleaned_value)
                 return float(value)
             except (ValueError, TypeError):
-                logger.warning(f"Could not convert '{value}' to number. Using {default}")
+                logger.warning(f"❌ Could not convert '{value}' to number. Using {default}")
                 return default
 
         return {
@@ -1479,7 +1488,7 @@ class DatabaseService:
             "last_name": record.get("lastName", "").strip() or None,
             "loan_account_number": record.get("loanAccountNumber", "").strip() or None,
             "disbursed_on": parse_date_safely(record.get("disbursedOn")),
-            "disbursed_created_on": parse_date_safely(record.get("disbursedCreatedOn")),
+            # "disbursed_created_on": parse_date_safely(record.get("disbursedCreatedOn")),
             "sanction_date": parse_date_safely(record.get("sanctionDate")),
             "disbursement_amount": safe_numeric_conversion(record.get("disbursementAmount")),
             "loan_sanction_amount": safe_numeric_conversion(record.get("loanSanctionAmount")),
@@ -1502,9 +1511,12 @@ class DatabaseService:
             "email_subject": record.get("emailSubject", "").strip() or None,
             "email_date": parse_date_safely(record.get("emailDate")),
             "source_email_id": record.get("sourceEmailId", "").strip() or None,
-            "is_duplicate": is_duplicate,
+            # "is_duplicate": is_duplicate,
+            "record_updated": True if is_duplicate else False,
             "manual_review_required": True,
-            "processed_at": datetime.now().isoformat(),
+            # "processed_at": datetime.now().isoformat(),
+            "created_at": datetime.now().isoformat(),
+            "updated_at": datetime.now().isoformat(),
             "created_by": "system"
         }
 
@@ -1539,7 +1551,7 @@ class DatabaseService:
                     try:
                         cleaned_record[key] = float(value.replace(',', '').replace('₹', '').replace('$', '').strip())
                     except ValueError:
-                        logger.warning(f"Could not convert {key} '{value}' to float. Setting to None.")
+                        logger.warning(f"❌ Could not convert {key} '{value}' to float. Setting to None.")
                         cleaned_record[key] = None
                 else:
                     cleaned_record[key] = None

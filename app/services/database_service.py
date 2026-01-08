@@ -1423,9 +1423,12 @@ class DatabaseService:
 
             # Check by basic disbursement ID if loan account not found
             
-            result = query.eq("final_status", "Completed").limit(1).execute()
+            result = query.eq("ai_disbursement_id", record.get('ai_disbursement_id', '')).limit(1).execute()
             if result.data:
-                return True
+                if result.data[0].get('final_status') == "Completed":
+                    return True
+                else:
+                    return False
             else:
                 return False
             

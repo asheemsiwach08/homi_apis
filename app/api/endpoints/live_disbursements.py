@@ -243,7 +243,7 @@ async def perform_email_check(config: LiveMonitoringConfig) -> Dict[str, Any]:
                     # subject_filter=config.subject_filter,
                     sender_filter=config.sender_filter,
                     folder=folder,
-                    max_emails=20  # Increase limit but we'll filter out duplicates
+                    max_emails=200  # Increase limit but we'll filter out duplicates
                 )
                 
                 # Apply more precise time filtering

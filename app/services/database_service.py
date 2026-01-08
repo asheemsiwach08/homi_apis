@@ -1332,15 +1332,15 @@ class DatabaseService:
         """
         # Check condition 1: TODO: Recorrect this
         # Either loanAccountNumber OR bankAppId must be present
-        bank_app_id = record.get('bankAppId', '').strip()
-        basic_app_id = record.get('basicAppId', '').strip()
-        loan_account_number = record.get('loanAccountNumber', '').strip()
+        # bank_app_id = record.get('bankAppId', '').strip()
+        # basic_app_id = record.get('basicAppId', '').strip()
+        # loan_account_number = record.get('loanAccountNumber', '').strip()
         basic_disbursement_id = record.get('disbursementId', '').strip()
 
-        if not loan_account_number and not bank_app_id and not basic_disbursement_id:
+        if not basic_disbursement_id:
             return {
                 'is_valid': False,
-                'reason': 'Neither loanAccountNumber nor bankAppId nor disbursementId present in the record'
+                'reason': 'disbursementId is missing in the record'
             }
         
         # Check condition 2: disbursementAmount must be present and not 0

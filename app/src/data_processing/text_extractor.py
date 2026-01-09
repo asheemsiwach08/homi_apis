@@ -321,12 +321,16 @@ def gather_pdf_content(email: dict) -> tuple[str, dict]:
     import html
     try:
         content = email['content']
-        # Remove HTML tags
-        content = re.sub(r'<[^>]+>', '', content)
-        # Decode HTML entities
-        content = html.unescape(content)
-        filtered_content = re.sub(r'[^a-z0-9]+', '', content, re.IGNORECASE)
-        filtered_content = " ".join(filtered_content.split()).strip()
+        # # Remove HTML tags
+        # content = re.sub(r'<[^>]+>', '', content)
+        # # Decode HTML entities
+        # content = html.unescape(content)
+        # # filtered_content = re.sub(r'[^a-z0-9]+', '', content, re.IGNORECASE)
+        # filtered_content = " ".join(content.split()).strip()
+
+        filtered_content = content
+        filtered_content = filtered_content.replace("Part-1 of Thread:", "\n-+-\n").replace("Part-2 of Thread:", "\n-+-\n").replace("Part-3 of Thread:", "\n-+-\n")
+        print("🔹🔹🔹 Filtered Content: ", filtered_content)
         
         pdf_content = f"""
         From: {email['sender']}
@@ -412,17 +416,17 @@ def email_string_to_pdf(email_text: dict, output_path: str = None) -> tuple[bool
             parent=styles['Normal'],
             fontSize=8,
             textColor=HexColor('#2C3E50'),
-            spaceAfter=12,
+            spaceAfter=10,
             leftIndent=20
         )
         
         subject_style = ParagraphStyle(
             'CustomSubject',
-            parent=styles['Title'],
-            fontSize=12,
-            textColor=HexColor('#34495E'),
-            spaceAfter=20,
-            fontName='Helvetica-Bold'
+            parent=styles['Normal'],
+            fontSize=9,
+            textColor=HexColor('#2C3E5E'), # Dark blue color
+            fontName='Helvetica-Bold',
+            spaceAfter=12
         )
         
         content_style = ParagraphStyle(
@@ -430,18 +434,20 @@ def email_string_to_pdf(email_text: dict, output_path: str = None) -> tuple[bool
             parent=styles['BodyText'],
             fontSize=8,
             textColor=HexColor('#2C3E50'),
-            leading=16,
-            spaceAfter=12,
+            leading=9,
+            spaceAfter=10,
             leftIndent=0,
             rightIndent=0
         )
         
-        date_style = ParagraphStyle(
-            'CustomDate',
-            parent=styles['Italic'],
-            fontSize=7,
-            textColor=HexColor('#95A5A6'),
-            spaceAfter=20
+        separator_style = ParagraphStyle(
+            'CustomSeparator',
+            parent=styles['Normal'],
+            fontSize=8,
+            textColor=HexColor('#2C3E50'), # Blue Color
+            spaceAfter=12,
+            leftIndent=0,
+            rightIndent=0
         )
 
         # Add title/header
@@ -468,7 +474,7 @@ def email_string_to_pdf(email_text: dict, output_path: str = None) -> tuple[bool
         # Subject field
         subject_value = escape_html(email_text.get("subject", ""))
         if subject_value:
-            elements.append(Paragraph(subject_value, subject_style))
+            elements.append(Paragraph(f"<b>Subject:</b> {subject_value}", subject_style))
             # elements.append(Spacer(1, 0.2*inch))
         
         # Content field - preserve line breaks
@@ -479,9 +485,16 @@ def email_string_to_pdf(email_text: dict, output_path: str = None) -> tuple[bool
             # Split into paragraphs if there are double newlines
             paragraphs = content_value.split('<br/><br/>')
             for para in paragraphs:
-                if para.strip():
-                    elements.append(Paragraph(para.strip(), content_style))
+                if "-+-" in para:
+                    para = para.replace("-+-", "")
+                    # Add a horizontal line
+                    elements.append(Paragraph(f"{45*'- - '}", separator_style))
+                    elements.append(Paragraph(f"<b></b> {para.strip()}", content_style))
                     elements.append(Spacer(1, 0.1*inch))
+                else:
+                    if para.strip():
+                        elements.append(Paragraph(para.strip(), content_style))
+                        elements.append(Spacer(1, 0.1*inch))
 
         # Build PDF in memory
         pdf.build(elements)

@@ -227,8 +227,8 @@ class MailClient:
             new_content = clean_email_content(text=content)
             # print("----------------------------------------------------------------------")
             # print("Subject: ", subject)
-            # print(f"🔹🔹🔹 New Content: {new_content} 🔹🔹")
             # print("----🔹 Raw Content 🔹------->>>",content)
+            # print(f"🔹🔹🔹 New Content: {new_content} 🔹🔹")
             # print(f"🚩 Raw Content Length: {len(content)}, New length: {len(new_content)} 🚩")
             # print("----------------------------------------------------------------------")
 
@@ -245,16 +245,7 @@ class MailClient:
                 "raw_message": email_message,
                 "email_num": email_num
             }
-            # print("----------------------------------------------------------------------")
-            # print("Sender: ", sender)
-            # print("Sender Name:", sender.split('<')[0].strip())
-            # print("Sender Email:", sender.split('<')[1].strip())
-            # print("Subject: ", subject)
-            # print("Date: ", date)
-            # print("Content: ", content)
-            # # print("Raw Message: ", email_message)
-            # print("Email Num: ", email_num)
-            # print("----------------------------------------------------------------------")
+
             return email_data
 
         except Exception as e:

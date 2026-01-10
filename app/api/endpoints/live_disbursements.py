@@ -360,15 +360,14 @@ async def perform_email_check(config: LiveMonitoringConfig) -> Dict[str, Any]:
                             disbursement["emailSubject"] = email_data.get('subject', '')
                             disbursement["emailSender"] = email_data.get('sender', '')
                             disbursement["emailDate"] = email_data.get('date', '')
+                            disbursement["s2_filename"] = None
+                            disbursement["disbursement_proof_status"] = None
                         
                             # Update the disbursements list with only unique disbursements
                             # if disbursement.get('basicAppId') and disbursement.get('dataFound') == True and disbursement.get('basicAppId') not in unique_basic_app_ids:
                             #     unique_basic_app_ids.add(disbursement.get('basicAppId'))
                             if disbursement.get('dataFound') == True:
                                 unique_basic_app_ids.add(disbursement.get('basicAppId'))
-                                print(f"🔹🔹🔹{100*'-'}🔹🔹🔹")
-                                new_disbursements.append(disbursement)
-                                logger.info(f"✅ Added the disbursement to the new disbursements list")
 
                                 # Also generate PDF content for the email which have passed all validations
                                 from app.src.data_processing.text_extractor import gather_pdf_content, email_string_to_pdf
@@ -383,13 +382,21 @@ async def perform_email_check(config: LiveMonitoringConfig) -> Dict[str, Any]:
                                     pdf_upload_status, pdf_upload_outcome = save_pdf_and_update_disbursement_proof(disbursement=disbursement, pdf_bytes=pdf_bytes)
                                     upload_and_update_outcome["s3_uploaded"] = upload_and_update_outcome["s3_uploaded"] + pdf_upload_outcome["s3_uploaded"]
                                     upload_and_update_outcome["disbursement_proof_sent"] = upload_and_update_outcome["disbursement_proof_sent"] + pdf_upload_outcome["disbursement_proof_sent"]
+                                    
+                                    # Add the disbursement proof status and filename to disbursement dictionary
+                                    disbursement["disbursement_proof_status"] = pdf_upload_outcome["disbursement_proof_status"]
+                                    disbursement["s3_filename"] = pdf_upload_outcome["filename"]
                                     logger.info(f"✅ PDF upload and update outcome: {upload_and_update_outcome}")
-                                    print("🔹🔹🔹 PDF to Generate: ", pdf_to_generate)
+                                    # print("🔹🔹🔹 PDF to Generate: ", pdf_to_generate)
                                     print(f"🔹🔹🔹{100*'-'}🔹🔹🔹")
                                 else:
                                     logger.error(f"Failed to generate PDF for the disbursement: {disbursement.get('basicAppId')}")
                                     print(f"❌ Failed to generate PDF for the disbursement: {disbursement.get('basicAppId')}")
                                     print(f"🔹🔹🔹{100*'-'}🔹🔹🔹")
+
+                                print(f"🔹🔹🔹{100*'-'}🔹🔹🔹")
+                                new_disbursements.append(disbursement)
+                                logger.info(f"✅ Added the disbursement to the new disbursements list")
 
                             else:
                                 if disbursement.get('confirmation_outcome', {}).get('disbursement_id_valid') == True:
@@ -863,7 +870,7 @@ def save_pdf_and_update_disbursement_proof(disbursement: Dict, pdf_bytes: bytes)
             - disbursement_proof_sent: int containing the status of the disbursement proof sent
     """
 
-    upload_outcome = {"presigned_s3_url": 0, "s3_uploaded": 0, "disbursement_proof_sent": 0}
+    upload_outcome = {"presigned_s3_url": 0, "s3_uploaded": 0, "disbursement_proof_sent": 0, "disbursement_proof_status": None, "filename": None}
 
     # Validate the disbursement id
     if disbursement.get('disbursementId').lower() not in ["", None, "none", "not found"]:
@@ -874,6 +881,7 @@ def save_pdf_and_update_disbursement_proof(disbursement: Dict, pdf_bytes: bytes)
     # Populate the filename and key for the S3 upload 
     filename = f"{disbursement_id}-{str(uuid4())}.pdf"
     key = f"users/vbb-disbursements/{filename}"
+    upload_outcome["filename"] = filename
     logger.info(f"✅ Filename: {filename}")
     
     # Upload the file to S3 bucket
@@ -912,6 +920,7 @@ def save_pdf_and_update_disbursement_proof(disbursement: Dict, pdf_bytes: bytes)
                 "disbursementProofUrl":disbursement_proof_url
             })
             if update_disbursement_proof_response:
+                upload_outcome["disbursement_proof_status"] = update_disbursement_proof_response.get('result')[0].get('status')
                 logger.info(f"✅ Disbursement proof sent to Basic Application API: {update_disbursement_proof_response.get('result')[0].get('status')}")
                 print(f"🔹🔹🔹Proof Sent: {update_disbursement_proof_response}")
                 upload_outcome["disbursement_proof_sent"] = 1

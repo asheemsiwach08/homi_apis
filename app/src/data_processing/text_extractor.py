@@ -330,7 +330,7 @@ def gather_pdf_content(email: dict) -> tuple[str, dict]:
 
         filtered_content = content
         filtered_content = filtered_content.replace("Part-1 of Thread:", "\n-+-\n").replace("Part-2 of Thread:", "\n-+-\n").replace("Part-3 of Thread:", "\n-+-\n")
-        print("🔹🔹🔹 Filtered Content: ", filtered_content)
+        # print("🔹🔹🔹 Filtered Content: ", filtered_content)
         
         pdf_content = f"""
         From: {email['sender']}
